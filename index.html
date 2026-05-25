@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LTL联赛规则中心</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="#home"><span class="brand-mark">LTL</span><span class="brand-text">联赛规则中心</span></a>
+      <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+      <div class="nav-links" id="navLinks">
+        <a href="#news">公告</a><a href="#teams">队伍</a><a href="#rules">规则</a><a href="#tools">计算器</a><a href="#schedule">赛程</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="home">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">LTL LEAGUE / RULE CENTER</p>
+        <h1>LTL联赛规则中心</h1>
+        <p class="hero-desc">集中展示群内联赛赛制、P币、身价、租借、转会、奢侈税与多人名单规则。后续只需要更新本页面数据，大家就能快速查阅最新规则。</p>
+        <div class="hero-actions"><a class="btn primary" href="#rules">查看规则</a><a class="btn ghost" href="#tools">使用计算器</a></div>
+      </div>
+      <div class="hero-card">
+        <div class="trophy">🏆</div>
+        <h2>当前工资帽参考线</h2>
+        <div class="hero-number" id="taxLineDisplay">10646P</div>
+        <p>应税线=联盟平均身价×5×90%</p>
+      </div>
+    </section>
+
+    <section class="stats-grid">
+      <article class="stat"><span>战队数量</span><strong>6</strong><small>秦/楚/蜀/吴/越/燕</small></article>
+      <article class="stat"><span>选手数量</span><strong>30</strong><small>当前基础名单</small></article>
+      <article class="stat"><span>赛制</span><strong>BO2/BO3</strong><small>周内与周末分开结算</small></article>
+      <article class="stat"><span>身价机制</span><strong>动态浮动</strong><small>表现好加分，表现差扣分</small></article>
+    </section>
+
+    <section class="section" id="news">
+      <div class="section-heading"><p class="eyebrow">ANNOUNCEMENTS</p><h2>最新公告</h2></div>
+      <div class="timeline">
+        <article class="timeline-item active"><time>2026.05.25</time><h3>多人名单奢侈税修正规则</h3><p>队伍可以拥有超过5名在职人数（包括教练），但队伍人数越多，最终奢侈税越高；临时租借选手不计入队伍在职人数。</p></article>
+        <article class="timeline-item"><time>2026.05.24</time><h3>多人名单规则讨论版</h3><p>明确奢侈税仍以实际出场5人总身价L为基础，并引入替补修正因子。</p></article>
+        <article class="timeline-item"><time>2026.05.22</time><h3>租借规则与追赶基金</h3><p>BO2租借费45%，BO3租借费60%；取消固定工资补贴，改为面向落后队伍的追赶基金。</p></article>
+        <article class="timeline-item"><time>2026.05.21</time><h3>选手身价动态调整规则启用</h3><p>每场正式比赛后，选手身价根据对位表现、赛果、KDA、参团率、输出占比与荣誉分实时浮动。</p></article>
+      </div>
+    </section>
+
+    <section class="section" id="teams">
+      <div class="section-heading row"><div><p class="eyebrow">TEAMS</p><h2>队伍名单与资产</h2></div><input id="teamSearch" class="search" type="search" placeholder="搜索队伍或选手..." /></div>
+      <div class="team-grid" id="teamGrid"></div>
+    </section>
+
+    <section class="section" id="rules">
+      <div class="section-heading"><p class="eyebrow">RULEBOOK</p><h2>规则手册</h2></div>
+      <div class="accordion">
+        <article class="accordion-item open"><button class="accordion-title"><span>1. 赛制与积分</span><b>+</b></button><div class="accordion-panel"><table class="rule-table"><thead><tr><th>赛制</th><th>结果</th><th>积分</th></tr></thead><tbody><tr><td>BO3</td><td>2:0获胜</td><td>胜方+3，败方+0</td></tr><tr><td>BO3</td><td>2:1获胜</td><td>胜方+2，败方+1</td></tr><tr><td>BO2</td><td>2:0获胜</td><td>胜方+3，败方+0</td></tr><tr><td>BO2</td><td>1:1平局</td><td>双方各+1</td></tr><tr><td>BO1</td><td>1:0获胜</td><td>胜方+1，败方+0</td></tr><tr><td>弃赛</td><td>弃赛方</td><td>-3，对手按对应赛制获得最大胜利积分</td></tr></tbody></table></div></article>
+
+        <article class="accordion-item"><button class="accordion-title"><span>2. 多人名单奢侈税修正规则</span><b>+</b></button><div class="accordion-panel"><p>队伍可以拥有超过5名在职人数（包括教练），但队伍在职人数越多，最终奢侈税越高。本场基础奢侈税仍按照实际出场5人的总身价L计算；若队伍在职人数超过5人，则用于奢侈税计算的总身价L乘以修正因子。</p><table class="rule-table"><thead><tr><th>在职人数</th><th>修正因子</th></tr></thead><tbody><tr><td>5人</td><td>×1.00</td></tr><tr><td>6人</td><td>×1.10</td></tr><tr><td>7人</td><td>×1.25</td></tr><tr><td>8人</td><td>×1.45</td></tr><tr><td>9人</td><td>×1.70</td></tr><tr><td>10人及以上</td><td>×2.00</td></tr></tbody></table><p class="note">租借选手临时出场不计入队伍在职人数；若正式登记进入队伍名单，则计入在职人数。</p></div></article>
+
+        <article class="accordion-item"><button class="accordion-title"><span>3. 奢侈税分段税率</span><b>+</b></button><div class="accordion-panel"><p>应税部分X=max(0，修正后的L−90%R)，其中R=全联盟30名在职选手平均身价×5。</p><div class="two-col"><table class="rule-table"><thead><tr><th colspan="2">周内BO2</th></tr></thead><tbody><tr><td>0-1000P</td><td>×0.8</td></tr><tr><td>1001-2000P</td><td>×1.1</td></tr><tr><td>2001-3000P</td><td>×1.4</td></tr><tr><td>3001-4000P</td><td>×1.8</td></tr><tr><td>4000P以上</td><td>×2.3</td></tr></tbody></table><table class="rule-table"><thead><tr><th colspan="2">周末BO3</th></tr></thead><tbody><tr><td>0-1000P</td><td>×1.0</td></tr><tr><td>1001-2000P</td><td>×1.3</td></tr><tr><td>2001-3000P</td><td>×1.7</td></tr><tr><td>3001-4000P</td><td>×2.2</td></tr><tr><td>4000P以上</td><td>×2.8</td></tr></tbody></table></div></div></article>
+
+        <article class="accordion-item"><button class="accordion-title"><span>4. 租借规则</span><b>+</b></button><div class="accordion-panel"><ul class="rule-list"><li>租借必须由租借队伍、原队伍和选手本人三方同意。</li><li>周内BO2租借费为选手身价45%；周末BO3租借费为选手身价60%。</li><li>若租借选手出任不同位置，由双方队长议定等效身价，并报联盟批准。</li><li>租借费分配：40%进入选手个人账户，40%归原队伍，20%由联盟回收；自由人租借时60%由联盟回收。</li><li>租借选手出场时，其身价计入租借队伍本场出场总身价L，并参与奢侈税计算。</li><li>租借结束后，选手自动回归原队。</li><li>若因选手日程冲突导致缺人且租借队伍P币不足，可申请救急租借，先支付部分租借费，剩余费用从赛后奖金或下周补贴中扣除，并附带利息。</li></ul></div></article>
+
+        <article class="accordion-item"><button class="accordion-title"><span>5. 追赶基金</span><b>+</b></button><div class="accordion-panel"><p>取消每队每周固定3000P工资补贴，改为追赶基金。</p><ul class="rule-list"><li>每周比赛全部结算后，若队伍排名倒数前2且P币低于5000P，可申请领取补助。</li><li>倒数第1补助4000P，倒数第2补助2000P。</li><li>补助后队伍P币最高不得超过6000P，实际补助=min(应得补助，6000P-当前P币)。</li><li>领取追赶基金后，该小队需保证队内现有成员在下一周内至少一次共同出场比赛。</li></ul></div></article>
+
+        <article class="accordion-item"><button class="accordion-title"><span>6. 身价动态调整与软边界</span><b>+</b></button><div class="accordion-panel"><p>每场正式比赛后，选手身价根据“对位表现分+赛果分+数据修正分+荣誉分”调整。对位表现采用非线性对位预期评分差公式；最终按1P取整。</p><p>软边界修正规则：若选手当前身价高于3500P，则其正向涨幅乘以<code>(1500/(当前身价-2000))²</code>；若选手当前身价低于1500P，则其负向跌幅乘以<code>(1000/(2500-当前身价))²</code>。该规则不设置硬上限或硬下限。</p></div></article>
+
+        <article class="accordion-item"><button class="accordion-title"><span>7. P币兑换</span><b>+</b></button><div class="accordion-panel"><p>选手每拥有10000P币，则可兑换10000英雄联盟点券或¥100。</p></div></article>
+      </div>
+    </section>
+
+    <section class="section" id="tools">
+      <div class="section-heading"><p class="eyebrow">TOOLS</p><h2>简易计算器</h2></div>
+      <div class="tool-grid">
+        <article class="tool-card"><h3>奢侈税计算器</h3><label>实际出场5人总身价L<input type="number" id="luxuryL" value="13000" /></label><label>队伍在职人数<input type="number" id="rosterN" value="5" min="5" /></label><label>赛制<select id="format"><option value="BO2">BO2</option><option value="BO3">BO3</option></select></label><button class="btn primary" id="calcLuxury">计算奢侈税</button><div class="result" id="luxuryResult">输入数据后点击计算。</div></article>
+        <article class="tool-card"><h3>租借费用计算器</h3><label>选手身价/等效身价<input type="number" id="loanValue" value="3000" /></label><label>赛制<select id="loanFormat"><option value="BO2">BO2：45%</option><option value="BO3">BO3：60%</option></select></label><label>选手类型<select id="loanType"><option value="team">有原队伍选手</option><option value="free">自由人</option></select></label><button class="btn primary" id="calcLoan">计算租借费</button><div class="result" id="loanResult">输入数据后点击计算。</div></article>
+        <article class="tool-card"><h3>P币兑换</h3><label>选手拥有P币<input type="number" id="pCoins" value="10000" /></label><button class="btn primary" id="calcExchange">计算可兑换</button><div class="result" id="exchangeResult">10000P币=10000点券或¥100。</div></article>
+      </div>
+    </section>
+
+    <section class="section" id="schedule"><div class="section-heading"><p class="eyebrow">SCHEDULE</p><h2>前两轮赛程</h2></div><div class="schedule-list"><div><strong>第一轮BO3</strong><span>秦国队vs燕国队｜楚国队vs蜀国队｜吴国队vs越国队</span></div><div><strong>第二轮BO2</strong><span>楚国队vs越国队｜秦国队vs蜀国队｜吴国队vs燕国队</span></div></div></section>
+  </main>
+
+  <footer class="footer"><p>LTL联赛规则中心｜建议每次规则更新后同步修改本页面。</p></footer>
+  <script src="script.js"></script>
+</body>
+</html>
