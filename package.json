@@ -1,0 +1,10 @@
+{
+  "name": "ltl-league-site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node tools/static-server.mjs",
+    "check": "node --check src/main.js && node --check src/data/league.js && node --check src/services/leagueMetrics.js && node --check src/features/content.js && node --check src/features/standings.js && node --check src/features/teams.js && node --check src/features/calculators.js && node --check src/features/navigation.js && node --check tools/static-server.mjs"
+  }
+}

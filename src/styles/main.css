@@ -334,7 +334,7 @@ select {
 }
 
 .team-card[data-state="秦"] {
-  --team-logo: url("assets/qin.png");
+  --team-logo: url("../../assets/qin.png");
   --team-glow: rgba(105, 190, 255, 0.72);
   --team-shadow: rgba(121, 231, 255, 0.82);
   --team-line: rgba(121, 231, 255, 0.38);
@@ -342,7 +342,7 @@ select {
 }
 
 .team-card[data-state="楚"] {
-  --team-logo: url("assets/chu.png");
+  --team-logo: url("../../assets/chu.png");
   --team-glow: rgba(184, 116, 255, 0.72);
   --team-shadow: rgba(184, 116, 255, 0.82);
   --team-line: rgba(184, 116, 255, 0.38);
@@ -350,7 +350,7 @@ select {
 }
 
 .team-card[data-state="蜀"] {
-  --team-logo: url("assets/shu.png");
+  --team-logo: url("../../assets/shu.png");
   --team-glow: rgba(92, 255, 173, 0.68);
   --team-shadow: rgba(92, 255, 173, 0.78);
   --team-line: rgba(92, 255, 173, 0.34);
@@ -358,7 +358,7 @@ select {
 }
 
 .team-card[data-state="吴"] {
-  --team-logo: url("assets/wu.png");
+  --team-logo: url("../../assets/wu.png");
   --team-glow: rgba(255, 207, 108, 0.72);
   --team-shadow: rgba(255, 207, 108, 0.82);
   --team-line: rgba(255, 207, 108, 0.36);
@@ -366,7 +366,7 @@ select {
 }
 
 .team-card[data-state="越"] {
-  --team-logo: url("assets/yue.png");
+  --team-logo: url("../../assets/yue.png");
   --team-glow: rgba(255, 112, 172, 0.7);
   --team-shadow: rgba(255, 112, 172, 0.8);
   --team-line: rgba(255, 112, 172, 0.36);
@@ -374,7 +374,7 @@ select {
 }
 
 .team-card[data-state="燕"] {
-  --team-logo: url("assets/yan.png");
+  --team-logo: url("../../assets/yan.png");
   --team-glow: rgba(255, 135, 84, 0.7);
   --team-shadow: rgba(255, 135, 84, 0.8);
   --team-line: rgba(255, 135, 84, 0.36);

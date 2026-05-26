@@ -1,0 +1,15 @@
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+.server.*
+
+# Dependency and build output for future tooling
+node_modules/
+dist/
+build/
+coverage/
