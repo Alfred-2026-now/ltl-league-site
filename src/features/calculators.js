@@ -1,4 +1,4 @@
-import { calcExchangeUnits, calcLoanFee, calcLuxuryTax, formatP, getTaxLine } from "../services/leagueMetrics.js";
+import { calcLoanFee, calcLuxuryTax, formatP, getTaxLine } from "../services/leagueMetrics.js";
 
 export function setupCalculators(teams) {
   const taxLineDisplay = document.getElementById("taxLineDisplay");
@@ -8,7 +8,6 @@ export function setupCalculators(teams) {
 
   setupLuxuryTaxCalculator(teams);
   setupLoanCalculator();
-  setupExchangeCalculator();
 }
 
 function setupLuxuryTaxCalculator(teams) {
@@ -45,20 +44,5 @@ function setupLoanCalculator() {
       `选手个人账户：${formatP(result.player)}<br>` +
       `原队伍收益：${formatP(result.sourceTeam)}<br>` +
       `联盟回收：${formatP(result.league)}`;
-  });
-}
-
-function setupExchangeCalculator() {
-  const button = document.getElementById("calcExchange");
-  if (!button) return;
-
-  button.addEventListener("click", () => {
-    const pCoins = Number(document.getElementById("pCoins").value || 0);
-    const units = calcExchangeUnits(pCoins);
-
-    document.getElementById("exchangeResult").innerHTML =
-      `可兑换次数：${units}次<br>` +
-      `可兑换点券：${units * 10000}英雄联盟点券<br>` +
-      `或可兑换：¥${units * 100}`;
   });
 }
