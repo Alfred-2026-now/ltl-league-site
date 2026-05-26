@@ -9,15 +9,15 @@
 <body>
   <header class="site-header">
     <nav class="nav">
-      <a class="brand" href="#home"><span class="brand-mark">LTL</span><span class="brand-text">联赛规则中心</span></a>
+      <a class="brand" href="index.html"><span class="brand-mark">LTL</span><span class="brand-text">联赛规则中心</span></a>
       <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
       <div class="nav-links" id="navLinks">
-        <a href="#news">公告</a>
-        <a href="#standings">积分榜</a>
-        <a href="#teams">队伍</a>
-        <a href="#rules">规则</a>
-        <a href="#tools">计算器</a>
-        <a href="#schedule">赛程</a>
+        <a href="announcements.html">公告</a>
+        <a href="standings.html">积分榜</a>
+        <a href="teams.html">队伍</a>
+        <a href="rules.html">规则</a>
+        <a href="tools.html">计算器</a>
+        <a href="schedule.html">赛程</a>
         <a href="match-history.html">战绩</a>
       </div>
     </nav>
@@ -30,8 +30,8 @@
         <h1>LTL联赛规则中心</h1>
         <p class="hero-desc">集中展示群内联赛赛制、P币、身价、租借、转会、奢侈税与多人名单规则。后续只需要更新结构化数据，大家就能快速查阅最新规则。</p>
         <div class="hero-actions">
-          <a class="btn primary" href="#rules">查看规则</a>
-          <a class="btn ghost" href="#tools">使用计算器</a>
+          <a class="btn primary" href="rules.html">查看规则</a>
+          <a class="btn ghost" href="tools.html">使用计算器</a>
         </div>
       </div>
       <div class="hero-card">
@@ -43,65 +43,6 @@
     </section>
 
     <section class="stats-grid" id="statsGrid"></section>
-
-    <section class="section" id="news">
-      <div class="section-heading"><p class="eyebrow">ANNOUNCEMENTS</p><h2>最新公告</h2></div>
-      <div class="timeline" id="announcementList"></div>
-    </section>
-
-    <section class="section" id="standings">
-      <div class="section-heading"><p class="eyebrow">STANDINGS</p><h2>战队积分排行榜</h2></div>
-      <table class="rule-table">
-        <thead><tr><th>联赛排名</th><th>队伍</th><th>当前积分</th><th>队伍P币</th><th>在职总身价</th></tr></thead>
-        <tbody id="standingsTable"></tbody>
-      </table>
-    </section>
-
-    <section class="section" id="teams">
-      <div class="section-heading row">
-        <div><p class="eyebrow">TEAMS</p><h2>队伍名单与资产</h2></div>
-        <input id="teamSearch" class="search" type="search" placeholder="搜索队伍或选手..." />
-      </div>
-      <div class="team-grid" id="teamGrid"></div>
-    </section>
-
-    <section class="section" id="rules">
-      <div class="section-heading"><p class="eyebrow">RULEBOOK</p><h2>规则手册</h2></div>
-      <div class="accordion" id="rulebook"></div>
-    </section>
-
-    <section class="section" id="tools">
-      <div class="section-heading"><p class="eyebrow">TOOLS</p><h2>简易计算器</h2></div>
-      <div class="tool-grid">
-        <article class="tool-card">
-          <h3>奢侈税计算器</h3>
-          <label>实际出场5人总身价L<input type="number" id="luxuryL" value="13000" /></label>
-          <label>队伍在职人数<input type="number" id="rosterN" value="5" min="5" /></label>
-          <label>赛制<select id="format"><option value="BO2">BO2</option><option value="BO3">BO3</option></select></label>
-          <button class="btn primary" id="calcLuxury">计算奢侈税</button>
-          <div class="result" id="luxuryResult">输入数据后点击计算。</div>
-        </article>
-        <article class="tool-card">
-          <h3>租借费用计算器</h3>
-          <label>选手身价/等效身价<input type="number" id="loanValue" value="3000" /></label>
-          <label>赛制<select id="loanFormat"><option value="BO2">BO2：45%</option><option value="BO3">BO3：60%</option></select></label>
-          <label>选手类型<select id="loanType"><option value="team">有原队伍选手</option><option value="free">自由人</option></select></label>
-          <button class="btn primary" id="calcLoan">计算租借费</button>
-          <div class="result" id="loanResult">输入数据后点击计算。</div>
-        </article>
-        <article class="tool-card">
-          <h3>P币兑换</h3>
-          <label>选手拥有P币<input type="number" id="pCoins" value="10000" /></label>
-          <button class="btn primary" id="calcExchange">计算可兑换</button>
-          <div class="result" id="exchangeResult">10000P币=10000点券或¥100。</div>
-        </article>
-      </div>
-    </section>
-
-    <section class="section" id="schedule">
-      <div class="section-heading"><p class="eyebrow">SCHEDULE</p><h2>赛程安排</h2></div>
-      <div class="schedule-list" id="scheduleList"></div>
-    </section>
   </main>
 
   <footer class="footer"><p>LTL联赛规则中心｜建议每次规则更新后同步修改结构化数据。</p></footer>

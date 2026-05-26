@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LTL队伍名单</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="index.html"><span class="brand-mark">LTL</span><span class="brand-text">联赛规则中心</span></a>
+      <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+      <div class="nav-links" id="navLinks">
+        <a href="announcements.html">公告</a>
+        <a href="standings.html">积分榜</a>
+        <a class="active" href="teams.html">队伍</a>
+        <a href="rules.html">规则</a>
+        <a href="tools.html">计算器</a>
+        <a href="schedule.html">赛程</a>
+        <a href="match-history.html">战绩</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="page-shell">
+    <section class="section">
+      <div class="section-heading row">
+        <div><p class="eyebrow">TEAMS</p><h1 class="page-title">队伍名单与资产</h1></div>
+        <input id="teamSearch" class="search" type="search" placeholder="搜索队伍或选手..." />
+      </div>
+      <div class="team-grid" id="teamGrid"></div>
+    </section>
+  </main>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

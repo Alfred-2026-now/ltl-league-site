@@ -19,13 +19,15 @@ export function setupNav() {
 
 export function setupActiveNav() {
   const links = [...document.querySelectorAll(".nav-links a")];
-  const sections = links.map(anchor => document.querySelector(anchor.getAttribute("href"))).filter(Boolean);
+  const hashLinks = links.filter(anchor => anchor.getAttribute("href")?.startsWith("#"));
+  const sections = hashLinks.map(anchor => document.querySelector(anchor.getAttribute("href"))).filter(Boolean);
+  if (!hashLinks.length || !sections.length) return;
 
   window.addEventListener("scroll", () => {
     let current = "";
     sections.forEach(section => {
       if (window.scrollY >= section.offsetTop - 120) current = `#${section.id}`;
     });
-    links.forEach(anchor => anchor.classList.toggle("active", anchor.getAttribute("href") === current));
+    hashLinks.forEach(anchor => anchor.classList.toggle("active", anchor.getAttribute("href") === current));
   });
 }

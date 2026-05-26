@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LTL计算器</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="index.html"><span class="brand-mark">LTL</span><span class="brand-text">联赛规则中心</span></a>
+      <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+      <div class="nav-links" id="navLinks">
+        <a href="announcements.html">公告</a>
+        <a href="standings.html">积分榜</a>
+        <a href="teams.html">队伍</a>
+        <a href="rules.html">规则</a>
+        <a class="active" href="tools.html">计算器</a>
+        <a href="schedule.html">赛程</a>
+        <a href="match-history.html">战绩</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="page-shell">
+    <section class="section">
+      <div class="section-heading"><p class="eyebrow">TOOLS</p><h1 class="page-title">简易计算器</h1></div>
+      <div class="tool-grid">
+        <article class="tool-card">
+          <h3>奢侈税计算器</h3>
+          <label>实际出场5人总身价L<input type="number" id="luxuryL" value="13000" /></label>
+          <label>队伍在职人数<input type="number" id="rosterN" value="5" min="5" /></label>
+          <label>赛制<select id="format"><option value="BO2">BO2</option><option value="BO3">BO3</option></select></label>
+          <button class="btn primary" id="calcLuxury">计算奢侈税</button>
+          <div class="result" id="luxuryResult">输入数据后点击计算。</div>
+        </article>
+        <article class="tool-card">
+          <h3>租借费用计算器</h3>
+          <label>选手身价/等效身价<input type="number" id="loanValue" value="3000" /></label>
+          <label>赛制<select id="loanFormat"><option value="BO2">BO2：45%</option><option value="BO3">BO3：60%</option></select></label>
+          <label>选手类型<select id="loanType"><option value="team">有原队伍选手</option><option value="free">自由人</option></select></label>
+          <button class="btn primary" id="calcLoan">计算租借费</button>
+          <div class="result" id="loanResult">输入数据后点击计算。</div>
+        </article>
+        <article class="tool-card">
+          <h3>P币兑换</h3>
+          <label>选手拥有P币<input type="number" id="pCoins" value="10000" /></label>
+          <button class="btn primary" id="calcExchange">计算可兑换</button>
+          <div class="result" id="exchangeResult">10000P币=10000点券或¥100。</div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

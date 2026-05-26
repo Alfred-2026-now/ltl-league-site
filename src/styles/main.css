@@ -114,6 +114,12 @@ main {
   margin: 0 auto;
   padding: 34px 22px 80px;
 }
+.page-shell {
+  padding-top: 54px;
+}
+.page-shell .section {
+  margin-top: 0;
+}
 .hero {
   min-height: 520px;
   display: grid;
