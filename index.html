@@ -12,7 +12,7 @@
       <a class="brand" href="#home"><span class="brand-mark">LTL</span><span class="brand-text">联赛规则中心</span></a>
       <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
       <div class="nav-links" id="navLinks">
-        <a href="#news">公告</a><a href="#teams">队伍</a><a href="#rules">规则</a><a href="#tools">计算器</a><a href="#schedule">赛程</a>
+        <a href="#news">公告</a><a href="#standings">积分榜</a><a href="#teams">队伍</a><a href="#rules">规则</a><a href="#tools">计算器</a><a href="#schedule">赛程</a>
       </div>
     </nav>
   </header>
@@ -28,14 +28,14 @@
       <div class="hero-card">
         <div class="trophy">🏆</div>
         <h2>当前工资帽参考线</h2>
-        <div class="hero-number" id="taxLineDisplay">10646P</div>
-        <p>应税线=联盟平均身价×5×90%</p>
+        <div class="hero-number" id="taxLineDisplay">10750P</div>
+        <p>工资帽线=所有在战队选手平均身价×5×92%</p>
       </div>
     </section>
 
     <section class="stats-grid">
       <article class="stat"><span>战队数量</span><strong>6</strong><small>秦/楚/蜀/吴/越/燕</small></article>
-      <article class="stat"><span>选手数量</span><strong>30</strong><small>当前基础名单</small></article>
+      <article class="stat"><span>选手数量</span><strong>31</strong><small>当前在战队名单</small></article>
       <article class="stat"><span>赛制</span><strong>BO2/BO3</strong><small>周内与周末分开结算</small></article>
       <article class="stat"><span>身价机制</span><strong>动态浮动</strong><small>表现好加分，表现差扣分</small></article>
     </section>
@@ -50,6 +50,14 @@
       </div>
     </section>
 
+    <section class="section" id="standings">
+      <div class="section-heading"><p class="eyebrow">STANDINGS</p><h2>战队积分排行榜</h2></div>
+      <table class="rule-table">
+        <thead><tr><th>联赛排名</th><th>队伍</th><th>当前积分</th><th>队伍P币</th><th>在职总身价</th></tr></thead>
+        <tbody id="standingsTable"></tbody>
+      </table>
+    </section>
+
     <section class="section" id="teams">
       <div class="section-heading row"><div><p class="eyebrow">TEAMS</p><h2>队伍名单与资产</h2></div><input id="teamSearch" class="search" type="search" placeholder="搜索队伍或选手..." /></div>
       <div class="team-grid" id="teamGrid"></div>
@@ -62,7 +70,7 @@
 
         <article class="accordion-item"><button class="accordion-title"><span>2. 多人名单奢侈税修正规则</span><b>+</b></button><div class="accordion-panel"><p>队伍可以拥有超过5名在职人数（包括教练），但队伍在职人数越多，最终奢侈税越高。本场基础奢侈税仍按照实际出场5人的总身价L计算；若队伍在职人数超过5人，则用于奢侈税计算的总身价L乘以修正因子。</p><table class="rule-table"><thead><tr><th>在职人数</th><th>修正因子</th></tr></thead><tbody><tr><td>5人</td><td>×1.00</td></tr><tr><td>6人</td><td>×1.10</td></tr><tr><td>7人</td><td>×1.25</td></tr><tr><td>8人</td><td>×1.45</td></tr><tr><td>9人</td><td>×1.70</td></tr><tr><td>10人及以上</td><td>×2.00</td></tr></tbody></table><p class="note">租借选手临时出场不计入队伍在职人数；若正式登记进入队伍名单，则计入在职人数。</p></div></article>
 
-        <article class="accordion-item"><button class="accordion-title"><span>3. 奢侈税分段税率</span><b>+</b></button><div class="accordion-panel"><p>应税部分X=max(0，修正后的L−90%R)，其中R=全联盟30名在职选手平均身价×5。</p><div class="two-col"><table class="rule-table"><thead><tr><th colspan="2">周内BO2</th></tr></thead><tbody><tr><td>0-1000P</td><td>×0.8</td></tr><tr><td>1001-2000P</td><td>×1.1</td></tr><tr><td>2001-3000P</td><td>×1.4</td></tr><tr><td>3001-4000P</td><td>×1.8</td></tr><tr><td>4000P以上</td><td>×2.3</td></tr></tbody></table><table class="rule-table"><thead><tr><th colspan="2">周末BO3</th></tr></thead><tbody><tr><td>0-1000P</td><td>×1.0</td></tr><tr><td>1001-2000P</td><td>×1.3</td></tr><tr><td>2001-3000P</td><td>×1.7</td></tr><tr><td>3001-4000P</td><td>×2.2</td></tr><tr><td>4000P以上</td><td>×2.8</td></tr></tbody></table></div></div></article>
+        <article class="accordion-item"><button class="accordion-title"><span>3. 奢侈税分段税率</span><b>+</b></button><div class="accordion-panel"><p>应税部分X=max(0，修正后的L−0.92R)，其中R=所有在战队选手的身价平均值×5（目前31位）。</p><div class="two-col"><table class="rule-table"><thead><tr><th colspan="2">周内BO2</th></tr></thead><tbody><tr><td>0-1000P</td><td>×0.8</td></tr><tr><td>1001-2000P</td><td>×1.1</td></tr><tr><td>2001-3000P</td><td>×1.4</td></tr><tr><td>3001-4000P</td><td>×1.8</td></tr><tr><td>4000P以上</td><td>×2.3</td></tr></tbody></table><table class="rule-table"><thead><tr><th colspan="2">周末BO3</th></tr></thead><tbody><tr><td>0-1000P</td><td>×1.0</td></tr><tr><td>1001-2000P</td><td>×1.3</td></tr><tr><td>2001-3000P</td><td>×1.7</td></tr><tr><td>3001-4000P</td><td>×2.2</td></tr><tr><td>4000P以上</td><td>×2.8</td></tr></tbody></table></div></div></article>
 
         <article class="accordion-item"><button class="accordion-title"><span>4. 租借规则</span><b>+</b></button><div class="accordion-panel"><ul class="rule-list"><li>租借必须由租借队伍、原队伍和选手本人三方同意。</li><li>周内BO2租借费为选手身价45%；周末BO3租借费为选手身价60%。</li><li>若租借选手出任不同位置，由双方队长议定等效身价，并报联盟批准。</li><li>租借费分配：40%进入选手个人账户，40%归原队伍，20%由联盟回收；自由人租借时60%由联盟回收。</li><li>租借选手出场时，其身价计入租借队伍本场出场总身价L，并参与奢侈税计算。</li><li>租借结束后，选手自动回归原队。</li><li>若因选手日程冲突导致缺人且租借队伍P币不足，可申请救急租借，先支付部分租借费，剩余费用从赛后奖金或下周补贴中扣除，并附带利息。</li></ul></div></article>
 
