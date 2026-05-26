@@ -62,7 +62,3 @@ export function calcLoanFee(playerValue, format, playerType) {
     league: playerType === "free" ? fee * 0.6 : fee * 0.2
   };
 }
-
-export function calcExchangeUnits(pCoins) {
-  return Math.floor(pCoins / 10000);
-}
