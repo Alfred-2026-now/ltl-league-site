@@ -328,44 +328,6 @@ select {
     linear-gradient(180deg, rgba(20, 35, 76, 0.9), rgba(10, 18, 42, 0.86));
 }
 
-/* 队徽光晕：放在队名右侧，只负责发光，不显示图片本体 */
-.team-card:before {
-  content: "";
-  position: absolute;
-  left: 170px;
-  top: 26px;
-  width: 112px;
-  height: 112px;
-  border-radius: 999px;
-  background:
-    radial-gradient(circle, var(--team-glow) 0%, rgba(255, 255, 255, 0.08) 34%, transparent 72%);
-  filter: blur(16px);
-  opacity: 0.92;
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* 队徽本体：浮在卡片上层，位于队名右侧，无额外方形底框 */
-.team-card:after {
-  content: "";
-  position: absolute;
-  left: 181px;
-  top: 34px;
-  width: 88px;
-  height: 88px;
-  background-image: var(--team-logo);
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: contain;
-  opacity: 0.96;
-  filter:
-    drop-shadow(0 0 8px var(--team-shadow))
-    drop-shadow(0 0 20px var(--team-shadow));
-  mix-blend-mode: screen;
-  pointer-events: none;
-  z-index: 2;
-}
-
 .team-card > * {
   position: relative;
   z-index: 3;
@@ -420,12 +382,52 @@ select {
 }
 
 .team-top {
+  position: relative;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: flex-start;
   gap: 12px;
-  min-height: 128px;
-  margin-bottom: 2px;
+  min-height: 104px;
+  padding-right: 134px;
+  margin-bottom: 6px;
+}
+
+/* 队徽光晕与本体绑定在标题区，垂直居中，更容易和队名对齐 */
+.team-top::before {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 100px;
+  height: 100px;
+  border-radius: 999px;
+  background: radial-gradient(circle, var(--team-glow) 0%, rgba(255, 255, 255, 0.08) 34%, transparent 72%);
+  filter: blur(15px);
+  opacity: 0.92;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.team-top::after {
+  content: "";
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 78px;
+  height: 78px;
+  background-image: var(--team-logo);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: 0.98;
+  filter:
+    drop-shadow(0 0 8px var(--team-shadow))
+    drop-shadow(0 0 18px var(--team-shadow));
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .team-name {
@@ -661,19 +663,17 @@ code {
   }
   .team-top {
     min-height: 96px;
-    padding-right: 110px;
+    padding-right: 116px;
   }
-  .team-card:before {
-    top: 24px;
-    right: 20px;
-    width: 90px;
-    height: 90px;
+  .team-top::before {
+    right: 8px;
+    width: 86px;
+    height: 86px;
   }
-  .team-card:after {
-    top: 28px;
-    right: 24px;
-    width: 72px;
-    height: 72px;
+  .team-top::after {
+    right: 14px;
+    width: 68px;
+    height: 68px;
   }
 }
 
@@ -682,23 +682,21 @@ code {
     padding: 20px;
   }
 
-  .team-card:before {
-    right: 22px;
-    top: 24px;
-    width: 78px;
-    height: 78px;
+  .team-top {
+    min-height: 82px;
+    padding-right: 92px;
   }
 
-  .team-card:after {
-    right: 26px;
-    top: 22px;
+  .team-top::before {
+    right: 4px;
     width: 70px;
     height: 70px;
   }
 
-  .team-top {
-    min-height: 88px;
-    padding-right: 92px;
+  .team-top::after {
+    right: 10px;
+    width: 56px;
+    height: 56px;
   }
 
   .team-name {
