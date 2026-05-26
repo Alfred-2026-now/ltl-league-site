@@ -8,7 +8,7 @@ const teams = [
     points: 9,
     rank: 1,
     players: [
-      ["ZerstaN（自由人）", 1800],
+      ["ZerstaN", 1800],
       ["天下人", 3030],
       ["LOL历史总得分王", 1831],
       ["樱岛麻衣", 2926],
