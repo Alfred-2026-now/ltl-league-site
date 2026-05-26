@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LTL历史比赛战绩详情</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="index.html#home"><span class="brand-mark">LTL</span><span class="brand-text">历史比赛战绩</span></a>
+      <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+      <div class="nav-links" id="navLinks">
+        <a href="index.html#news">公告</a>
+        <a href="index.html#standings">积分榜</a>
+        <a href="index.html#teams">队伍</a>
+        <a href="index.html#rules">规则</a>
+        <a href="index.html#tools">计算器</a>
+        <a href="index.html#schedule">赛程</a>
+        <a class="active" href="match-history.html">战绩</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="history-page">
+    <section class="section" id="match-history">
+      <div class="section-heading row">
+        <div><p class="eyebrow">MATCH HISTORY</p><h1 class="page-title">历史比赛战绩详情</h1></div>
+        <a class="btn ghost" href="index.html#schedule">返回赛程</a>
+      </div>
+      <div class="history-shell">
+        <aside class="history-sidebar">
+          <div class="history-filters">
+            <select id="matchRoundFilter" aria-label="筛选轮次"></select>
+            <select id="matchTeamFilter" aria-label="筛选队伍"></select>
+            <select id="matchStatusFilter" aria-label="筛选状态"></select>
+          </div>
+          <div class="history-list" id="matchHistoryList"></div>
+        </aside>
+        <article class="history-detail" id="matchDetail"></article>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="src/match-history.js"></script>
+</body>
+</html>

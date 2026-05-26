@@ -61,3 +61,5 @@ npm run check
 Git 分支、提交和合并规范见 [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md)。
 系统边界和模块职责见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 后续功能演进见 [docs/ROADMAP.md](docs/ROADMAP.md)。
+国服战绩录入与比赛详情设计见 [docs/MATCH_RESULT_IMPORT.md](docs/MATCH_RESULT_IMPORT.md)。
+战绩详情待细化项见 [docs/MATCH_DETAIL_OPEN_ITEMS.md](docs/MATCH_DETAIL_OPEN_ITEMS.md)。

@@ -35,12 +35,3 @@ export function renderRules(rules) {
     </article>
   `).join("");
 }
-
-export function renderSchedule(schedule) {
-  const list = document.getElementById("scheduleList");
-  if (!list) return;
-
-  list.innerHTML = schedule.map(item => `
-    <div><strong>${item.round}</strong><span>${item.matches}</span></div>
-  `).join("");
-}

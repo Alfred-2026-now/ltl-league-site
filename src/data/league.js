@@ -195,13 +195,303 @@ export const rules = [
   }
 ];
 
+function sampleParticipant({
+  team,
+  sourceTeam = team,
+  playerName,
+  accountName = playerName,
+  position,
+  champion,
+  kda,
+  cs,
+  gold,
+  damage,
+  taken,
+  vision,
+  kp,
+  objectiveDelta = 0,
+  subjectiveDelta = 0,
+  before = 2000,
+  isLoan = false
+}) {
+  return {
+    position,
+    account: {
+      puuid: `sample-${accountName.toLowerCase().replaceAll(" ", "-")}`,
+      summonerName: accountName,
+      gameName: accountName,
+      tagLine: "LTL"
+    },
+    mappedPlayer: {
+      playerId: `player-${playerName.toLowerCase().replaceAll(" ", "-")}`,
+      playerName,
+      confirmedBy: "管理员示例",
+      confirmedAt: "2026-05-26T20:00:00+08:00"
+    },
+    rosterContext: {
+      representingTeam: team,
+      sourceTeam,
+      isLoan,
+      isSubstitute: false
+    },
+    loadout: {
+      champion: { id: null, name: champion },
+      spells: ["闪现", position === "JUG" ? "惩戒" : "待导入"],
+      runes: { primary: "待导入", secondary: "待导入" },
+      items: { final: [], purchases: [] }
+    },
+    combatStats: {
+      kills: kda[0],
+      deaths: kda[1],
+      assists: kda[2],
+      largestKillingSpree: 0,
+      damageDealtToChampions: damage,
+      physicalDamageDealtToChampions: 0,
+      magicDamageDealtToChampions: 0,
+      trueDamageDealtToChampions: 0,
+      totalDamageDealt: 0,
+      totalDamageTaken: taken,
+      damageSelfMitigated: 0,
+      healingDone: 0,
+      shieldingDone: 0
+    },
+    economyStats: {
+      goldEarned: gold,
+      goldSpent: 0,
+      totalMinionsKilled: cs,
+      neutralMinionsKilled: position === "JUG" ? cs : 0,
+      csPerMinute: 0
+    },
+    visionStats: {
+      visionScore: vision,
+      wardsPlaced: 0,
+      wardsKilled: 0,
+      controlWardsPurchased: 0
+    },
+    objectiveStats: {
+      turretKills: 0,
+      inhibitorKills: 0,
+      dragonKills: position === "JUG" ? 1 : 0,
+      baronKills: 0
+    },
+    derivedStats: {
+      killParticipation: kp,
+      damageShare: 0,
+      goldShare: 0,
+      deathShare: 0
+    },
+    valuation: {
+      before,
+      objectiveDelta,
+      subjectiveDelta,
+      subjectiveReason: subjectiveDelta ? "示例主观表现分" : "",
+      after: before + objectiveDelta + subjectiveDelta
+    }
+  };
+}
+
+const qinGameOne = [
+  sampleParticipant({ team: "秦", playerName: "ZerstaN", position: "TOP", champion: "奎桑提", kda: [3, 2, 8], cs: 244, gold: 13280, damage: 21600, taken: 31800, vision: 27, kp: 0.61, before: 1800, objectiveDelta: 45 }),
+  sampleParticipant({ team: "秦", playerName: "天下人", position: "JUG", champion: "蔚", kda: [4, 1, 12], cs: 181, gold: 12640, damage: 14800, taken: 28200, vision: 34, kp: 0.89, before: 3030, objectiveDelta: 82, subjectiveDelta: 20 }),
+  sampleParticipant({ team: "秦", playerName: "LOL历史总得分王", position: "MID", champion: "阿狸", kda: [6, 1, 7], cs: 279, gold: 15120, damage: 28900, taken: 17400, vision: 25, kp: 0.72, before: 1831, objectiveDelta: 96 }),
+  sampleParticipant({ team: "秦", playerName: "樱岛麻衣", position: "BOT", champion: "泽丽", kda: [8, 2, 6], cs: 312, gold: 17450, damage: 34100, taken: 19600, vision: 22, kp: 0.78, before: 2926, objectiveDelta: 110 }),
+  sampleParticipant({ team: "秦", playerName: "BUAA2wh", position: "SUP", champion: "洛", kda: [1, 3, 16], cs: 38, gold: 8620, damage: 7200, taken: 24100, vision: 71, kp: 0.94, before: 3466, objectiveDelta: 54 }),
+  sampleParticipant({ team: "燕", playerName: "想你时风起", position: "TOP", champion: "鳄鱼", kda: [2, 4, 3], cs: 226, gold: 11240, damage: 18900, taken: 33600, vision: 19, kp: 0.42, before: 3279, objectiveDelta: -38 }),
+  sampleParticipant({ team: "燕", playerName: "凯隐不是该赢吗", position: "JUG", champion: "佛耶戈", kda: [3, 5, 4], cs: 168, gold: 10780, damage: 16700, taken: 27100, vision: 28, kp: 0.58, before: 2402, objectiveDelta: -44 }),
+  sampleParticipant({ team: "燕", playerName: "不够活跃", position: "MID", champion: "辛德拉", kda: [1, 3, 5], cs: 258, gold: 11630, damage: 22400, taken: 15100, vision: 21, kp: 0.5, before: 2190, objectiveDelta: -26 }),
+  sampleParticipant({ team: "燕", playerName: "明栗双收", position: "BOT", champion: "厄斐琉斯", kda: [3, 4, 3], cs: 296, gold: 13920, damage: 30100, taken: 20800, vision: 18, kp: 0.5, before: 1268, objectiveDelta: -12 }),
+  sampleParticipant({ team: "燕", playerName: "坑货、别靠近我", position: "SUP", champion: "泰坦", kda: [0, 6, 7], cs: 42, gold: 7450, damage: 6100, taken: 26300, vision: 63, kp: 0.58, before: 2044, objectiveDelta: -35 })
+];
+
+const qinGameTwo = [
+  sampleParticipant({ team: "秦", playerName: "ZerstaN", position: "TOP", champion: "兰博", kda: [1, 4, 5], cs: 218, gold: 10460, damage: 20500, taken: 28700, vision: 21, kp: 0.43, before: 1845, objectiveDelta: -24 }),
+  sampleParticipant({ team: "秦", playerName: "天下人", position: "JUG", champion: "盲僧", kda: [2, 5, 6], cs: 154, gold: 9980, damage: 13100, taken: 25500, vision: 30, kp: 0.57, before: 3132, objectiveDelta: -31 }),
+  sampleParticipant({ team: "秦", playerName: "LOL历史总得分王", position: "MID", champion: "沙皇", kda: [4, 2, 4], cs: 286, gold: 13820, damage: 26800, taken: 16500, vision: 24, kp: 0.57, before: 1927, objectiveDelta: 18 }),
+  sampleParticipant({ team: "秦", playerName: "樱岛麻衣", position: "BOT", champion: "霞", kda: [2, 4, 6], cs: 301, gold: 13190, damage: 24600, taken: 19800, vision: 19, kp: 0.57, before: 3036, objectiveDelta: -16 }),
+  sampleParticipant({ team: "秦", playerName: "BUAA2wh", position: "SUP", champion: "芮尔", kda: [0, 6, 8], cs: 35, gold: 7120, damage: 5900, taken: 30200, vision: 64, kp: 0.57, before: 3520, objectiveDelta: -22 }),
+  sampleParticipant({ team: "燕", playerName: "想你时风起", position: "TOP", champion: "剑魔", kda: [5, 1, 8], cs: 247, gold: 14950, damage: 30400, taken: 34100, vision: 24, kp: 0.68, before: 3241, objectiveDelta: 74 }),
+  sampleParticipant({ team: "燕", playerName: "凯隐不是该赢吗", position: "JUG", champion: "赵信", kda: [4, 2, 11], cs: 172, gold: 12840, damage: 17800, taken: 29400, vision: 32, kp: 0.79, before: 2358, objectiveDelta: 62 }),
+  sampleParticipant({ team: "燕", playerName: "不够活跃", position: "MID", champion: "发条", kda: [5, 1, 9], cs: 271, gold: 14350, damage: 29100, taken: 14700, vision: 23, kp: 0.74, before: 2164, objectiveDelta: 76, subjectiveDelta: 15 }),
+  sampleParticipant({ team: "燕", playerName: "明栗双收", position: "BOT", champion: "卡莎", kda: [6, 2, 7], cs: 318, gold: 16420, damage: 33100, taken: 18900, vision: 20, kp: 0.68, before: 1256, objectiveDelta: 88 }),
+  sampleParticipant({ team: "燕", playerName: "坑货、别靠近我", position: "SUP", champion: "牛头", kda: [1, 3, 14], cs: 39, gold: 8320, damage: 6500, taken: 27900, vision: 70, kp: 0.79, before: 2009, objectiveDelta: 48 })
+];
+
+const qinGameThree = [
+  sampleParticipant({ team: "秦", playerName: "ZerstaN", position: "TOP", champion: "奥恩", kda: [2, 1, 11], cs: 238, gold: 12460, damage: 17400, taken: 35600, vision: 26, kp: 0.65, before: 1821, objectiveDelta: 51 }),
+  sampleParticipant({ team: "秦", playerName: "天下人", position: "JUG", champion: "猴子", kda: [5, 2, 10], cs: 176, gold: 13270, damage: 19200, taken: 30100, vision: 33, kp: 0.75, before: 3101, objectiveDelta: 79 }),
+  sampleParticipant({ team: "秦", playerName: "LOL历史总得分王", position: "MID", champion: "塞拉斯", kda: [7, 2, 8], cs: 263, gold: 15680, damage: 33600, taken: 20200, vision: 22, kp: 0.75, before: 1945, objectiveDelta: 104 }),
+  sampleParticipant({ team: "秦", playerName: "樱岛麻衣", position: "BOT", champion: "金克丝", kda: [9, 1, 7], cs: 329, gold: 18110, damage: 38200, taken: 17600, vision: 21, kp: 0.8, before: 3020, objectiveDelta: 126, subjectiveDelta: 25 }),
+  sampleParticipant({ team: "秦", playerName: "BUAA2wh", position: "SUP", champion: "璐璐", kda: [0, 2, 18], cs: 31, gold: 8740, damage: 4900, taken: 19800, vision: 76, kp: 0.9, before: 3498, objectiveDelta: 62 }),
+  sampleParticipant({ team: "燕", playerName: "想你时风起", position: "TOP", champion: "塞恩", kda: [1, 4, 6], cs: 229, gold: 10570, damage: 15800, taken: 38900, vision: 22, kp: 0.5, before: 3315, objectiveDelta: -42 }),
+  sampleParticipant({ team: "燕", playerName: "凯隐不是该赢吗", position: "JUG", champion: "破败之王", kda: [3, 5, 5], cs: 164, gold: 10920, damage: 17100, taken: 27600, vision: 27, kp: 0.57, before: 2420, objectiveDelta: -39 }),
+  sampleParticipant({ team: "燕", playerName: "不够活跃", position: "MID", champion: "维克托", kda: [2, 3, 5], cs: 281, gold: 12180, damage: 25200, taken: 15800, vision: 24, kp: 0.5, before: 2255, objectiveDelta: -28 }),
+  sampleParticipant({ team: "燕", playerName: "明栗双收", position: "BOT", champion: "韦鲁斯", kda: [3, 4, 4], cs: 303, gold: 13250, damage: 28300, taken: 18400, vision: 18, kp: 0.5, before: 1344, objectiveDelta: -17 }),
+  sampleParticipant({ team: "燕", playerName: "坑货、别靠近我", position: "SUP", champion: "烈娜塔", kda: [0, 5, 7], cs: 36, gold: 7240, damage: 5200, taken: 22500, vision: 67, kp: 0.5, before: 2057, objectiveDelta: -31 })
+];
+
+function gameSample(index, winner, blueTeam, redTeam, participants, durationSeconds) {
+  return {
+    index,
+    winner,
+    blueTeam,
+    redTeam,
+    homeTeam: "秦",
+    awayTeam: "燕",
+    durationSeconds,
+    source: {
+      type: "manual_entry",
+      gameId: `sample-qin-yan-${index}`,
+      gameVersion: "示例版本"
+    },
+    lineups: {
+      home: participants.slice(0, 5),
+      away: participants.slice(5)
+    },
+    teamStats: {
+      blue: { kills: participants.slice(0, 5).reduce((sum, player) => sum + player.combatStats.kills, 0), gold: participants.slice(0, 5).reduce((sum, player) => sum + player.economyStats.goldEarned, 0), towers: 8, dragons: 3, barons: index === 3 ? 1 : 0 },
+      red: { kills: participants.slice(5).reduce((sum, player) => sum + player.combatStats.kills, 0), gold: participants.slice(5).reduce((sum, player) => sum + player.economyStats.goldEarned, 0), towers: winner === "燕" ? 9 : 3, dragons: winner === "燕" ? 3 : 1, barons: winner === "燕" ? 1 : 0 }
+    },
+    timeline: {
+      keyEvents: [
+        { time: "08:12", label: "首条小龙" },
+        { time: "21:40", label: "关键团战" }
+      ]
+    }
+  };
+}
+
 export const schedule = [
   {
-    round: "第一轮BO3",
-    matches: "秦国队vs燕国队｜楚国队vs蜀国队｜吴国队vs越国队"
+    id: "s1-r1-qin-yan",
+    season: "第一赛季",
+    round: 1,
+    roundLabel: "第一轮",
+    date: "2026.05.26",
+    format: "BO3",
+    status: "finished",
+    homeTeam: "秦",
+    awayTeam: "燕",
+    score: { home: 2, away: 1 },
+    source: "mixed",
+    version: "v1",
+    live: null,
+    games: [
+      gameSample(1, "秦", "秦", "燕", qinGameOne, 1942),
+      gameSample(2, "燕", "燕", "秦", qinGameTwo, 2036),
+      gameSample(3, "秦", "秦", "燕", qinGameThree, 2218)
+    ],
+    pLedger: [
+      { team: "秦", type: "match_reward", amount: 1800, reason: "BO3 2:1 获胜示例奖励" },
+      { team: "燕", type: "match_reward", amount: 800, reason: "BO3 1:2 败方积分奖励示例" },
+      { team: "秦", type: "luxury_tax", amount: -420, reason: "示例奢侈税扣款" }
+    ],
+    valuationChanges: [
+      { playerName: "樱岛麻衣", before: 2926, objective: 126, subjective: 25, after: 3077, reason: "第三局关键输出" },
+      { playerName: "不够活跃", before: 2190, objective: 76, subjective: 15, after: 2281, reason: "第二局表现优秀" },
+      { playerName: "天下人", before: 3030, objective: 82, subjective: 20, after: 3132, reason: "第一局节奏优势" }
+    ],
+    attachments: [
+      { label: "示例战绩截图", url: "#" },
+      { label: "示例回放文件", url: "#" }
+    ],
+    notes: "示例数据：用于预览历史比赛详情页结构，非真实比赛结果。"
   },
   {
-    round: "第二轮BO2",
-    matches: "楚国队vs越国队｜秦国队vs蜀国队｜吴国队vs燕国队"
+    id: "s1-r1-chu-shu",
+    season: "第一赛季",
+    round: 1,
+    roundLabel: "第一轮",
+    date: "2026.05.27 20:00",
+    format: "BO3",
+    status: "live",
+    homeTeam: "楚",
+    awayTeam: "蜀",
+    score: null,
+    source: null,
+    version: null,
+    live: { label: "正在直播", url: "https://live.bilibili.com/" },
+    games: [],
+    pLedger: [],
+    valuationChanges: [],
+    attachments: [],
+    notes: "示例直播状态：可在卡片和详情页展示直播链接。"
+  },
+  {
+    id: "s1-r1-wu-yue",
+    season: "第一赛季",
+    round: 1,
+    roundLabel: "第一轮",
+    date: "2026.05.27",
+    format: "BO3",
+    status: "forfeit",
+    homeTeam: "吴",
+    awayTeam: "越",
+    score: { home: 2, away: 0 },
+    forfeitTeam: "越",
+    source: "manual_entry",
+    version: "v1",
+    live: null,
+    games: [],
+    pLedger: [
+      { team: "越", type: "forfeit_penalty", amount: -3000, reason: "弃赛罚款示例" },
+      { team: "吴", type: "match_reward", amount: 1200, reason: "对手弃赛，按最大胜利结算示例" }
+    ],
+    valuationChanges: [],
+    attachments: [{ label: "弃赛裁定说明", url: "#" }],
+    notes: "示例弃赛：积分按规则文档结算，不产生小局战绩。"
+  },
+  {
+    id: "s1-r2-chu-yue",
+    season: "第一赛季",
+    round: 2,
+    roundLabel: "第二轮",
+    date: "待定",
+    format: "BO2",
+    status: "scheduled",
+    homeTeam: "楚",
+    awayTeam: "越",
+    score: null,
+    live: null,
+    games: [],
+    pLedger: [],
+    valuationChanges: [],
+    attachments: [],
+    notes: "等待比赛时间确认。"
+  },
+  {
+    id: "s1-r2-qin-shu",
+    season: "第一赛季",
+    round: 2,
+    roundLabel: "第二轮",
+    date: "待定",
+    format: "BO2",
+    status: "scheduled",
+    homeTeam: "秦",
+    awayTeam: "蜀",
+    score: null,
+    live: null,
+    games: [],
+    pLedger: [],
+    valuationChanges: [],
+    attachments: [],
+    notes: "等待比赛时间确认。"
+  },
+  {
+    id: "s1-r2-wu-yan",
+    season: "第一赛季",
+    round: 2,
+    roundLabel: "第二轮",
+    date: "待定",
+    format: "BO2",
+    status: "scheduled",
+    homeTeam: "吴",
+    awayTeam: "燕",
+    score: null,
+    live: null,
+    games: [],
+    pLedger: [],
+    valuationChanges: [],
+    attachments: [],
+    notes: "等待比赛时间确认。"
   }
 ];
