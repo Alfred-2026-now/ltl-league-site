@@ -343,6 +343,15 @@ function gameSample(index, winner, blueTeam, redTeam, participants, durationSeco
       gameId: `sample-qin-yan-${index}`,
       gameVersion: "示例版本"
     },
+    scoreScreenshots: [
+      {
+        url: "assets/qin.png",
+        label: `第${index}局战绩截图示例`,
+        uploadedAt: "2026-05-27T20:00:00+08:00",
+        uploadedBy: "管理员示例",
+        note: "临时使用队徽占位，实际比赛可替换为战绩面板截图。"
+      }
+    ],
     lineups: {
       home: participants.slice(0, 5),
       away: participants.slice(5)
@@ -431,7 +440,30 @@ export const schedule = [
     source: "manual_entry",
     version: "v1",
     live: null,
-    games: [],
+    games: [
+      {
+        index: 1,
+        winner: "吴",
+        blueTeam: "吴",
+        redTeam: "越",
+        homeTeam: "吴",
+        awayTeam: "越",
+        durationSeconds: null,
+        source: { type: "manual_entry" },
+        scoreScreenshots: [
+          {
+            url: "assets/wu.png",
+            label: "弃赛裁定截图示例",
+            uploadedAt: "2026-05-27T20:00:00+08:00",
+            uploadedBy: "管理员示例",
+            note: "此处用于验证只有截图、没有结构化战绩时的展示路径。"
+          }
+        ],
+        lineups: null,
+        teamStats: null,
+        timeline: null
+      }
+    ],
     pLedger: [
       { team: "越", type: "forfeit_penalty", amount: -3000, reason: "弃赛罚款示例" },
       { team: "吴", type: "match_reward", amount: 1200, reason: "对手弃赛，按最大胜利结算示例" }
