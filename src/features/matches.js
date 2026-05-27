@@ -10,6 +10,7 @@ import {
 
 let selectedMatchId = null;
 const selectedGameByMatch = new Map();
+const selectedGameViewByGame = new Map();
 
 export function renderSchedule(matches, teams) {
   const list = document.getElementById("scheduleList");
@@ -49,9 +50,17 @@ export function setupMatchHistory(matches, teams) {
   });
 
   document.addEventListener("change", event => {
-    if (event.target.id !== "gameSelect") return;
-    selectedGameByMatch.set(selectedMatchId, Number(event.target.value));
-    renderMatchDetail(matches, teams, selectedMatchId);
+    if (event.target.id === "gameSelect") {
+      selectedGameByMatch.set(selectedMatchId, Number(event.target.value));
+      renderMatchDetail(matches, teams, selectedMatchId);
+      return;
+    }
+
+    if (event.target.id === "gameViewMode") {
+      const gameKey = event.target.dataset.gameKey;
+      selectedGameViewByGame.set(gameKey, event.target.value);
+      renderMatchDetail(matches, teams, selectedMatchId);
+    }
   });
 
   ["matchRoundFilter", "matchTeamFilter", "matchStatusFilter"].forEach(id => {
@@ -220,6 +229,9 @@ function renderGames(match, teams) {
 
   const selectedIndex = selectedGameByMatch.get(match.id) || match.games[0].index;
   const selectedGame = match.games.find(game => game.index === selectedIndex) || match.games[0];
+  const modes = getAvailableGameViewModes(selectedGame);
+  const gameKey = getGameKey(match, selectedGame);
+  const selectedMode = getSelectedGameViewMode(gameKey, selectedGame);
 
   return `
     <section class="game-detail-panel">
@@ -228,30 +240,92 @@ function renderGames(match, teams) {
           <p class="eyebrow">GAME DETAIL</p>
           <h4>小局详情</h4>
         </div>
-        <select id="gameSelect" aria-label="选择小局">
-          ${match.games.map(game => `
-            <option value="${game.index}"${game.index === selectedGame.index ? " selected" : ""}>第 ${game.index} 局</option>
-          `).join("")}
-        </select>
+        <div class="game-controls">
+          <select id="gameSelect" aria-label="选择小局">
+            ${match.games.map(game => `
+              <option value="${game.index}"${game.index === selectedGame.index ? " selected" : ""}>第 ${game.index} 局</option>
+            `).join("")}
+          </select>
+          ${renderGameViewModeSelect(modes, selectedMode, gameKey)}
+        </div>
       </div>
       <div class="game-list">
-        ${renderGameCard(selectedGame, teams)}
+        ${renderGameCard(selectedGame, teams, selectedMode)}
       </div>
     </section>
   `;
 }
 
-function renderGameCard(game, teams) {
+function renderGameCard(game, teams, mode) {
   return `
     <article class="game-card">
       <div class="game-card-top">
         <strong>第 ${game.index} 局</strong>
         <span>${formatDuration(game.durationSeconds)} · 胜方：${getTeamName(teams, game.winner)}</span>
       </div>
+      ${renderGameContent(game, teams, mode)}
+    </article>
+  `;
+}
+
+function renderGameContent(game, teams, mode) {
+  if (mode === "screenshot") return renderScoreScreenshots(game);
+  if (mode === "charts") {
+    return `
       ${renderGameSummary(game)}
       ${renderLineups(game, teams)}
       ${renderKeyEvents(game)}
-    </article>
+    `;
+  }
+  return renderGameSummaryOnly(game, teams);
+}
+
+function renderGameViewModeSelect(modes, selectedMode, gameKey) {
+  if (modes.length <= 1) return "";
+
+  const labels = {
+    screenshot: "战绩截图",
+    charts: "详细图表",
+    summary: "基础比分"
+  };
+
+  return `
+    <select id="gameViewMode" data-game-key="${gameKey}" aria-label="选择战绩展示模式">
+      ${modes.map(mode => `
+        <option value="${mode}"${mode === selectedMode ? " selected" : ""}>${labels[mode]}</option>
+      `).join("")}
+    </select>
+  `;
+}
+
+function renderScoreScreenshots(game) {
+  const screenshots = getScoreScreenshots(game);
+  if (!screenshots.length) return renderGameSummaryOnly(game);
+
+  return `
+    <div class="screenshot-grid">
+      ${screenshots.map(item => `
+        <figure class="score-screenshot">
+          <img src="${item.url}" alt="${item.label || `第${game.index}局战绩截图`}" />
+          <figcaption>
+            <strong>${item.label || `第${game.index}局战绩截图`}</strong>
+            <span>${item.note || "管理员上传的战绩截图。"}</span>
+          </figcaption>
+        </figure>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderGameSummaryOnly(game, teams = []) {
+  return `
+    <div class="basic-game-summary">
+      <div><span>胜方</span><strong>${getTeamName(teams, game.winner)}</strong></div>
+      <div><span>蓝方</span><strong>${getTeamName(teams, game.blueTeam)}</strong></div>
+      <div><span>红方</span><strong>${getTeamName(teams, game.redTeam)}</strong></div>
+      <div><span>时长</span><strong>${formatDuration(game.durationSeconds)}</strong></div>
+    </div>
+    <div class="empty-state">详细战绩待录入。上传战绩截图或结构化数据后会在这里展示。</div>
   `;
 }
 
@@ -487,6 +561,46 @@ function renderAudit(match) {
       </div>
     </section>
   `;
+}
+
+function getGameKey(match, game) {
+  return `${match.id}:${game.index}`;
+}
+
+function getScoreScreenshots(game) {
+  return Array.isArray(game.scoreScreenshots) ? game.scoreScreenshots.filter(item => item?.url) : [];
+}
+
+function hasScoreScreenshots(game) {
+  return getScoreScreenshots(game).length > 0;
+}
+
+function hasStructuredStats(game) {
+  return Boolean(
+    game.teamStats ||
+    game.lineups ||
+    game.timeline?.keyEvents?.length
+  );
+}
+
+function getAvailableGameViewModes(game) {
+  const modes = [];
+  if (hasScoreScreenshots(game)) modes.push("screenshot");
+  if (hasStructuredStats(game)) modes.push("charts");
+  if (!modes.length) modes.push("summary");
+  return modes;
+}
+
+function getDefaultGameViewMode(game) {
+  if (hasScoreScreenshots(game)) return "screenshot";
+  if (hasStructuredStats(game)) return "charts";
+  return "summary";
+}
+
+function getSelectedGameViewMode(gameKey, game) {
+  const modes = getAvailableGameViewModes(game);
+  const selected = selectedGameViewByGame.get(gameKey);
+  return modes.includes(selected) ? selected : getDefaultGameViewMode(game);
 }
 
 function getSourceLabel(source) {

@@ -940,11 +940,17 @@ code {
   gap: 14px;
   margin-bottom: 12px;
 }
+.game-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
 .game-controlbar .eyebrow,
 .game-controlbar h4 {
   margin: 0;
 }
-.game-controlbar select {
+.game-controlbar select,
+.game-controls select {
   max-width: 160px;
 }
 .block-heading {
@@ -965,6 +971,57 @@ code {
   border: 1px dashed rgba(126, 200, 255, 0.24);
   border-radius: 12px;
   padding: 14px;
+}
+.screenshot-grid {
+  display: grid;
+  gap: 12px;
+}
+.score-screenshot {
+  margin: 0;
+  border: 1px solid rgba(126, 200, 255, 0.18);
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.18);
+}
+.score-screenshot img {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  background: rgba(0, 0, 0, 0.24);
+}
+.score-screenshot figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.score-screenshot figcaption strong {
+  color: #fff;
+}
+.basic-game-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.basic-game-summary div {
+  border: 1px solid rgba(126, 200, 255, 0.16);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.035);
+}
+.basic-game-summary span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+.basic-game-summary strong {
+  display: block;
+  color: #fff;
+  margin-top: 3px;
 }
 .game-list {
   display: grid;
@@ -1270,8 +1327,13 @@ code {
     flex-direction: column;
   }
 
-  .game-controlbar select {
+  .game-controlbar select,
+  .game-controls select {
     max-width: none;
+  }
+
+  .game-controls {
+    flex-direction: column;
   }
 
   .match-versus strong:last-child,
@@ -1289,8 +1351,17 @@ code {
   }
 
   .game-summary,
-  .participant-stats {
+  .participant-stats,
+  .basic-game-summary {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .score-screenshot img {
+    max-height: none;
+  }
+
+  .score-screenshot figcaption {
+    flex-direction: column;
   }
 
   .participant-extra {
