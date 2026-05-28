@@ -10,7 +10,6 @@ import com.ltl.league.service.MatchService;
 import com.ltl.league.service.TeamService;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -45,6 +44,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override
     public List<Match> getAllMatches() {
         return lambdaQuery()
+                .eq(Match::getSchedulePublished, 1)
                 .orderByAsc(Match::getMatchDate)
                 .list();
     }
@@ -65,6 +65,9 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override
     public MatchVO getMatchVOById(Long id) {
         Match match = getById(id);
+        if (match != null && (match.getSchedulePublished() == null || match.getSchedulePublished() != 1)) {
+            return null;
+        }
         return match != null ? convertToVO(match) : null;
     }
 

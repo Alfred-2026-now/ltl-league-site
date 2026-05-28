@@ -16,7 +16,18 @@ export function renderSchedule(matches, teams) {
   const list = document.getElementById("scheduleList");
   if (!list) return;
 
-  const groups = groupMatchesByRound(matches);
+  const sorted = [...(matches || [])].sort((a, b) => {
+    const ar = Number(a?.round || 0);
+    const br = Number(b?.round || 0);
+    if (ar !== br) return br - ar;
+    const ad = a?.date ? Date.parse(String(a.date)) : NaN;
+    const bd = b?.date ? Date.parse(String(b.date)) : NaN;
+    if (Number.isFinite(ad) && Number.isFinite(bd) && ad !== bd) return ad - bd;
+    if (Number.isFinite(ad) !== Number.isFinite(bd)) return Number.isFinite(ad) ? -1 : 1;
+    return String(a?.id || "").localeCompare(String(b?.id || ""));
+  });
+
+  const groups = groupMatchesByRound(sorted);
   list.innerHTML = [...groups.entries()].map(([roundLabel, roundMatches]) => `
     <section class="schedule-round">
       <div class="round-heading">

@@ -27,7 +27,7 @@ public class MatchController {
     public Result<MatchVO> getMatchById(@PathVariable Long id) {
         MatchVO matchVO = matchService.getMatchVOById(id);
         if (matchVO == null) {
-            return Result.error("比赛不存在: " + id);
+            return Result.error(404, "比赛不存在或未发布: " + id);
         }
         return Result.success(matchVO);
     }

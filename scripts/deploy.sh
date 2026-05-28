@@ -27,22 +27,16 @@ fi
 echo "[1/4] 本地编译打包..."
 cd "$(dirname "$0")/.."
 
-# 检查是否已编译
-if [ ! -f "$LOCAL_JAR" ]; then
-    echo "JAR 文件不存在，开始编译..."
+# 编译打包（CI/自动化场景避免交互输入）
+if [ ! -f "$LOCAL_JAR" ] || [ "${FORCE_REBUILD:-0}" = "1" ]; then
+    echo "开始编译..."
     cd backend
     mvn clean package -DskipTests
     cd ..
     echo "编译完成"
 else
     echo "JAR 文件已存在: $LOCAL_JAR"
-    read -p "是否重新编译? (y/N) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        cd backend
-        mvn clean package -DskipTests
-        cd ..
-    fi
+    echo "跳过编译（如需强制重新编译请运行: FORCE_REBUILD=1 bash scripts/deploy.sh）"
 fi
 
 # 2. 上传 JAR 到服务器

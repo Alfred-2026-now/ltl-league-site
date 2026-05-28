@@ -30,6 +30,14 @@ public class Match {
 
     private Long awayTeamId;
 
+    private Integer schedulePublished;
+
+    private LocalDateTime schedulePublishedAt;
+
+    private LocalDateTime scheduleUnpublishedAt;
+
+    private Integer resultPublished;
+
     private Integer homeScore;
 
     private Integer awayScore;

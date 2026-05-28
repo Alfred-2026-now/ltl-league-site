@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>LTL 管理 - 赛程发布</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">LTL</span><span class="brand-text">管理后台 · 赛程发布</span>
+      </a>
+      <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+      <div class="nav-links" id="navLinks">
+        <a href="index.html">返回官网</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="page-shell">
+    <section class="section">
+      <div class="section-heading row">
+        <div>
+          <p class="eyebrow">ADMIN</p>
+          <h1 class="page-title">赛程发布管理</h1>
+          <p class="muted">不公开页面，请勿分享链接。此页面仅维护赛程发布，不做赛果录入。</p>
+        </div>
+        <button class="btn primary" id="createMatchBtn" type="button">新建比赛</button>
+      </div>
+
+      <div class="panel" style="padding: 1rem;">
+        <div class="admin-filters" style="display:grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .75rem;">
+          <label class="field">
+            <span class="field-label">赛季</span>
+            <input class="input" id="filterSeason" placeholder="例如 s1（留空=全部）" />
+          </label>
+          <label class="field">
+            <span class="field-label">轮次</span>
+            <input class="input" id="filterRound" type="number" min="1" placeholder="留空=全部" />
+          </label>
+          <label class="field">
+            <span class="field-label">队伍</span>
+            <select class="input" id="filterTeam"></select>
+          </label>
+          <label class="field">
+            <span class="field-label">赛制</span>
+            <select class="input" id="filterFormat">
+              <option value="">全部</option>
+              <option value="BO1">BO1</option>
+              <option value="BO2">BO2</option>
+              <option value="BO3">BO3</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">发布状态</span>
+            <select class="input" id="filterPublished">
+              <option value="">全部</option>
+              <option value="1">已发布</option>
+              <option value="0">未发布</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">比赛状态</span>
+            <select class="input" id="filterStatus">
+              <option value="">全部</option>
+              <option value="scheduled">已排期</option>
+              <option value="upcoming">即将进行</option>
+              <option value="live">正在直播</option>
+              <option value="finished">已完结</option>
+              <option value="forfeit">弃赛</option>
+              <option value="postponed">延期</option>
+              <option value="cancelled">取消</option>
+            </select>
+          </label>
+        </div>
+        <div style="display:flex; gap:.5rem; margin-top: .75rem;">
+          <button class="btn ghost" type="button" id="resetFiltersBtn">重置筛选</button>
+          <button class="btn primary" type="button" id="refreshBtn">刷新列表</button>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top: 1rem; overflow:auto;">
+        <table class="admin-table" style="width:100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th style="text-align:left; padding:.75rem 1rem;">轮次</th>
+              <th style="text-align:left; padding:.75rem 1rem;">时间</th>
+              <th style="text-align:left; padding:.75rem 1rem;">对阵</th>
+              <th style="text-align:left; padding:.75rem 1rem;">赛制</th>
+              <th style="text-align:left; padding:.75rem 1rem;">状态</th>
+              <th style="text-align:left; padding:.75rem 1rem;">发布</th>
+              <th style="text-align:left; padding:.75rem 1rem;">赛果</th>
+              <th style="text-align:left; padding:.75rem 1rem;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="matchTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="matchDialog" style="max-width: 720px; width: calc(100% - 2rem); border: 1px solid rgba(126,200,255,.28); background: rgba(12, 22, 48, 0.95); color: var(--text); border-radius: 16px; padding: 0; box-shadow: var(--shadow);">
+    <form method="dialog" id="matchForm" style="padding: 1rem;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap: 1rem;">
+        <h2 style="margin:0; font-size: 1.1rem;" id="dialogTitle">新建比赛</h2>
+        <button class="btn ghost" value="cancel" type="submit">关闭</button>
+      </div>
+
+      <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-top: .75rem;">
+        <label class="field">
+          <span class="field-label">轮次（必填）</span>
+          <input class="input" id="formRound" type="number" min="1" required />
+        </label>
+        <label class="field">
+          <span class="field-label">轮次展示（可选）</span>
+          <input class="input" id="formRoundLabel" placeholder="例如 第 1 轮（留空自动生成）" />
+        </label>
+
+        <label class="field">
+          <span class="field-label">比赛时间（可空）</span>
+          <input class="input" id="formMatchDate" placeholder="例如 2026-05-28T20:00:00" />
+        </label>
+        <label class="field">
+          <span class="field-label">赛制（必填）</span>
+          <select class="input" id="formFormat" required>
+            <option value="BO1">BO1</option>
+            <option value="BO2">BO2</option>
+            <option value="BO3">BO3</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field-label">比赛状态</span>
+          <select class="input" id="formStatus">
+            <option value="scheduled">已排期</option>
+            <option value="upcoming">即将进行</option>
+            <option value="live">正在直播</option>
+            <option value="finished">已完结</option>
+            <option value="forfeit">弃赛</option>
+            <option value="postponed">延期</option>
+            <option value="cancelled">取消</option>
+          </select>
+        </label>
+        <div></div>
+
+        <label class="field">
+          <span class="field-label">主队（必填）</span>
+          <select class="input" id="formHomeTeam" required></select>
+        </label>
+        <label class="field">
+          <span class="field-label">客队（必填）</span>
+          <select class="input" id="formAwayTeam" required></select>
+        </label>
+
+        <label class="field" style="grid-column: 1 / -1;">
+          <span class="field-label">直播链接（可选）</span>
+          <input class="input" id="formLiveUrl" placeholder="https://..." />
+        </label>
+
+        <label class="field" style="grid-column: 1 / -1;">
+          <span class="field-label">备注（可选）</span>
+          <textarea class="input" id="formNotes" rows="3" placeholder="可填写延期/取消说明等"></textarea>
+        </label>
+      </div>
+
+      <div style="display:flex; justify-content: flex-end; gap: .5rem; margin-top: 1rem;">
+        <button class="btn ghost" type="button" id="deleteHintBtn" disabled title="本期不做删除">删除（未实现）</button>
+        <button class="btn primary" type="button" id="saveBtn">保存</button>
+      </div>
+
+      <input type="hidden" id="formMatchId" />
+    </form>
+  </dialog>
+
+  <script type="module" src="src/admin/matches.js"></script>
+  <script type="module">
+    import { setupNav } from "./src/features/navigation.js";
+    setupNav();
+  </script>
+</body>
+</html>
+
