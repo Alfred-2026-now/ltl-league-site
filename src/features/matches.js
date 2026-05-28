@@ -75,7 +75,6 @@ export function setupMatchHistory(matches, teams) {
 function renderMatchCard(match, teams) {
   const status = getStatusMeta(match.status);
   const points = getPointSettlement(match);
-  console.log('Render match card:', { matchId: match.id, points, status: match.status });
   const live = match.live?.url
     ? `<a class="live-link" href="${match.live.url}" target="_blank" rel="noreferrer">${match.live.label || "直播间"}</a>`
     : "";
@@ -270,6 +269,8 @@ function renderGameCard(game, teams, mode) {
 }
 
 function renderGameContent(game, teams, mode) {
+  // 只要存在任何战绩截图（含占位截图），就强制渲染为截图视图，对齐 main 的默认体验。
+  if (getScoreScreenshots(game).length) return renderScoreScreenshots(game);
   if (mode === "screenshot") return renderScoreScreenshots(game);
   if (mode === "charts") {
     return `
@@ -599,6 +600,8 @@ function getDefaultGameViewMode(game) {
 }
 
 function getSelectedGameViewMode(gameKey, game) {
+  // 对齐 main 的直觉：只要存在战绩截图，就默认优先展示截图（而不是结构化表格）。
+  if (hasScoreScreenshots(game)) return "screenshot";
   const modes = getAvailableGameViewModes(game);
   const selected = selectedGameViewByGame.get(gameKey);
   return modes.includes(selected) ? selected : getDefaultGameViewMode(game);

@@ -79,10 +79,28 @@ export async function getMatches() {
   const data = await request("/matches");
 
   return data.map(match => {
-    const games = (match.games || []).map(game => ({
-      ...game,
-      index: game.gameIndex
-    }));
+    const games = (match.games || []).map(game => {
+      const index = game.index ?? game.gameIndex ?? null;
+      const hasScreenshots = Array.isArray(game.scoreScreenshots) && game.scoreScreenshots.some(item => item?.url);
+      const placeholderState = game.homeTeam || match.homeTeam || "";
+      const placeholderUrl = placeholderState ? `/assets/${stateToAssetSlug(placeholderState)}.png` : "";
+
+      return {
+        ...game,
+        index,
+        scoreScreenshots: hasScreenshots
+          ? game.scoreScreenshots
+          : (placeholderUrl
+              ? [
+                  {
+                    url: placeholderUrl,
+                    label: index ? `第${index}局战绩截图` : "战绩截图",
+                    note: "占位图：未上传战绩截图时展示队徽。"
+                  }
+                ]
+              : [])
+      };
+    });
 
     return {
       id: match.matchId || match.id,
@@ -107,6 +125,18 @@ export async function getMatches() {
       version: match.version
     };
   });
+}
+
+function stateToAssetSlug(state) {
+  const mapping = {
+    秦: "qin",
+    楚: "chu",
+    蜀: "shu",
+    吴: "wu",
+    越: "yue",
+    燕: "yan"
+  };
+  return mapping[state] || String(state || "").toLowerCase();
 }
 
 /**
