@@ -642,12 +642,12 @@ function formatDuration(seconds) {
 
 function getTeamLogo(state) {
   const logos = {
-    秦: "assets/qin.png",
-    楚: "assets/chu.png",
-    蜀: "assets/shu.png",
-    吴: "assets/wu.png",
-    越: "assets/yue.png",
-    燕: "assets/yan.png"
+    秦: "assets/thumbs/qin-160.png",
+    楚: "assets/thumbs/chu-160.png",
+    蜀: "assets/thumbs/shu-160.png",
+    吴: "assets/thumbs/wu-160.png",
+    越: "assets/thumbs/yue-160.png",
+    燕: "assets/thumbs/yan-160.png"
   };
-  return logos[state] || "assets/qin.png";
+  return logos[state] || "assets/thumbs/qin-160.png";
 }

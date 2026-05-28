@@ -83,7 +83,7 @@ export async function getMatches() {
       const index = game.index ?? game.gameIndex ?? null;
       const hasScreenshots = Array.isArray(game.scoreScreenshots) && game.scoreScreenshots.some(item => item?.url);
       const placeholderState = game.homeTeam || match.homeTeam || "";
-      const placeholderUrl = placeholderState ? `/assets/${stateToAssetSlug(placeholderState)}.png` : "";
+      const placeholderUrl = placeholderState ? `/assets/thumbs/${stateToAssetSlug(placeholderState)}-160.png` : "";
 
       return {
         ...game,

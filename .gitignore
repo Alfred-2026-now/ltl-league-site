@@ -129,7 +129,6 @@ docs/
 #build.sh
 #start.sh
 .playwright-mcp
-*.png
 *.txt
 
 # arthas
@@ -151,7 +150,6 @@ CLAUDE.md
 .fastRequest/config/fastRequestCurrentProjectConfig.json
 /skills/
 /frontend/
-/scripts/
 /.spec-workflow/
 /.tocodex/
 /.fastRequest/
