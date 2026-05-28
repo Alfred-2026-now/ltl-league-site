@@ -75,6 +75,7 @@ export function setupMatchHistory(matches, teams) {
 function renderMatchCard(match, teams) {
   const status = getStatusMeta(match.status);
   const points = getPointSettlement(match);
+  console.log('Render match card:', { matchId: match.id, points, status: match.status });
   const live = match.live?.url
     ? `<a class="live-link" href="${match.live.url}" target="_blank" rel="noreferrer">${match.live.label || "直播间"}</a>`
     : "";

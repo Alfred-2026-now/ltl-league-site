@@ -1,6 +1,6 @@
 import { setupCalculators } from "./features/calculators.js";
 import { renderAnnouncements, renderRules, renderStats } from "./features/content.js";
-import { renderSchedule, setupMatchHistory } from "./features/matches.js";
+import { renderSchedule } from "./features/matches.js";
 import { setupAccordion, setupActiveNav, setupNav } from "./features/navigation.js";
 import { renderStandings } from "./features/standings.js";
 import { renderTeams, setupTeamSearch } from "./features/teams.js";
@@ -17,8 +17,6 @@ async function initApp() {
     renderRules(data.rules);
     renderSchedule(data.schedule, data.teams);
 
-    setupMatchHistory(data.schedule, data.teams);
-
     setupAccordion();
     setupNav();
     setupTeamSearch(data.teams);
@@ -26,13 +24,16 @@ async function initApp() {
     setupActiveNav();
   } catch (error) {
     console.error("应用初始化失败:", error);
-    document.body.innerHTML = `
-      <div style="padding: 2rem; text-align: center;">
-        <h2>数据加载失败</h2>
-        <p>请检查后端服务是否正常运行</p>
-        <p style="color: #999;">错误信息: ${error.message}</p>
-      </div>
-    `;
+    const container = document.querySelector(".container");
+    if (container) {
+      container.innerHTML = `
+        <div style="padding: 2rem; text-align: center;">
+          <h2>数据加载失败</h2>
+          <p>请检查后端服务是否正常运行</p>
+          <p style="color: #999;">错误信息: ${error.message}</p>
+        </div>
+      `;
+    }
   }
 }
 

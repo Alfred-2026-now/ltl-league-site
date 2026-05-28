@@ -13,11 +13,20 @@ export function getStatusMeta(status) {
 }
 
 export function getTeamByState(teams, state) {
+  if (!teams || !Array.isArray(teams)) {
+    console.warn('getTeamByState: teams is invalid', teams);
+    return null;
+  }
   return teams.find(team => team.state === state);
 }
 
 export function getTeamName(teams, state) {
-  return getTeamByState(teams, state)?.name || state;
+  const team = getTeamByState(teams, state);
+  if (!team) {
+    console.warn('getTeamName: team not found for state:', state, 'teams:', teams);
+    return state || "undefined";
+  }
+  return team.name || state;
 }
 
 export function getMatchScoreText(match) {

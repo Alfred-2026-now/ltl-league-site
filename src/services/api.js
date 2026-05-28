@@ -77,13 +77,12 @@ export async function getTeamPlayers(teamId) {
  */
 export async function getMatches() {
   const data = await request("/matches");
-  const teams = await getTeams();
-
-  const teamMap = new Map(teams.map(t => [t.id, t]));
 
   return data.map(match => {
-    const homeTeam = teamMap.get(match.homeTeamId);
-    const awayTeam = teamMap.get(match.awayTeamId);
+    const games = (match.games || []).map(game => ({
+      ...game,
+      index: game.gameIndex
+    }));
 
     return {
       id: match.matchId || match.id,
@@ -93,14 +92,19 @@ export async function getMatches() {
       date: match.matchDate,
       format: match.format,
       status: match.status,
-      homeTeam: homeTeam?.state || "",
-      awayTeam: awayTeam?.state || "",
+      homeTeam: match.homeTeam || "",
+      awayTeam: match.awayTeam || "",
       score: match.homeScore !== null && match.awayScore !== null
         ? { home: match.homeScore, away: match.awayScore }
         : null,
       live: match.liveUrl ? { url: match.liveUrl } : null,
+      games,
+      pLedger: match.pledger || [],
+      valuationChanges: match.valuationChanges || [],
+      attachments: match.attachments || [],
       notes: match.notes,
-      source: match.source
+      source: match.source,
+      version: match.version
     };
   });
 }
@@ -154,6 +158,8 @@ export async function loadAllData() {
     const rules = await getRules();
     const matches = await getMatches();
 
+    const playerCount = teams.reduce((sum, team) => sum + (team.players?.length || 0), 0);
+
     return {
       teams,
       announcements,
@@ -161,6 +167,7 @@ export async function loadAllData() {
       schedule: matches,
       leagueStats: [
         { label: "战队数量", value: String(teams.length), description: teams.map(t => t.state).join("/") },
+        { label: "选手数量", value: String(playerCount), description: "当前在战队名单" },
         { label: "赛制", value: "BO2/BO3", description: "周内与周末分开结算" },
         { label: "身价机制", value: "动态浮动", description: "表现好加分，表现差扣分" }
       ]

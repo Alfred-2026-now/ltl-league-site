@@ -1,8 +1,21 @@
-import { schedule, teams } from "./data/league.js";
 import { setupMatchHistory } from "./features/matches.js";
 import { setupNav } from "./features/navigation.js";
+import { loadAllData } from "./services/api.js";
 
-document.addEventListener("DOMContentLoaded", () => {
-  setupNav();
-  setupMatchHistory(schedule, teams);
-});
+async function initMatchHistory() {
+  try {
+    setupNav();
+    const data = await loadAllData();
+    setupMatchHistory(data.schedule, data.teams);
+  } catch (error) {
+    console.error("比赛历史数据加载失败:", error);
+    document.querySelector(".container")?.insertAdjacentHTML("afterbegin", `
+      <div style="padding: 2rem; text-align: center; background: #fee;">
+        <h3>数据加载失败</h3>
+        <p>${error.message}</p>
+      </div>
+    `);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", initMatchHistory);
