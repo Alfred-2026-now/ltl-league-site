@@ -94,6 +94,9 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
             vo.setScore(score);
         }
 
+        vo.setHomePoints(match.getHomePoints());
+        vo.setAwayPoints(match.getAwayPoints());
+
         if (match.getLiveUrl() != null) {
             MatchVO.Live live = new MatchVO.Live();
             live.setUrl(match.getLiveUrl());

@@ -34,6 +34,10 @@ public class Match {
 
     private Integer awayScore;
 
+    private Integer homePoints;
+
+    private Integer awayPoints;
+
     private Long forfeitTeamId;
 
     private String liveUrl;

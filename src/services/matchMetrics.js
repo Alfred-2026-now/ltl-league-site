@@ -41,6 +41,11 @@ export function getMatchWinner(match) {
 }
 
 export function getPointSettlement(match) {
+  // 优先使用数据库中的积分值
+  if (match.homePoints !== undefined && match.awayPoints !== undefined) {
+    return { home: match.homePoints, away: match.awayPoints };
+  }
+
   const empty = { home: 0, away: 0 };
 
   if (match.status === "forfeit") {

@@ -439,11 +439,11 @@ select {
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
-  opacity: 0.98;
+  opacity: 1;
   filter:
     drop-shadow(0 0 8px var(--team-shadow))
     drop-shadow(0 0 18px var(--team-shadow));
-  mix-blend-mode: screen;
+  mix-blend-mode: normal;
   pointer-events: none;
   z-index: 2;
 }

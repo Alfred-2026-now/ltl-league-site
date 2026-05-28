@@ -94,10 +94,10 @@ export async function getMatches() {
       status: match.status,
       homeTeam: match.homeTeam || "",
       awayTeam: match.awayTeam || "",
-      score: match.homeScore !== null && match.awayScore !== null
-        ? { home: match.homeScore, away: match.awayScore }
-        : null,
-      live: match.liveUrl ? { url: match.liveUrl } : null,
+      score: match.score,
+      homePoints: match.homePoints,
+      awayPoints: match.awayPoints,
+      live: match.liveUrl ? { url: match.liveUrl, label: match.liveLabel } : null,
       games,
       pLedger: match.pledger || [],
       valuationChanges: match.valuationChanges || [],

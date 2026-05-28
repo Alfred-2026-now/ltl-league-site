@@ -21,6 +21,8 @@ public class MatchVO {
     private String homeTeam;
     private String awayTeam;
     private Score score;
+    private Integer homePoints;
+    private Integer awayPoints;
     private Live live;
     private List<GameVO> games;
     private List<PLedgerVO> pLedger;
