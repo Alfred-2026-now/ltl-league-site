@@ -6,5 +6,8 @@
   "scripts": {
     "serve": "node tools/static-server.mjs",
     "check": "node --check src/main.js && node --check src/match-history.js && node --check src/data/league.js && node --check src/services/leagueMetrics.js && node --check src/services/matchMetrics.js && node --check src/features/content.js && node --check src/features/standings.js && node --check src/features/teams.js && node --check src/features/calculators.js && node --check src/features/navigation.js && node --check src/features/matches.js && node --check tools/static-server.mjs"
+  },
+  "dependencies": {
+    "mysql2": "^3.22.4"
   }
 }

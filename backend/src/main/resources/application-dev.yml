@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://123.57.19.160:3306/ltl_league?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: ltl_user
+    password: a5201314
+
+logging:
+  level:
+    com.ltl.league: debug
+    com.baomidou.mybatisplus: debug

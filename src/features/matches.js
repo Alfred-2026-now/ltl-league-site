@@ -269,6 +269,8 @@ function renderGameCard(game, teams, mode) {
 }
 
 function renderGameContent(game, teams, mode) {
+  // 只要存在任何战绩截图（含占位截图），就强制渲染为截图视图，对齐 main 的默认体验。
+  if (getScoreScreenshots(game).length) return renderScoreScreenshots(game);
   if (mode === "screenshot") return renderScoreScreenshots(game);
   if (mode === "charts") {
     return `
@@ -598,6 +600,8 @@ function getDefaultGameViewMode(game) {
 }
 
 function getSelectedGameViewMode(gameKey, game) {
+  // 对齐 main 的直觉：只要存在战绩截图，就默认优先展示截图（而不是结构化表格）。
+  if (hasScoreScreenshots(game)) return "screenshot";
   const modes = getAvailableGameViewModes(game);
   const selected = selectedGameViewByGame.get(gameKey);
   return modes.includes(selected) ? selected : getDefaultGameViewMode(game);
@@ -638,12 +642,12 @@ function formatDuration(seconds) {
 
 function getTeamLogo(state) {
   const logos = {
-    秦: "assets/qin.png",
-    楚: "assets/chu.png",
-    蜀: "assets/shu.png",
-    吴: "assets/wu.png",
-    越: "assets/yue.png",
-    燕: "assets/yan.png"
+    秦: "assets/thumbs/qin-160.png",
+    楚: "assets/thumbs/chu-160.png",
+    蜀: "assets/thumbs/shu-160.png",
+    吴: "assets/thumbs/wu-160.png",
+    越: "assets/thumbs/yue-160.png",
+    燕: "assets/thumbs/yan-160.png"
   };
-  return logos[state] || "assets/qin.png";
+  return logos[state] || "assets/thumbs/qin-160.png";
 }
