@@ -292,7 +292,8 @@ h3 {
 }
 .search,
 input,
-select {
+select,
+textarea {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -300,6 +301,31 @@ select {
   color: #fff;
   padding: 12px 13px;
   outline: none;
+  font: inherit;
+  color-scheme: dark;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+select:-webkit-autofill,
+textarea:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px rgba(5, 12, 30, 0.95) inset !important;
+  -webkit-text-fill-color: #fff !important;
+  caret-color: #fff;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  opacity: 0.55;
 }
 .search {
   max-width: 320px;

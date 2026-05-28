@@ -94,7 +94,7 @@ function renderTable() {
           ? `<button class="btn ghost" data-action="unpublish" data-id="${m.id}">撤回</button>`
           : `<button class="btn primary" data-action="publish" data-id="${m.id}">发布</button>`
         }
-        <button class="btn ghost" disabled title="后续赛果模块实现">录入赛果</button>
+        <a class="btn ghost" href="admin-match-result.html?matchId=${m.id}">录入赛果</a>
       </div>`;
 
     return `

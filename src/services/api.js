@@ -72,6 +72,46 @@ export async function getTeamPlayers(teamId) {
   return request(`/teams/${teamId}/players`);
 }
 
+function stateToAssetSlug(state) {
+  const mapping = {
+    秦: "qin",
+    楚: "chu",
+    蜀: "shu",
+    吴: "wu",
+    越: "yue",
+    燕: "yan"
+  };
+  return mapping[state] || String(state || "").toLowerCase();
+}
+
+function isUploadedScreenshot(item) {
+  const url = item?.url ? String(item.url) : "";
+  return url.includes("/uploads/");
+}
+
+/** 无真实上传时使用队徽占位，与 main 分支体验一致 */
+function resolveScoreScreenshots(game, match, index) {
+  const uploaded = (game.scoreScreenshots || []).filter(
+    item => item?.url && isUploadedScreenshot(item)
+  );
+  if (uploaded.length) return uploaded;
+
+  if (!match.score) return [];
+
+  const state = game.homeTeam || match.homeTeam || "";
+  const slug = stateToAssetSlug(state);
+  if (!slug) return [];
+
+  return [
+    {
+      url: `/assets/thumbs/${slug}-160.png`,
+      label: index ? `第${index}局战绩截图` : "战绩截图",
+      note: "占位图：未上传战绩截图时展示队徽。",
+      isPlaceholder: true
+    }
+  ];
+}
+
 /**
  * 获取所有比赛
  */
@@ -81,24 +121,11 @@ export async function getMatches() {
   return data.map(match => {
     const games = (match.games || []).map(game => {
       const index = game.index ?? game.gameIndex ?? null;
-      const hasScreenshots = Array.isArray(game.scoreScreenshots) && game.scoreScreenshots.some(item => item?.url);
-      const placeholderState = game.homeTeam || match.homeTeam || "";
-      const placeholderUrl = placeholderState ? `/assets/thumbs/${stateToAssetSlug(placeholderState)}-160.png` : "";
-
+      const scoreScreenshots = resolveScoreScreenshots(game, match, index);
       return {
         ...game,
         index,
-        scoreScreenshots: hasScreenshots
-          ? game.scoreScreenshots
-          : (placeholderUrl
-              ? [
-                  {
-                    url: placeholderUrl,
-                    label: index ? `第${index}局战绩截图` : "战绩截图",
-                    note: "占位图：未上传战绩截图时展示队徽。"
-                  }
-                ]
-              : [])
+        scoreScreenshots
       };
     });
 
@@ -115,9 +142,9 @@ export async function getMatches() {
       score: match.score,
       homePoints: match.homePoints,
       awayPoints: match.awayPoints,
-      live: match.liveUrl ? { url: match.liveUrl, label: match.liveLabel } : null,
+      live: match.live?.url ? { url: match.live.url, label: match.live.label || "直播间" } : null,
       games,
-      pLedger: match.pledger || [],
+      pLedger: match.pLedger || match.pledger || [],
       valuationChanges: match.valuationChanges || [],
       attachments: match.attachments || [],
       notes: match.notes,
@@ -125,18 +152,6 @@ export async function getMatches() {
       version: match.version
     };
   });
-}
-
-function stateToAssetSlug(state) {
-  const mapping = {
-    秦: "qin",
-    楚: "chu",
-    蜀: "shu",
-    吴: "wu",
-    越: "yue",
-    燕: "yan"
-  };
-  return mapping[state] || String(state || "").toLowerCase();
 }
 
 /**

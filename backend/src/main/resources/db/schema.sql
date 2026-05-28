@@ -64,6 +64,8 @@ CREATE TABLE IF NOT EXISTS `matches` (
   `result_published` TINYINT NOT NULL DEFAULT 0 COMMENT '赛果是否已发布（预留，0:未发布 1:已发布）',
   `home_score` TINYINT UNSIGNED NULL COMMENT '主队得分',
   `away_score` TINYINT UNSIGNED NULL COMMENT '客队得分',
+  `home_points` INT NULL COMMENT '主队本场积分',
+  `away_points` INT NULL COMMENT '客队本场积分',
   `forfeit_team_id` BIGINT UNSIGNED NULL COMMENT '弃赛队伍ID',
   `live_url` VARCHAR(255) NULL COMMENT '直播链接',
   `notes` TEXT NULL COMMENT '备注说明',
@@ -82,10 +84,36 @@ CREATE TABLE IF NOT EXISTS `matches` (
   CONSTRAINT `fk_match_away_team` FOREIGN KEY (`away_team_id`) REFERENCES `teams` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='比赛表';
 
+-- 3.1 赛果版本表
+CREATE TABLE IF NOT EXISTS `match_results` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '赛果版本ID',
+  `match_id` BIGINT UNSIGNED NOT NULL COMMENT '关联比赛ID',
+  `version_no` INT UNSIGNED NOT NULL COMMENT '版本号',
+  `status` VARCHAR(20) NOT NULL DEFAULT 'draft' COMMENT 'draft/published/withdrawn',
+  `result_type` VARCHAR(20) NOT NULL DEFAULT 'normal' COMMENT 'normal/forfeit',
+  `home_score` TINYINT UNSIGNED NULL COMMENT '主队比分',
+  `away_score` TINYINT UNSIGNED NULL COMMENT '客队比分',
+  `winner_team_id` BIGINT UNSIGNED NULL COMMENT '胜方队伍ID',
+  `home_points` INT NULL COMMENT '主队本场积分',
+  `away_points` INT NULL COMMENT '客队本场积分',
+  `notes` TEXT NULL COMMENT '备注',
+  `published_at` DATETIME NULL COMMENT '发布时间',
+  `withdrawn_at` DATETIME NULL COMMENT '撤回时间',
+  `withdraw_reason` VARCHAR(500) NULL COMMENT '撤回原因',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_match_version` (`match_id`, `version_no`),
+  KEY `idx_match_status` (`match_id`, `status`),
+  CONSTRAINT `fk_result_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='比赛赛果版本表';
+
 -- 4. 小局表
 CREATE TABLE IF NOT EXISTS `games` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '小局ID',
   `match_id` BIGINT UNSIGNED NOT NULL COMMENT '所属比赛ID',
+  `result_id` BIGINT UNSIGNED NULL COMMENT '关联赛果版本ID',
   `game_index` TINYINT UNSIGNED NOT NULL COMMENT '小局序号',
   `winner` VARCHAR(20) NOT NULL COMMENT '胜方队伍简称',
   `blue_team` VARCHAR(20) NOT NULL COMMENT '蓝方队伍简称',
@@ -101,6 +129,7 @@ CREATE TABLE IF NOT EXISTS `games` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_match_game` (`match_id`, `game_index`),
   KEY `idx_match_id` (`match_id`),
+  KEY `idx_result_id` (`result_id`),
   CONSTRAINT `fk_game_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='小局表';
 
@@ -211,6 +240,7 @@ CREATE TABLE IF NOT EXISTS `rules` (
 CREATE TABLE IF NOT EXISTS `attachments` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '附件ID',
   `match_id` BIGINT UNSIGNED NULL COMMENT '关联比赛ID',
+  `result_id` BIGINT UNSIGNED NULL COMMENT '关联赛果版本ID',
   `game_id` BIGINT UNSIGNED NULL COMMENT '关联小局ID',
   `type` VARCHAR(20) NOT NULL COMMENT '附件类型（score_screenshot/replay_file/other）',
   `label` VARCHAR(200) NOT NULL COMMENT '附件标签',
@@ -218,10 +248,12 @@ CREATE TABLE IF NOT EXISTS `attachments` (
   `file_path` VARCHAR(500) NULL COMMENT '文件路径',
   `uploaded_by` VARCHAR(50) NULL COMMENT '上传者',
   `note` TEXT NULL COMMENT '备注说明',
+  `is_voided` TINYINT NOT NULL DEFAULT 0 COMMENT '是否作废',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除标记',
   PRIMARY KEY (`id`),
   KEY `idx_match_id` (`match_id`),
+  KEY `idx_result_id` (`result_id`),
   KEY `idx_game_id` (`game_id`),
   KEY `idx_type` (`type`),
   CONSTRAINT `fk_attachment_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`),

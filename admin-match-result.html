@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>LTL 管理 - 赛果录入</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="admin-matches.html">
+        <span class="brand-mark">LTL</span><span class="brand-text">管理后台 · 赛果录入</span>
+      </a>
+      <div class="nav-links" id="navLinks">
+        <a href="admin-matches.html">返回赛程列表</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="page-shell">
+    <section class="section">
+      <div class="section-heading row">
+        <div>
+          <p class="eyebrow">ADMIN · RESULT</p>
+          <h1 class="page-title" id="pageTitle">赛果录入</h1>
+          <p class="muted" id="matchSummary">加载中…</p>
+          <p class="muted" id="statusHint"></p>
+        </div>
+      </div>
+
+      <div class="panel" style="padding: 1rem; margin-bottom: 1rem;" id="resultFormPanel">
+        <div style="display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: .75rem;">
+          <label class="field">
+            <span class="field-label">结果类型</span>
+            <select class="input" id="resultType">
+              <option value="normal">普通</option>
+              <option value="forfeit">弃赛</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">主队比分</span>
+            <input class="input" id="homeScore" type="number" min="0" max="5" />
+          </label>
+          <label class="field">
+            <span class="field-label">客队比分</span>
+            <input class="input" id="awayScore" type="number" min="0" max="5" />
+          </label>
+          <label class="field">
+            <span class="field-label">胜方</span>
+            <select class="input" id="winnerTeamId">
+              <option value="">（平局无胜方）</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">主队本场积分</span>
+            <input class="input" id="homePoints" type="number" />
+          </label>
+          <label class="field">
+            <span class="field-label">客队本场积分</span>
+            <input class="input" id="awayPoints" type="number" />
+          </label>
+        </div>
+        <p class="muted" id="tieHint" style="display:none; margin-top:.5rem;">BO2 平局（1:1）：胜方留空，小局需双方各赢一局。</p>
+
+        <label class="field" style="margin-top: .75rem; display:block;">
+          <span class="field-label">备注</span>
+          <textarea class="input" id="resultNotes" rows="2"></textarea>
+        </label>
+
+        <h3 style="margin: 1rem 0 .5rem; font-size: 1rem;">小局（可选）</h3>
+        <p class="muted" id="gamesHint" style="margin:0 0 .5rem;font-size:.9rem;">填写总比分后，仅显示需要录入的局数（如 BO3 的 2:0 只需 2 局）。</p>
+        <div id="gamesContainer"></div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:.5rem; margin-top: 1.25rem;">
+          <button class="btn primary" type="button" id="saveDraftBtn">保存草稿</button>
+          <button class="btn primary" type="button" id="publishBtn">发布赛果</button>
+          <button class="btn ghost" type="button" id="withdrawBtn" style="display:none;">撤回赛果</button>
+        </div>
+      </div>
+
+      <dialog id="withdrawDialog" style="max-width:480px;width:calc(100% - 2rem);border:1px solid rgba(126,200,255,.28);background:rgba(12,22,48,.95);color:var(--text);border-radius:16px;padding:1rem;">
+        <h3 style="margin:0 0 .75rem;">撤回赛果</h3>
+        <label class="field">
+          <span class="field-label">撤回原因（必填）</span>
+          <textarea class="input" id="withdrawReason" rows="3" required></textarea>
+        </label>
+        <div style="display:flex; justify-content:flex-end; gap:.5rem; margin-top:1rem;">
+          <button class="btn ghost" type="button" id="cancelWithdrawBtn">取消</button>
+          <button class="btn primary" type="button" id="confirmWithdrawBtn">确认撤回</button>
+        </div>
+      </dialog>
+    </section>
+  </main>
+
+  <script type="module" src="src/admin/match-result.js"></script>
+</body>
+</html>

@@ -160,7 +160,9 @@ create_app_directories() {
     mkdir -p /var/www/ltl-league/uploads
 
     chown -R ltl:ltl /opt/ltl-league
-    chown -R ltl:ltl /var/www/ltl-league
+    chown -R www-data:www-data /var/www/ltl-league
+    chown -R ltl:ltl /var/www/ltl-league/uploads
+    chmod 755 /var/www/ltl-league/uploads
 
     log_info "应用目录创建完成"
 }

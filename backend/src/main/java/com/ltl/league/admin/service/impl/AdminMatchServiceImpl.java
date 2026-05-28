@@ -6,19 +6,18 @@ import com.ltl.league.admin.dto.AdminMatchListItemVO;
 import com.ltl.league.admin.dto.MatchCreateRequest;
 import com.ltl.league.admin.dto.MatchUpdateRequest;
 import com.ltl.league.admin.service.AdminMatchService;
-import com.ltl.league.entity.Game;
 import com.ltl.league.entity.Match;
+import com.ltl.league.entity.MatchResult;
 import com.ltl.league.entity.Team;
 import com.ltl.league.exception.BusinessException;
-import com.ltl.league.mapper.GameMapper;
 import com.ltl.league.mapper.MatchMapper;
+import com.ltl.league.mapper.MatchResultMapper;
 import com.ltl.league.service.TeamService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -27,7 +26,7 @@ import java.util.stream.Collectors;
 public class AdminMatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements AdminMatchService {
 
     private final TeamService teamService;
-    private final GameMapper gameMapper;
+    private final MatchResultMapper matchResultMapper;
 
     @Value("${ltl.league.current-season:s1}")
     private String currentSeason;
@@ -35,9 +34,9 @@ public class AdminMatchServiceImpl extends ServiceImpl<MatchMapper, Match> imple
     @Value("${ltl.match.bo5-enabled:false}")
     private boolean bo5Enabled;
 
-    public AdminMatchServiceImpl(TeamService teamService, GameMapper gameMapper) {
+    public AdminMatchServiceImpl(TeamService teamService, MatchResultMapper matchResultMapper) {
         this.teamService = teamService;
-        this.gameMapper = gameMapper;
+        this.matchResultMapper = matchResultMapper;
     }
 
     @Override
@@ -76,12 +75,13 @@ public class AdminMatchServiceImpl extends ServiceImpl<MatchMapper, Match> imple
         Set<Long> matchIds = matches.stream().map(Match::getId).collect(Collectors.toSet());
         Set<Long> draftMatchIds = matchIds.isEmpty()
                 ? Set.of()
-                : new HashSet<>(gameMapper.selectList(
-                        new LambdaQueryWrapper<Game>()
-                                .select(Game::getMatchId)
-                                .in(Game::getMatchId, matchIds)
-                                .eq(Game::getDeleted, 0)
-                ).stream().map(Game::getMatchId).collect(Collectors.toSet()));
+                : matchResultMapper.selectList(
+                        new LambdaQueryWrapper<MatchResult>()
+                                .select(MatchResult::getMatchId)
+                                .in(MatchResult::getMatchId, matchIds)
+                                .eq(MatchResult::getStatus, "draft")
+                                .eq(MatchResult::getDeleted, 0)
+                ).stream().map(MatchResult::getMatchId).collect(Collectors.toSet());
 
         return matches.stream().map(match -> {
             Team home = teamService.getById(match.getHomeTeamId());
@@ -106,7 +106,7 @@ public class AdminMatchServiceImpl extends ServiceImpl<MatchMapper, Match> imple
 
             boolean publishedResult = match.getResultPublished() != null && match.getResultPublished() == 1;
             vo.setHasPublishedResult(publishedResult);
-            vo.setHasResultDraft(!publishedResult && draftMatchIds.contains(match.getId()));
+            vo.setHasResultDraft(draftMatchIds.contains(match.getId()));
             return vo;
         }).collect(Collectors.toList());
     }

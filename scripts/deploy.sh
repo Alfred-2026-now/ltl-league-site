@@ -80,6 +80,11 @@ chown ltl:ltl /opt/ltl-league/backend/application-prod.yml
 chown ltl:ltl /opt/ltl-league/backend/league-backend-1.0.0.jar
 chmod 644 /opt/ltl-league/backend/application-prod.yml
 
+# 赛果截图目录：后端 ltl 用户写入，Nginx 只读
+mkdir -p /var/www/ltl-league/uploads
+chown -R ltl:ltl /var/www/ltl-league/uploads
+chmod 755 /var/www/ltl-league/uploads
+
 echo "生产环境配置已创建"
 EOF
 

@@ -5,7 +5,8 @@ import {
   getPointSettlement,
   getStatusMeta,
   getTeamName,
-  groupMatchesByRound
+  groupMatchesByRound,
+  sortMatchesByRoundDesc
 } from "../services/matchMetrics.js";
 
 let selectedMatchId = null;
@@ -16,18 +17,7 @@ export function renderSchedule(matches, teams) {
   const list = document.getElementById("scheduleList");
   if (!list) return;
 
-  const sorted = [...(matches || [])].sort((a, b) => {
-    const ar = Number(a?.round || 0);
-    const br = Number(b?.round || 0);
-    if (ar !== br) return br - ar;
-    const ad = a?.date ? Date.parse(String(a.date)) : NaN;
-    const bd = b?.date ? Date.parse(String(b.date)) : NaN;
-    if (Number.isFinite(ad) && Number.isFinite(bd) && ad !== bd) return ad - bd;
-    if (Number.isFinite(ad) !== Number.isFinite(bd)) return Number.isFinite(ad) ? -1 : 1;
-    return String(a?.id || "").localeCompare(String(b?.id || ""));
-  });
-
-  const groups = groupMatchesByRound(sorted);
+  const groups = groupMatchesByRound(matches);
   list.innerHTML = [...groups.entries()].map(([roundLabel, roundMatches]) => `
     <section class="schedule-round">
       <div class="round-heading">
@@ -42,8 +32,9 @@ export function renderSchedule(matches, teams) {
 }
 
 export function setupMatchHistory(matches, teams) {
+  const sortedMatches = sortMatchesByRoundDesc(matches);
   const routeMatch = new URLSearchParams(window.location.search).get("match");
-  selectedMatchId = routeMatch || selectedMatchId || matches[0]?.id || null;
+  selectedMatchId = routeMatch || selectedMatchId || sortedMatches[0]?.id || null;
   renderMatchFilters(matches, teams);
   renderMatchHistoryList(matches, teams);
   renderMatchDetail(matches, teams, selectedMatchId);
@@ -86,6 +77,9 @@ export function setupMatchHistory(matches, teams) {
 function renderMatchCard(match, teams) {
   const status = getStatusMeta(match.status);
   const points = getPointSettlement(match);
+  const pointsHtml = points
+    ? `<span>积分：${formatSigned(points.home)} / ${formatSigned(points.away)}</span>`
+    : "";
   const live = match.live?.url
     ? `<a class="live-link" href="${match.live.url}" target="_blank" rel="noreferrer">${match.live.label || "直播间"}</a>`
     : "";
@@ -102,7 +96,7 @@ function renderMatchCard(match, teams) {
         <strong>${getTeamName(teams, match.awayTeam)}</strong>
       </div>
       <div class="match-card-meta">
-        <span>积分：${points.home >= 0 ? "+" : ""}${points.home} / ${points.away >= 0 ? "+" : ""}${points.away}</span>
+        ${pointsHtml}
         ${live}
       </div>
       <a class="btn ghost match-detail-link" href="match-history.html?match=${match.id}" data-match-select="${match.id}">查看详情</a>
@@ -116,7 +110,8 @@ function renderMatchFilters(matches, teams) {
   const statusFilter = document.getElementById("matchStatusFilter");
   if (!roundFilter || !teamFilter || !statusFilter) return;
 
-  const rounds = [...new Map(matches.map(match => [match.round, match.roundLabel])).entries()];
+  const rounds = [...new Map(matches.map(match => [match.round, match.roundLabel])).entries()]
+    .sort((a, b) => Number(b[0]) - Number(a[0]));
   roundFilter.innerHTML = `<option value="">全部轮次</option>${rounds.map(([round, label]) => `
     <option value="${round}">${label}</option>
   `).join("")}`;
@@ -135,7 +130,7 @@ function renderMatchHistoryList(matches, teams) {
   const list = document.getElementById("matchHistoryList");
   if (!list) return;
 
-  const visibleMatches = getFilteredMatches(matches);
+  const visibleMatches = sortMatchesByRoundDesc(getFilteredMatches(matches));
   if (!visibleMatches.length) {
     list.innerHTML = `<div class="empty-state">没有匹配的比赛。</div>`;
     return;
@@ -183,6 +178,9 @@ function renderMatchDetail(matches, teams, matchId) {
 }
 
 function renderMatchHero(match, teams, status, points) {
+  const pointsRow = points
+    ? `<div><span>积分结算</span><strong>${formatSigned(points.home)} / ${formatSigned(points.away)}</strong></div>`
+    : "";
   return `
     <section class="match-hero-panel">
       ${renderHeroTeam(match.homeTeam, teams, "home")}
@@ -194,7 +192,7 @@ function renderMatchHero(match, teams, status, points) {
       ${renderHeroTeam(match.awayTeam, teams, "away")}
       <div class="match-meta-strip">
         <div><span>比赛日期</span><strong>${match.date || "待定"}</strong></div>
-        <div><span>积分结算</span><strong>${formatSigned(points.home)} / ${formatSigned(points.away)}</strong></div>
+        ${pointsRow}
         <div><span>数据来源</span><strong>${getSourceLabel(match.source)}</strong></div>
         <div><span>版本</span><strong>${match.version || "未发布"}</strong></div>
       </div>
