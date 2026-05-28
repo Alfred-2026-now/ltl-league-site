@@ -10,14 +10,16 @@ import com.ltl.league.service.MatchService;
 import com.ltl.league.service.TeamService;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
 public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements MatchService {
 
     private final GameMapper gameMapper;
+    private final MatchResultMapper matchResultMapper;
     private final PLedgerMapper pLedgerMapper;
     private final ValuationChangeMapper valuationChangeMapper;
     private final AttachmentMapper attachmentMapper;
@@ -27,6 +29,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
 
     public MatchServiceImpl(
             GameMapper gameMapper,
+            MatchResultMapper matchResultMapper,
             PLedgerMapper pLedgerMapper,
             ValuationChangeMapper valuationChangeMapper,
             AttachmentMapper attachmentMapper,
@@ -34,6 +37,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
             PlayerMapper playerMapper,
             GameParticipantMapper gameParticipantMapper) {
         this.gameMapper = gameMapper;
+        this.matchResultMapper = matchResultMapper;
         this.pLedgerMapper = pLedgerMapper;
         this.valuationChangeMapper = valuationChangeMapper;
         this.attachmentMapper = attachmentMapper;
@@ -45,6 +49,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override
     public List<Match> getAllMatches() {
         return lambdaQuery()
+                .eq(Match::getSchedulePublished, 1)
                 .orderByAsc(Match::getMatchDate)
                 .list();
     }
@@ -65,7 +70,18 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override
     public MatchVO getMatchVOById(Long id) {
         Match match = getById(id);
+        if (match != null && (match.getSchedulePublished() == null || match.getSchedulePublished() != 1)) {
+            return null;
+        }
         return match != null ? convertToVO(match) : null;
+    }
+
+    private MatchResult findPublishedResult(Long matchId) {
+        return matchResultMapper.selectOne(new LambdaQueryWrapper<MatchResult>()
+                .eq(MatchResult::getMatchId, matchId)
+                .eq(MatchResult::getStatus, "published")
+                .eq(MatchResult::getDeleted, 0)
+                .last("LIMIT 1"));
     }
 
     private MatchVO convertToVO(Match match) {
@@ -87,6 +103,22 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
         vo.setHomeTeam(homeTeam != null ? homeTeam.getState() : "");
         vo.setAwayTeam(awayTeam != null ? awayTeam.getState() : "");
 
+        if (match.getLiveUrl() != null) {
+            MatchVO.Live live = new MatchVO.Live();
+            live.setUrl(match.getLiveUrl());
+            live.setLabel("正在直播");
+            vo.setLive(live);
+        }
+
+        boolean resultPublished = match.getResultPublished() != null && match.getResultPublished() == 1;
+        if (!resultPublished) {
+            vo.setGames(Collections.emptyList());
+            vo.setPLedger(Collections.emptyList());
+            vo.setValuationChanges(Collections.emptyList());
+            vo.setAttachments(Collections.emptyList());
+            return vo;
+        }
+
         if (match.getHomeScore() != null && match.getAwayScore() != null) {
             MatchVO.Score score = new MatchVO.Score();
             score.setHome(match.getHomeScore());
@@ -97,18 +129,40 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
         vo.setHomePoints(match.getHomePoints());
         vo.setAwayPoints(match.getAwayPoints());
 
-        if (match.getLiveUrl() != null) {
-            MatchVO.Live live = new MatchVO.Live();
-            live.setUrl(match.getLiveUrl());
-            live.setLabel("正在直播");
-            vo.setLive(live);
+        MatchResult publishedResult = findPublishedResult(match.getId());
+        Long resultId = publishedResult != null ? publishedResult.getId() : null;
+
+        List<Game> games;
+        if (resultId != null) {
+            games = gameMapper.selectList(new LambdaQueryWrapper<Game>()
+                    .eq(Game::getResultId, resultId)
+                    .orderByAsc(Game::getGameIndex));
+        } else {
+            games = gameMapper.selectList(new LambdaQueryWrapper<Game>()
+                    .eq(Game::getMatchId, match.getId())
+                    .isNull(Game::getResultId)
+                    .orderByAsc(Game::getGameIndex));
         }
 
-        List<Game> games = gameMapper.selectList(
-                new LambdaQueryWrapper<Game>()
-                        .eq(Game::getMatchId, match.getId())
-                        .orderByAsc(Game::getGameIndex)
-        );
+        List<Attachment> allScreenshots = resultId != null
+                ? attachmentMapper.selectList(new LambdaQueryWrapper<Attachment>()
+                        .eq(Attachment::getResultId, resultId)
+                        .eq(Attachment::getType, "score_screenshot")
+                        .eq(Attachment::getIsVoided, 0)
+                        .eq(Attachment::getDeleted, 0))
+                : Collections.emptyList();
+        Map<Long, List<Attachment>> screenshotsByGameId = new HashMap<>();
+        Map<Integer, List<Attachment>> screenshotsByGameIndex = new HashMap<>();
+        for (Attachment att : allScreenshots) {
+            if (att.getGameId() != null) {
+                screenshotsByGameId.computeIfAbsent(att.getGameId(), k -> new ArrayList<>()).add(att);
+            } else {
+                Integer idx = parseGameIndexFromUrl(att.getUrl());
+                if (idx != null) {
+                    screenshotsByGameIndex.computeIfAbsent(idx, k -> new ArrayList<>()).add(att);
+                }
+            }
+        }
 
         List<Long> gameIds = games.stream().map(Game::getId).collect(Collectors.toList());
         List<GameParticipant> participants = gameIds.isEmpty() ? Collections.emptyList()
@@ -152,6 +206,16 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
             lineups.setAway(awayParticipants);
             gameVO.setLineups(lineups);
 
+            List<Attachment> shots = new ArrayList<>(screenshotsByGameId.getOrDefault(game.getId(), Collections.emptyList()));
+            shots.addAll(screenshotsByGameIndex.getOrDefault(game.getGameIndex(), Collections.emptyList()));
+            gameVO.setScoreScreenshots(shots.stream().map(att -> {
+                GameVO.ScoreScreenshot ss = new GameVO.ScoreScreenshot();
+                ss.setUrl(att.getUrl());
+                ss.setLabel(att.getLabel());
+                ss.setNote(att.getNote());
+                return ss;
+            }).collect(Collectors.toList()));
+
             return gameVO;
         }).collect(Collectors.toList());
 
@@ -161,10 +225,12 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
         if (homeTeam != null) teamIdToState.put(homeTeam.getId(), homeTeam.getState());
         if (awayTeam != null) teamIdToState.put(awayTeam.getId(), awayTeam.getState());
 
+        String version = match.getVersion();
         List<PLedger> pLedgerList = pLedgerMapper.selectList(
                 new LambdaQueryWrapper<PLedger>()
                         .eq(PLedger::getMatchId, match.getId())
                         .eq(PLedger::getIsVoided, 0)
+                        .eq(version != null, PLedger::getVersion, version)
         );
         List<MatchVO.PLedgerVO> pLedgerVOs = pLedgerList.stream().map(pl -> {
             MatchVO.PLedgerVO plVo = new MatchVO.PLedgerVO();
@@ -181,6 +247,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
                 new LambdaQueryWrapper<ValuationChange>()
                         .eq(ValuationChange::getMatchId, match.getId())
                         .eq(ValuationChange::getIsVoided, 0)
+                        .eq(version != null, ValuationChange::getVersion, version)
         );
         List<MatchVO.ValuationChangeVO> valuationChangeVOs = valuationChanges.stream().map(vc -> {
             MatchVO.ValuationChangeVO vcVo = new MatchVO.ValuationChangeVO();
@@ -195,17 +262,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
         }).collect(Collectors.toList());
         vo.setValuationChanges(valuationChangeVOs);
 
-        List<Attachment> attachments = attachmentMapper.selectList(
-                new LambdaQueryWrapper<Attachment>()
-                        .eq(Attachment::getMatchId, match.getId())
-        );
-        List<MatchVO.AttachmentVO> attachmentVOs = attachments.stream().map(att -> {
-            MatchVO.AttachmentVO attVo = new MatchVO.AttachmentVO();
-            attVo.setLabel(att.getLabel());
-            attVo.setUrl(att.getUrl());
-            return attVo;
-        }).collect(Collectors.toList());
-        vo.setAttachments(attachmentVOs);
+        vo.setAttachments(Collections.emptyList());
 
         return vo;
     }
@@ -257,5 +314,18 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
         participant.setDerivedStats(derivedStats);
 
         return participant;
+    }
+
+    private static final Pattern GAME_INDEX_IN_URL = Pattern.compile("/game-(\\d+)/");
+
+    private Integer parseGameIndexFromUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return null;
+        }
+        Matcher matcher = GAME_INDEX_IN_URL.matcher(url);
+        if (matcher.find()) {
+            return Integer.parseInt(matcher.group(1));
+        }
+        return null;
     }
 }

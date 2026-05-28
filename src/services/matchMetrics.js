@@ -31,7 +31,9 @@ export function getTeamName(teams, state) {
 
 export function getMatchScoreText(match) {
   if (!match.score) return "未录入";
-  return `${match.score.home} : ${match.score.away}`;
+  const text = `${match.score.home} : ${match.score.away}`;
+  if (match.status === "forfeit") return `${text}（弃赛）`;
+  return text;
 }
 
 export function getMatchWinner(match) {
@@ -41,12 +43,16 @@ export function getMatchWinner(match) {
 }
 
 export function getPointSettlement(match) {
-  // 优先使用数据库中的积分值
-  if (match.homePoints !== undefined && match.awayPoints !== undefined) {
-    return { home: match.homePoints, away: match.awayPoints };
+  const empty = { home: 0, away: 0 };
+
+  // 未录入赛果不展示积分（避免 null 或推算值）
+  if (!match.score && match.status !== "forfeit") {
+    return null;
   }
 
-  const empty = { home: 0, away: 0 };
+  if (match.homePoints != null && match.awayPoints != null) {
+    return { home: match.homePoints, away: match.awayPoints };
+  }
 
   if (match.status === "forfeit") {
     if (!match.forfeitTeam) return empty;
@@ -74,8 +80,23 @@ export function getPointSettlement(match) {
   return { home: 1, away: 2 };
 }
 
+/** 按轮次倒序，同轮次按比赛时间倒序（空时间排后） */
+export function sortMatchesByRoundDesc(matches) {
+  return [...(matches || [])].sort((a, b) => {
+    const ar = Number(a?.round || 0);
+    const br = Number(b?.round || 0);
+    if (ar !== br) return br - ar;
+    const ad = a?.date ? Date.parse(String(a.date)) : NaN;
+    const bd = b?.date ? Date.parse(String(b.date)) : NaN;
+    if (Number.isFinite(ad) && Number.isFinite(bd) && ad !== bd) return bd - ad;
+    if (Number.isFinite(ad) !== Number.isFinite(bd)) return Number.isFinite(bd) ? 1 : -1;
+    return String(b?.id || "").localeCompare(String(a?.id || ""));
+  });
+}
+
 export function groupMatchesByRound(matches) {
-  return matches.reduce((groups, match) => {
+  const sorted = sortMatchesByRoundDesc(matches);
+  return sorted.reduce((groups, match) => {
     const key = match.roundLabel || `第${match.round}轮`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(match);

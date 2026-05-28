@@ -14,6 +14,8 @@ public class Attachment {
 
     private Long matchId;
 
+    private Long resultId;
+
     private Long gameId;
 
     private String type;
@@ -27,6 +29,8 @@ public class Attachment {
     private String uploadedBy;
 
     private String note;
+
+    private Integer isVoided;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

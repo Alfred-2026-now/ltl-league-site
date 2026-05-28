@@ -19,6 +19,14 @@ public class GameVO {
     private String sourceGameId;
     private String gameVersion;
     private Lineups lineups;
+    private List<ScoreScreenshot> scoreScreenshots;
+
+    @Data
+    public static class ScoreScreenshot {
+        private String url;
+        private String label;
+        private String note;
+    }
 
     @Data
     public static class Lineups {

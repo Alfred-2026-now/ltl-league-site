@@ -43,9 +43,11 @@ echo "本地文件检查通过"
 echo ""
 echo "[2/4] 上传文件到服务器..."
 ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no ${SERVER_USER}@${SERVER_HOST} << 'EOF'
-# 创建目录结构
-mkdir -p /var/www/ltl-league/{src,src/styles,src/features,src/services,src/data,assets}
+# 创建目录结构（静态页 www-data；uploads 由后端 ltl 用户写入）
+mkdir -p /var/www/ltl-league/{src,src/styles,src/features,src/services,src/data,assets,uploads}
 chown -R www-data:www-data /var/www/ltl-league
+chown -R ltl:ltl /var/www/ltl-league/uploads
+chmod 755 /var/www/ltl-league/uploads
 EOF
 
 # 上传 HTML 文件
@@ -98,6 +100,14 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 20m;
+    }
+
+    # 赛果截图上传目录
+    location /uploads/ {
+        alias /var/www/ltl-league/uploads/;
+        expires 30d;
+        add_header Cache-Control "public, max-age=2592000";
     }
 
     # JS/CSS 不做强缓存（避免 ESM import 依赖被缓存导致逻辑不更新）

@@ -6,33 +6,37 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("games")
-public class Game {
+@TableName("match_results")
+public class MatchResult {
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
     private Long matchId;
 
-    private Long resultId;
+    private Integer versionNo;
 
-    private Integer gameIndex;
+    private String status;
 
-    private String winner;
+    private String resultType;
 
-    private String blueTeam;
+    private Integer homeScore;
 
-    private String redTeam;
+    private Integer awayScore;
 
-    private String homeTeam;
+    private Long winnerTeamId;
 
-    private String awayTeam;
+    private Integer homePoints;
 
-    private Integer durationSeconds;
+    private Integer awayPoints;
 
-    private String sourceGameId;
+    private String notes;
 
-    private String gameVersion;
+    private LocalDateTime publishedAt;
+
+    private LocalDateTime withdrawnAt;
+
+    private String withdrawReason;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
