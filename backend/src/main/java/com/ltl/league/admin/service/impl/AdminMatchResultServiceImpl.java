@@ -160,6 +160,7 @@ public class AdminMatchResultServiceImpl implements AdminMatchResultService {
         match.setAwayPoints(result.getAwayPoints());
         match.setResultPublished(1);
         match.setVersion("r" + result.getVersionNo());
+        match.setSource("manual_entry");
 
         if ("forfeit".equals(result.getResultType())) {
             match.setStatus("forfeit");
@@ -218,6 +219,8 @@ public class AdminMatchResultServiceImpl implements AdminMatchResultService {
         match.setHomePoints(null);
         match.setAwayPoints(null);
         match.setForfeitTeamId(null);
+        match.setSource(null);
+        match.setVersion(null);
         if ("forfeit".equals(match.getStatus()) || "finished".equals(match.getStatus())) {
             match.setStatus("scheduled");
         }

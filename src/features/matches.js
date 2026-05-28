@@ -193,7 +193,7 @@ function renderMatchHero(match, teams, status, points) {
       <div class="match-meta-strip">
         <div><span>比赛日期</span><strong>${match.date || "待定"}</strong></div>
         ${pointsRow}
-        <div><span>数据来源</span><strong>${getSourceLabel(match.source)}</strong></div>
+        <div><span>数据来源</span><strong>${getSourceLabel(match)}</strong></div>
         <div><span>版本</span><strong>${match.version || "未发布"}</strong></div>
       </div>
     </section>
@@ -616,13 +616,16 @@ function getSelectedGameViewMode(gameKey, game) {
   return modes.includes(selected) ? selected : getDefaultGameViewMode(game);
 }
 
-function getSourceLabel(source) {
+function getSourceLabel(match) {
   const labels = {
     lcu_import: "LCU导入",
     manual_entry: "人工录入",
     mixed: "导入后人工补充"
   };
-  return labels[source] || "未录入";
+  const source = typeof match === "string" ? match : match?.source;
+  if (source && labels[source]) return labels[source];
+  if (match?.score && match?.version) return labels.manual_entry;
+  return "未录入";
 }
 
 function formatSigned(value) {
