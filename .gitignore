@@ -13,3 +13,146 @@ node_modules/
 dist/
 build/
 coverage/
+
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Environment ###
+.env
+application-local.properties
+application-local.yml
+
+### Logs ###
+log/
+logs/
+
+### sqls ###
+sqls/
+
+### .mvn
+.mvn
+
+### Frontend build output (compiled by build.sh) ###
+src/main/resources/static/
+
+### Node.js ###
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-store/
+.npm/
+.yarn/
+
+### Frontend build ###
+frontend/dist/
+frontend/node_modules/
+dist/
+coverage/
+
+### Java ###
+*.class
+hs_err_pid*
+replay_pid*
+
+### Editor temporary files ###
+*.swp
+*.swo
+*~
+.history/
+.vscode-test/
+.claude/
+
+### OS generated files ###
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Markdown files (except README.md and CLAUDE.md and AGENTS.md)
+# *.md
+# !README.md
+#CLAUDE.md
+#AGENTS.md
+
+# 样式文件
+theme-comparison-detailed.html
+theme-comparison.html
+
+# 过滤 Kode-cli
+Kode-cli/
+
+# 过滤 .agent
+.agent/
+
+# 过滤
+docs/
+#skills/
+#build.sh
+#start.sh
+.playwright-mcp
+*.png
+*.txt
+
+# arthas
+arthas-output/
+
+# evn
+.venv/
+
+# Python
+__pycache__/
+
+# scripts
+#scripts/
+/src/main/resources/skill-content/
+
+AGENTS.md
+CLAUDE.md
+/.java-version
+.fastRequest/config/fastRequestCurrentProjectConfig.json
+/skills/
+/frontend/
+/scripts/
+/.spec-workflow/
+/.tocodex/
+/.fastRequest/
+
