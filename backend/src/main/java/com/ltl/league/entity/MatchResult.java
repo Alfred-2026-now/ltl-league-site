@@ -32,6 +32,16 @@ public class MatchResult {
 
     private String notes;
 
+    private Integer taxExempt;
+
+    private Integer homeLineValue;
+
+    private Integer awayLineValue;
+
+    private Integer homeRosterSize;
+
+    private Integer awayRosterSize;
+
     private LocalDateTime publishedAt;
 
     private LocalDateTime withdrawnAt;

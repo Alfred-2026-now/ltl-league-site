@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS `teams` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '队伍ID',
   `state` VARCHAR(20) NOT NULL COMMENT '国家简称（秦/楚/蜀/吴/越/燕）',
   `name` VARCHAR(50) NOT NULL COMMENT '队伍名称',
-  `p_coins` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '队伍P币数量',
+  `p_coins` INT NOT NULL DEFAULT 0 COMMENT '队伍P币数量',
   `points` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '积分',
   `rank` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '排名',
   `logo_url` VARCHAR(255) NULL COMMENT '队徽图片URL',
@@ -97,6 +97,11 @@ CREATE TABLE IF NOT EXISTS `match_results` (
   `home_points` INT NULL COMMENT '主队本场积分',
   `away_points` INT NULL COMMENT '客队本场积分',
   `notes` TEXT NULL COMMENT '备注',
+  `tax_exempt` TINYINT NOT NULL DEFAULT 0 COMMENT '是否免奢侈税',
+  `home_line_value` INT UNSIGNED NULL COMMENT '主队本场出场总身价',
+  `away_line_value` INT UNSIGNED NULL COMMENT '客队本场出场总身价',
+  `home_roster_size` INT UNSIGNED NULL COMMENT '主队结算名单人数',
+  `away_roster_size` INT UNSIGNED NULL COMMENT '客队结算名单人数',
   `published_at` DATETIME NULL COMMENT '发布时间',
   `withdrawn_at` DATETIME NULL COMMENT '撤回时间',
   `withdraw_reason` VARCHAR(500) NULL COMMENT '撤回原因',
@@ -169,16 +174,21 @@ CREATE TABLE IF NOT EXISTS `p_ledger` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '流水ID',
   `team_id` BIGINT UNSIGNED NOT NULL COMMENT '队伍ID',
   `match_id` BIGINT UNSIGNED NULL COMMENT '关联比赛ID',
+  `result_id` BIGINT UNSIGNED NULL COMMENT '关联赛果版本ID',
   `type` VARCHAR(30) NOT NULL COMMENT '流水类型（match_reward/luxury_tax/loan_fee/forfeit_penalty/quiz_reward/admin_adjustment/catchup_fund/league_reclaim）',
   `amount` INT NOT NULL COMMENT '金额（正负表示增减）',
   `reason` VARCHAR(500) NULL COMMENT '原因说明',
   `version` VARCHAR(20) NULL COMMENT '结算版本号',
+  `source` VARCHAR(30) NOT NULL DEFAULT 'match_result' COMMENT '来源（match_result/manual_admin）',
+  `balance_before` INT NULL COMMENT '变动前余额',
+  `balance_after` INT NULL COMMENT '变动后余额',
   `is_voided` TINYINT NOT NULL DEFAULT 0 COMMENT '是否作废',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除标记',
   PRIMARY KEY (`id`),
   KEY `idx_team_id` (`team_id`),
   KEY `idx_match_id` (`match_id`),
+  KEY `idx_result_id` (`result_id`),
   KEY `idx_type` (`type`),
   KEY `idx_version` (`version`),
   CONSTRAINT `fk_ledger_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`),
@@ -188,7 +198,8 @@ CREATE TABLE IF NOT EXISTS `p_ledger` (
 -- 7. 身价变化表
 CREATE TABLE IF NOT EXISTS `valuation_changes` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '变化ID',
-  `match_id` BIGINT UNSIGNED NOT NULL COMMENT '关联比赛ID',
+  `match_id` BIGINT UNSIGNED NULL COMMENT '关联比赛ID',
+  `result_id` BIGINT UNSIGNED NULL COMMENT '关联赛果版本ID',
   `player_id` BIGINT UNSIGNED NOT NULL COMMENT '选手ID',
   `before_value` INT UNSIGNED NOT NULL COMMENT '赛前身价',
   `objective_delta` INT NOT NULL COMMENT '客观变化',
@@ -196,16 +207,80 @@ CREATE TABLE IF NOT EXISTS `valuation_changes` (
   `subjective_reason` VARCHAR(500) NULL COMMENT '主观原因',
   `after_value` INT UNSIGNED NOT NULL COMMENT '赛后身价',
   `version` VARCHAR(20) NULL COMMENT '结算版本号',
+  `source` VARCHAR(30) NOT NULL DEFAULT 'match_result' COMMENT '来源（match_result/manual_adjustment）',
+  `operator` VARCHAR(50) NULL COMMENT '操作人',
   `is_voided` TINYINT NOT NULL DEFAULT 0 COMMENT '是否作废',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除标记',
   PRIMARY KEY (`id`),
   KEY `idx_match_id` (`match_id`),
+  KEY `idx_result_id` (`result_id`),
   KEY `idx_player_id` (`player_id`),
   KEY `idx_version` (`version`),
   CONSTRAINT `fk_valuation_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`),
   CONSTRAINT `fk_valuation_player` FOREIGN KEY (`player_id`) REFERENCES `players` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='身价变化表';
+
+-- 7.1 赛果奖励规则表
+CREATE TABLE IF NOT EXISTS `settlement_reward_rules` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '规则ID',
+  `format` VARCHAR(10) NOT NULL COMMENT '赛制（BO1/BO2/BO3/BO5）',
+  `score_pattern` VARCHAR(10) NOT NULL COMMENT '比分模式（如2:0/1:1）',
+  `winner_amount` INT NULL COMMENT '胜方奖励',
+  `loser_amount` INT NULL COMMENT '败方奖励',
+  `draw_amount` INT NULL COMMENT '平局双方奖励',
+  `is_active` TINYINT NOT NULL DEFAULT 1 COMMENT '是否启用',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除标记',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_reward_rule` (`format`, `score_pattern`, `deleted`),
+  KEY `idx_format` (`format`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='赛果奖励规则表';
+
+-- 7.2 赛果租借费输入表
+CREATE TABLE IF NOT EXISTS `match_result_loan_inputs` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '输入ID',
+  `result_id` BIGINT UNSIGNED NOT NULL COMMENT '关联赛果版本ID',
+  `match_id` BIGINT UNSIGNED NOT NULL COMMENT '关联比赛ID',
+  `paying_team_id` BIGINT UNSIGNED NOT NULL COMMENT '使用租借选手队伍ID',
+  `player_id` BIGINT UNSIGNED NOT NULL COMMENT '租借选手ID',
+  `player_value` INT UNSIGNED NOT NULL COMMENT '结算身价',
+  `source_type` VARCHAR(20) NOT NULL COMMENT '来源类型（original_team/free_agent）',
+  `source_team_id` BIGINT UNSIGNED NULL COMMENT '原队伍ID',
+  `reason` VARCHAR(500) NULL COMMENT '原因说明',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除标记',
+  PRIMARY KEY (`id`),
+  KEY `idx_result_id` (`result_id`),
+  KEY `idx_match_id` (`match_id`),
+  KEY `idx_player_id` (`player_id`),
+  CONSTRAINT `fk_loan_input_result` FOREIGN KEY (`result_id`) REFERENCES `match_results` (`id`),
+  CONSTRAINT `fk_loan_input_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`),
+  CONSTRAINT `fk_loan_input_player` FOREIGN KEY (`player_id`) REFERENCES `players` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='赛果租借费输入表';
+
+-- 7.3 赛果身价调整输入表
+CREATE TABLE IF NOT EXISTS `match_result_valuation_inputs` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '输入ID',
+  `result_id` BIGINT UNSIGNED NOT NULL COMMENT '关联赛果版本ID',
+  `match_id` BIGINT UNSIGNED NOT NULL COMMENT '关联比赛ID',
+  `player_id` BIGINT UNSIGNED NOT NULL COMMENT '选手ID',
+  `objective_delta` INT NOT NULL DEFAULT 0 COMMENT '客观变化',
+  `subjective_delta` INT NOT NULL DEFAULT 0 COMMENT '主观变化',
+  `subjective_reason` VARCHAR(500) NULL COMMENT '调整原因',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除标记',
+  PRIMARY KEY (`id`),
+  KEY `idx_result_id` (`result_id`),
+  KEY `idx_match_id` (`match_id`),
+  KEY `idx_player_id` (`player_id`),
+  CONSTRAINT `fk_valuation_input_result` FOREIGN KEY (`result_id`) REFERENCES `match_results` (`id`),
+  CONSTRAINT `fk_valuation_input_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`),
+  CONSTRAINT `fk_valuation_input_player` FOREIGN KEY (`player_id`) REFERENCES `players` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='赛果身价调整输入表';
 
 -- 8. 公告表
 CREATE TABLE IF NOT EXISTS `announcements` (

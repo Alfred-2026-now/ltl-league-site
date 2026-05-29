@@ -14,7 +14,11 @@
         <span class="brand-mark">LTL</span><span class="brand-text">管理后台 · 赛果录入</span>
       </a>
       <div class="nav-links" id="navLinks">
-        <a href="admin-matches.html">返回赛程列表</a>
+        <a href="admin-matches.html">赛程管理</a>
+        <a href="admin-p-ledger.html">P币流水</a>
+        <a href="admin-valuation.html">身价管理</a>
+        <a href="admin-reward-rules.html">奖励规则</a>
+        <a href="index.html">返回官网</a>
       </div>
     </nav>
   </header>
@@ -72,6 +76,41 @@
         <h3 style="margin: 1rem 0 .5rem; font-size: 1rem;">小局（可选）</h3>
         <p class="muted" id="gamesHint" style="margin:0 0 .5rem;font-size:.9rem;">填写总比分后，仅显示需要录入的局数（如 BO3 的 2:0 只需 2 局）。</p>
         <div id="gamesContainer"></div>
+
+        <h3 style="margin: 1rem 0 .5rem; font-size: 1rem;">结算信息</h3>
+        <div class="panel" style="padding:.75rem; margin-bottom:.75rem;">
+          <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem;">
+            <input type="checkbox" id="taxExempt" /> <span>本场不征收奢侈税</span>
+          </label>
+          <div style="display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:.5rem;">
+            <label class="field"><span class="field-label">主队出场总身价</span><input class="input" id="homeLineValue" type="number" min="0" placeholder="5人总身价" /></label>
+            <label class="field"><span class="field-label">主队在职人数</span><input class="input" id="homeRosterSize" type="number" min="1" placeholder="含教练" /></label>
+            <label class="field"><span class="field-label">客队出场总身价</span><input class="input" id="awayLineValue" type="number" min="0" placeholder="5人总身价" /></label>
+            <label class="field"><span class="field-label">客队在职人数</span><input class="input" id="awayRosterSize" type="number" min="1" placeholder="含教练" /></label>
+          </div>
+        </div>
+
+        <div class="panel" style="padding:.75rem; margin-bottom:.75rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;">
+            <strong>租借费</strong>
+            <button class="btn ghost" type="button" id="addLoanBtn">添加租借</button>
+          </div>
+          <div id="loanInputs" style="margin-top:.5rem;"></div>
+        </div>
+
+        <div class="panel" style="padding:.75rem; margin-bottom:.75rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:.75rem;">
+            <strong>身价变化</strong>
+            <button class="btn ghost" type="button" id="addValuationBtn">添加身价调整</button>
+          </div>
+          <div id="valuationInputs" style="margin-top:.5rem;"></div>
+        </div>
+
+        <div class="panel" style="padding:.75rem; margin-bottom:.75rem;">
+          <strong>结算预览</strong>
+          <span class="muted" style="margin-left:.5rem;">（填写结算信息后自动刷新）</span>
+          <div id="settlementPreview" style="margin-top:.75rem;"><p class="muted">等待结算信息输入…</p></div>
+        </div>
 
         <div style="display:flex; flex-wrap:wrap; gap:.5rem; margin-top: 1.25rem;">
           <button class="btn primary" type="button" id="saveDraftBtn">保存草稿</button>

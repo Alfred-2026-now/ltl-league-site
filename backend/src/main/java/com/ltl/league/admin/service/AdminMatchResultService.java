@@ -3,6 +3,7 @@ package com.ltl.league.admin.service;
 import com.ltl.league.admin.dto.MatchResultAttachmentVO;
 import com.ltl.league.admin.dto.MatchResultDraftRequest;
 import com.ltl.league.admin.dto.MatchResultVO;
+import com.ltl.league.admin.dto.SettlementPreviewVO;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface AdminMatchResultService {
@@ -12,6 +13,8 @@ public interface AdminMatchResultService {
     MatchResultVO createDraft(Long matchId, MatchResultDraftRequest request);
 
     MatchResultVO updateDraft(Long matchId, Long resultId, MatchResultDraftRequest request);
+
+    SettlementPreviewVO previewSettlement(Long matchId, MatchResultDraftRequest request);
 
     void publish(Long matchId, Long resultId);
 

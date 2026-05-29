@@ -13,5 +13,6 @@ public class MatchResultDraftRequest {
     private Integer homePoints;
     private Integer awayPoints;
     private String notes;
+    private SettlementInputDTO settlement;
     private List<GameDraftDTO> games;
 }

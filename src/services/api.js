@@ -129,6 +129,14 @@ export async function getMatches() {
       };
     });
 
+    // 转换 P 币流水数据结构
+    const pLedger = (match.pLedger || match.pledger || []).map(item => ({
+      team: item.teamState || item.team || "",
+      type: item.type,
+      amount: item.amount,
+      reason: item.reason
+    }));
+
     return {
       id: match.matchId || match.id,
       season: match.season,
@@ -144,7 +152,7 @@ export async function getMatches() {
       awayPoints: match.awayPoints,
       live: match.live?.url ? { url: match.live.url, label: match.live.label || "直播间" } : null,
       games,
-      pLedger: match.pLedger || match.pledger || [],
+      pLedger,
       valuationChanges: match.valuationChanges || [],
       attachments: match.attachments || [],
       notes: match.notes,

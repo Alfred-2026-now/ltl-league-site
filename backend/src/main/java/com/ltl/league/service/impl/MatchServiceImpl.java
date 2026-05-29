@@ -221,10 +221,6 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
 
         vo.setGames(gameVOs);
 
-        Map<Long, String> teamIdToState = new HashMap<>();
-        if (homeTeam != null) teamIdToState.put(homeTeam.getId(), homeTeam.getState());
-        if (awayTeam != null) teamIdToState.put(awayTeam.getId(), awayTeam.getState());
-
         String version = match.getVersion();
         List<PLedger> pLedgerList = pLedgerMapper.selectList(
                 new LambdaQueryWrapper<PLedger>()
@@ -232,6 +228,21 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
                         .eq(PLedger::getIsVoided, 0)
                         .eq(version != null, PLedger::getVersion, version)
         );
+
+        // 查询所有涉及的队伍（不只是主客队，还包括租借费原队等）
+        Set<Long> teamIds = new HashSet<>();
+        teamIds.add(match.getHomeTeamId());
+        teamIds.add(match.getAwayTeamId());
+        pLedgerList.forEach(pl -> teamIds.add(pl.getTeamId()));
+
+        Map<Long, String> teamIdToState = new HashMap<>();
+        if (!teamIds.isEmpty()) {
+            List<Team> teams = teamService.listByIds(teamIds);
+            for (Team t : teams) {
+                teamIdToState.put(t.getId(), t.getState());
+            }
+        }
+
         List<MatchVO.PLedgerVO> pLedgerVOs = pLedgerList.stream().map(pl -> {
             MatchVO.PLedgerVO plVo = new MatchVO.PLedgerVO();
             String teamState = teamIdToState.get(pl.getTeamId());
