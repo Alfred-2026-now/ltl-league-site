@@ -4,6 +4,7 @@ import com.ltl.league.admin.dto.MatchResultAttachmentVO;
 import com.ltl.league.admin.dto.MatchResultDraftRequest;
 import com.ltl.league.admin.dto.MatchResultVO;
 import com.ltl.league.admin.dto.MatchResultWithdrawRequest;
+import com.ltl.league.admin.dto.SettlementPreviewVO;
 import com.ltl.league.admin.service.AdminMatchResultService;
 import com.ltl.league.common.Result;
 import org.springframework.web.bind.annotation.*;
@@ -35,6 +36,13 @@ public class AdminMatchResultController {
             @PathVariable Long resultId,
             @RequestBody MatchResultDraftRequest request) {
         return Result.success(adminMatchResultService.updateDraft(matchId, resultId, request));
+    }
+
+    @PostMapping("/matches/{matchId}/result/settlement-preview")
+    public Result<SettlementPreviewVO> settlementPreview(
+            @PathVariable Long matchId,
+            @RequestBody MatchResultDraftRequest request) {
+        return Result.success(adminMatchResultService.previewSettlement(matchId, request));
     }
 
     @PostMapping("/matches/{matchId}/result/{resultId}/publish")

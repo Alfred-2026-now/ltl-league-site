@@ -6,6 +6,7 @@ import com.ltl.league.admin.dto.*;
 import com.ltl.league.admin.service.AdminMatchResultService;
 import com.ltl.league.admin.service.AdminMatchService;
 import com.ltl.league.admin.service.MatchResultValidator;
+import com.ltl.league.admin.service.MatchSettlementService;
 import com.ltl.league.entity.*;
 import com.ltl.league.exception.BusinessException;
 import com.ltl.league.mapper.*;
@@ -35,6 +36,7 @@ public class AdminMatchResultServiceImpl implements AdminMatchResultService {
     private final ValuationChangeMapper valuationChangeMapper;
     private final TeamService teamService;
     private final AdminMatchService adminMatchService;
+    private final MatchSettlementService matchSettlementService;
 
     @Value("${ltl.match.bo5-enabled:false}")
     private boolean bo5Enabled;
@@ -53,7 +55,8 @@ public class AdminMatchResultServiceImpl implements AdminMatchResultService {
             PLedgerMapper pLedgerMapper,
             ValuationChangeMapper valuationChangeMapper,
             TeamService teamService,
-            AdminMatchService adminMatchService) {
+            AdminMatchService adminMatchService,
+            MatchSettlementService matchSettlementService) {
         this.matchMapper = matchMapper;
         this.matchResultMapper = matchResultMapper;
         this.gameMapper = gameMapper;
@@ -62,6 +65,7 @@ public class AdminMatchResultServiceImpl implements AdminMatchResultService {
         this.valuationChangeMapper = valuationChangeMapper;
         this.teamService = teamService;
         this.adminMatchService = adminMatchService;
+        this.matchSettlementService = matchSettlementService;
     }
 
     @Override
@@ -111,6 +115,7 @@ public class AdminMatchResultServiceImpl implements AdminMatchResultService {
         result.setStatus("draft");
         applyRequestToResult(result, match, request, home, away);
         matchResultMapper.insert(result);
+        matchSettlementService.syncInputs(match, result, request.getSettlement());
 
         gameMapper.physicalDeleteByMatchId(matchId);
         syncGames(match, result, home, away, request.getGames());
@@ -130,9 +135,21 @@ public class AdminMatchResultServiceImpl implements AdminMatchResultService {
 
         applyRequestToResult(result, match, request, home, away);
         matchResultMapper.updateById(result);
+        matchSettlementService.syncInputs(match, result, request.getSettlement());
 
         resyncGamesPreservingScreenshots(match, result, home, away, request.getGames());
         return toVO(result, match, false);
+    }
+
+    @Override
+    public SettlementPreviewVO previewSettlement(Long matchId, MatchResultDraftRequest request) {
+        Match match = adminMatchService.getByIdOrThrow(matchId);
+        Team home = requireTeam(match.getHomeTeamId());
+        Team away = requireTeam(match.getAwayTeamId());
+        normalizeForfeitRequest(request, home, away);
+        MatchResult result = new MatchResult();
+        applyRequestToResult(result, match, request, home, away);
+        return matchSettlementService.preview(match, result, request.getSettlement());
     }
 
     @Override
@@ -149,6 +166,7 @@ public class AdminMatchResultServiceImpl implements AdminMatchResultService {
         Team away = requireTeam(match.getAwayTeamId());
         MatchResultDraftRequest req = toRequest(result, matchId, resultId);
         MatchResultValidator.validateForPublish(match.getFormat(), bo5Enabled, req, home, away);
+        matchSettlementService.apply(match, result);
 
         result.setStatus("published");
         result.setPublishedAt(LocalDateTime.now());
@@ -196,6 +214,7 @@ public class AdminMatchResultServiceImpl implements AdminMatchResultService {
         Team home = requireTeam(match.getHomeTeamId());
         Team away = requireTeam(match.getAwayTeamId());
         MatchResultDraftRequest snapshot = toRequest(result, matchId, resultId);
+        matchSettlementService.rollback(match, result);
 
         List<Game> oldGames = gameMapper.selectList(new LambdaQueryWrapper<Game>()
                 .eq(Game::getResultId, resultId)
@@ -232,16 +251,6 @@ public class AdminMatchResultServiceImpl implements AdminMatchResultService {
                 .set(Attachment::getIsVoided, 1));
 
         physicalRemoveGamesForResult(resultId);
-
-        String version = "r" + result.getVersionNo();
-        pLedgerMapper.update(null, new LambdaUpdateWrapper<PLedger>()
-                .eq(PLedger::getMatchId, matchId)
-                .eq(PLedger::getVersion, version)
-                .set(PLedger::getIsVoided, 1));
-        valuationChangeMapper.update(null, new LambdaUpdateWrapper<ValuationChange>()
-                .eq(ValuationChange::getMatchId, matchId)
-                .eq(ValuationChange::getVersion, version)
-                .set(ValuationChange::getIsVoided, 1));
 
         MatchResult draft = new MatchResult();
         draft.setMatchId(matchId);
@@ -577,6 +586,7 @@ public class AdminMatchResultServiceImpl implements AdminMatchResultService {
         req.setHomePoints(result.getHomePoints());
         req.setAwayPoints(result.getAwayPoints());
         req.setNotes(result.getNotes());
+        req.setSettlement(matchSettlementService.loadInputs(matchId, resultId));
         List<Game> games = gameMapper.selectList(new LambdaQueryWrapper<Game>()
                 .eq(Game::getResultId, resultId)
                 .orderByAsc(Game::getGameIndex));
@@ -616,6 +626,9 @@ public class AdminMatchResultServiceImpl implements AdminMatchResultService {
         vo.setWithdrawReason(result.getWithdrawReason());
         vo.setReadOnly(readOnly);
         vo.setCanCreateDraft(false);
+        if (result.getId() != null) {
+            vo.setSettlement(matchSettlementService.loadInputs(match.getId(), result.getId()));
+        }
 
         if (result.getId() != null) {
             List<Game> games = gameMapper.selectList(new LambdaQueryWrapper<Game>()

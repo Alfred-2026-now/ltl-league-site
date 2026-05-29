@@ -17,6 +17,10 @@ export async function getTeams() {
   return request("/teams");
 }
 
+export async function getPlayers() {
+  return request("/players");
+}
+
 export async function listAdminMatches(params) {
   const query = new URLSearchParams();
   Object.entries(params || {}).forEach(([k, v]) => {
@@ -77,6 +81,14 @@ export async function updateResultDraft(matchId, resultId, payload) {
   });
 }
 
+export async function previewResultSettlement(matchId, payload) {
+  return request(`/admin/matches/${matchId}/result/settlement-preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function publishResult(matchId, resultId) {
   return request(`/admin/matches/${matchId}/result/${resultId}/publish`, { method: "POST" });
 }
@@ -102,5 +114,58 @@ export async function uploadGameScreenshot(matchId, resultId, gameIndex, file) {
 
 export async function deleteAttachment(attachmentId) {
   return request(`/admin/attachments/${attachmentId}`, { method: "DELETE" });
+}
+
+export async function listPLedgers(params) {
+  const query = new URLSearchParams();
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (v === null || v === undefined || String(v).trim() === "") return;
+    query.set(k, String(v).trim());
+  });
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return request(`/admin/p-ledger${suffix}`);
+}
+
+export async function listValuationChanges(params) {
+  const query = new URLSearchParams();
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (v === null || v === undefined || String(v).trim() === "") return;
+    query.set(k, String(v).trim());
+  });
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return request(`/admin/valuation-changes${suffix}`);
+}
+
+export async function createManualValuationAdjustment(payload) {
+  return request("/admin/valuation-changes/manual-adjustment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function listRewardRules(format) {
+  const query = format ? `?format=${encodeURIComponent(format)}` : "";
+  return request(`/admin/reward-rules${query}`);
+}
+
+export async function createRewardRule(payload) {
+  return request("/admin/reward-rules", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateRewardRule(id, payload) {
+  return request(`/admin/reward-rules/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteRewardRule(id) {
+  return request(`/admin/reward-rules/${id}`, { method: "DELETE" });
 }
 

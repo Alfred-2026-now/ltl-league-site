@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>LTL 管理 - P币流水</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="admin-matches.html"><span class="brand-mark">LTL</span><span class="brand-text">管理后台 · P币流水</span></a>
+      <div class="nav-links">
+        <a href="admin-matches.html">赛程管理</a>
+        <a href="admin-p-ledger.html">P币流水</a>
+        <a href="admin-valuation.html">身价管理</a>
+        <a href="admin-reward-rules.html">奖励规则</a>
+        <a href="index.html">返回官网</a>
+      </div>
+    </nav>
+  </header>
+  <main class="page-shell">
+    <section class="section">
+      <div class="section-heading row">
+        <div>
+          <p class="eyebrow">ADMIN · LEDGER</p>
+          <h1 class="page-title">P币流水</h1>
+          <p class="muted">查询赛果发布、奢侈税、租借费和后续扩展的队伍 P 币变动。</p>
+        </div>
+      </div>
+      <div class="panel" style="padding:1rem;">
+        <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.75rem;">
+          <label class="field"><span class="field-label">队伍</span><select class="input" id="filterTeam"></select></label>
+          <label class="field"><span class="field-label">类型</span><select class="input" id="filterType"><option value="">全部</option><option value="match_reward">比赛奖励</option><option value="luxury_tax">奢侈税</option><option value="loan_fee">租借费</option></select></label>
+          <label class="field"><span class="field-label">状态</span><select class="input" id="filterVoided"><option value="0">未作废</option><option value="1">已作废</option><option value="">全部</option></select></label>
+          <label class="field"><span class="field-label">比赛ID</span><input class="input" id="filterMatchId" type="number" /></label>
+          <label class="field"><span class="field-label">来源</span><select class="input" id="filterSource"><option value="">全部</option><option value="match_result">赛果结算</option><option value="manual_admin">管理员</option></select></label>
+        </div>
+        <div style="display:flex;gap:.5rem;margin-top:.75rem;"><button class="btn primary" id="refreshBtn" type="button">刷新</button></div>
+      </div>
+      <div class="panel" style="margin-top:1rem;overflow:auto;">
+        <table class="admin-table" style="width:100%;border-collapse:collapse;">
+          <thead><tr><th style="text-align:left;padding:.75rem 1rem;">时间</th><th style="text-align:left;padding:.75rem 1rem;">队伍</th><th style="text-align:left;padding:.75rem 1rem;">类型</th><th style="text-align:left;padding:.75rem 1rem;">金额</th><th style="text-align:left;padding:.75rem 1rem;">余额</th><th style="text-align:left;padding:.75rem 1rem;">比赛/版本</th><th style="text-align:left;padding:.75rem 1rem;">状态</th><th style="text-align:left;padding:.75rem 1rem;">原因</th></tr></thead>
+          <tbody id="ledgerBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="src/admin/p-ledger.js"></script>
+</body>
+</html>

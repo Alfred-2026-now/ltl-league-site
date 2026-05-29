@@ -1,44 +1,23 @@
-package com.ltl.league.entity;
+package com.ltl.league.admin.dto;
 
-import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
-import java.time.LocalDateTime;
-
 @Data
-@TableName("valuation_changes")
-public class ValuationChange {
-
-    @TableId(type = IdType.AUTO)
+public class AdminValuationChangeVO {
     private Long id;
-
     private Long matchId;
-
     private Long resultId;
-
     private Long playerId;
-
+    private String playerName;
+    private Long teamId;
+    private String teamState;
     private Integer beforeValue;
-
     private Integer objectiveDelta;
-
     private Integer subjectiveDelta;
-
     private String subjectiveReason;
-
     private Integer afterValue;
-
     private String version;
-
     private String source;
-
-    private String operator;
-
     private Integer isVoided;
-
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createdAt;
-
-    @TableLogic
-    private Integer deleted;
+    private String createdAt;
 }

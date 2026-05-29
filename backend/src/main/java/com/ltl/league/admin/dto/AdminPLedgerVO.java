@@ -1,42 +1,22 @@
-package com.ltl.league.entity;
+package com.ltl.league.admin.dto;
 
-import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
-import java.time.LocalDateTime;
-
 @Data
-@TableName("p_ledger")
-public class PLedger {
-
-    @TableId(type = IdType.AUTO)
+public class AdminPLedgerVO {
     private Long id;
-
     private Long teamId;
-
+    private String teamState;
+    private String teamName;
     private Long matchId;
-
     private Long resultId;
-
     private String type;
-
     private Integer amount;
-
     private String reason;
-
     private String version;
-
     private String source;
-
     private Integer balanceBefore;
-
     private Integer balanceAfter;
-
     private Integer isVoided;
-
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createdAt;
-
-    @TableLogic
-    private Integer deleted;
+    private String createdAt;
 }

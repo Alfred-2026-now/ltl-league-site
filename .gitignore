@@ -124,7 +124,6 @@ Kode-cli/
 .agent/
 
 # 过滤
-docs/
 #skills/
 #build.sh
 #start.sh

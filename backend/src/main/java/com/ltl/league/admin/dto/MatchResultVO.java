@@ -23,5 +23,6 @@ public class MatchResultVO {
     private String withdrawReason;
     private Boolean readOnly;
     private Boolean canCreateDraft;
+    private SettlementInputDTO settlement;
     private List<MatchResultGameVO> games;
 }
