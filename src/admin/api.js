@@ -144,6 +144,26 @@ export async function createManualValuationAdjustment(payload) {
   });
 }
 
+export async function manualAddPLedger(payload) {
+  return request("/admin/p-ledger/manual-add", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function voidPLedger(ledgerId, reason) {
+  return request(`/admin/p-ledger/${ledgerId}/void?reason=${encodeURIComponent(reason || "")}`, {
+    method: "POST"
+  });
+}
+
+export async function voidValuationChange(changeId, reason) {
+  return request(`/admin/valuation-changes/${changeId}/void?reason=${encodeURIComponent(reason || "")}`, {
+    method: "POST"
+  });
+}
+
 export async function listRewardRules(format) {
   const query = format ? `?format=${encodeURIComponent(format)}` : "";
   return request(`/admin/reward-rules${query}`);

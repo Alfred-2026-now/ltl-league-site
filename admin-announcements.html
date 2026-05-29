@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>LTL 管理 - 公告管理</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="admin-matches.html"><span class="brand-mark">LTL</span><span class="brand-text">管理后台 · 公告管理</span></a>
+      <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+      <div class="nav-links" id="navLinks">
+        <a href="admin-matches.html">赛程管理</a>
+        <a href="admin-p-ledger.html">P币流水</a>
+        <a href="admin-valuation.html">身价管理</a>
+        <a href="admin-reward-rules.html">奖励规则</a>
+        <a href="admin-announcements.html">公告管理</a>
+        <a href="admin-players.html">选手管理</a>
+        <a href="admin-player-deposit-ledger.html">选手存款流水</a>
+        <a href="index.html">返回官网</a>
+      </div>
+    </nav>
+  </header>
+  <main class="page-shell">
+    <section class="section">
+      <div class="section-heading row">
+        <div>
+          <p class="eyebrow">ADMIN · ANNOUNCEMENTS</p>
+          <h1 class="page-title">公告管理</h1>
+          <p class="muted">管理官网公告发布。</p>
+        </div>
+      </div>
+      <div class="panel" style="padding:1rem;">
+        <h3 style="margin:0 0 1rem 0;">发布新公告</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+          <label class="field"><span class="field-label">标题</span><input class="input" id="addTitle" /></label>
+          <label class="field"><span class="field-label">日期</span><input class="input" id="addDate" type="date" /></label>
+        </div>
+        <div style="margin-top:.75rem;">
+          <label class="field"><span class="field-label">内容</span><textarea class="input" id="addContent" rows="4" style="width:100%;resize:vertical;"></textarea></label>
+        </div>
+        <div style="display:flex;align-items:center;gap:.75rem;margin-top:.75rem;">
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;color:#f3f8ff;">
+            <input type="checkbox" id="addIsActive" checked style="width:1.1rem;height:1.1rem;cursor:pointer;" />
+            立即发布（勾选后公告将在官网显示）
+          </label>
+        </div>
+        <div style="margin-top:.75rem;">
+          <button class="btn primary" id="addBtn" type="button">发布公告</button>
+        </div>
+      </div>
+      <div class="panel" style="padding:1rem;margin-top:1rem;">
+        <div style="display:flex;gap:.5rem;">
+          <button class="btn" id="showAllBtn" type="button">全部</button>
+          <button class="btn" id="showActiveBtn" type="button">已发布</button>
+          <button class="btn" id="showInactiveBtn" type="button">草稿</button>
+        </div>
+      </div>
+      <div class="panel" style="margin-top:1rem;overflow:auto;">
+        <table class="admin-table" style="width:100%;border-collapse:collapse;">
+          <thead><tr><th style="text-align:left;padding:.75rem 1rem;">日期</th><th style="text-align:left;padding:.75rem 1rem;">标题</th><th style="text-align:left;padding:.75rem 1rem;">内容</th><th style="text-align:left;padding:.75rem 1rem;">状态</th><th style="text-align:left;padding:.75rem 1rem;">操作</th></tr></thead>
+          <tbody id="announcementBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="src/admin/announcements.js"></script>
+  <script src="src/components/admin-nav.js"></script>
+  <script type="module">
+    import { setupNav } from "./src/features/navigation.js";
+    setupNav();
+  </script>
+</body>
+</html>

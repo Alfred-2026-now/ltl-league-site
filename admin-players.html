@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>LTL 管理 - 选手管理</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="admin-matches.html"><span class="brand-mark">LTL</span><span class="brand-text">管理后台 · 选手管理</span></a>
+      <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+      <div class="nav-links" id="navLinks">
+        <a href="admin-matches.html">赛程管理</a>
+        <a href="admin-p-ledger.html">P币流水</a>
+        <a href="admin-valuation.html">身价管理</a>
+        <a href="admin-reward-rules.html">奖励规则</a>
+        <a href="admin-announcements.html">公告管理</a>
+        <a href="admin-players.html">选手管理</a>
+        <a href="admin-player-deposit-ledger.html">选手存款流水</a>
+        <a href="index.html">返回官网</a>
+      </div>
+    </nav>
+  </header>
+  <main class="page-shell">
+    <section class="section">
+      <div class="section-heading row">
+        <div>
+          <p class="eyebrow">ADMIN · PLAYERS</p>
+          <h1 class="page-title">选手管理</h1>
+          <p class="muted">管理选手信息和状态，存款流水请访问<a href="admin-player-deposit-ledger.html" style="color:#7cffb2;">选手存款流水</a>页面。</p>
+        </div>
+        <button class="btn primary" id="createPlayerBtn" type="button">创建选手</button>
+      </div>
+
+      <div class="panel" style="padding:1rem;margin-top:1rem;">
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:.75rem;">
+          <label class="field"><span class="field-label">队伍</span><select class="input" id="filterTeam"><option value="">全部</option></select></label>
+          <label class="field"><span class="field-label">状态</span><select class="input" id="filterStatus"><option value="">全部</option><option value="1">在职</option><option value="2">离队</option><option value="3">自由人</option></select></label>
+        </div>
+        <div style="display:flex;gap:.5rem;margin-top:.75rem;"><button class="btn primary" id="refreshBtn" type="button">刷新</button></div>
+      </div>
+
+      <div class="panel" style="margin-top:1rem;overflow:auto;">
+        <table class="admin-table" style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:.75rem 1rem;">选手</th>
+              <th style="text-align:left;padding:.75rem 1rem;">队伍</th>
+              <th style="text-align:left;padding:.75rem 1rem;">身价</th>
+              <th style="text-align:left;padding:.75rem 1rem;">存款</th>
+              <th style="text-align:left;padding:.75rem 1rem;">状态</th>
+              <th style="text-align:left;padding:.75rem 1rem;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="playersBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="playerDialog" style="max-width: 720px; width: calc(100% - 2rem); border: 1px solid rgba(126,200,255,.28); background: rgba(12, 22, 48, 0.95); color: var(--text); border-radius: 16px; padding: 0; box-shadow: var(--shadow);">
+    <div style="padding: 1rem;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap: 1rem;">
+        <h2 style="margin:0; font-size: 1.1rem;" id="dialogTitle">创建选手</h2>
+        <button class="btn ghost" id="closeDialogBtn" type="button">关闭</button>
+      </div>
+
+      <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-top: .75rem;">
+        <label class="field">
+          <span class="field-label">选手名称（必填）</span>
+          <input class="input" id="formName" />
+        </label>
+        <label class="field">
+          <span class="field-label">选手身价（必填）</span>
+          <input class="input" id="formValue" type="number" min="0" value="2000" />
+        </label>
+
+        <label class="field">
+          <span class="field-label">位置</span>
+          <select class="input" id="formPosition">
+            <option value="">无</option>
+            <option value="TOP">TOP</option>
+            <option value="JUG">JUG</option>
+            <option value="MID">MID</option>
+            <option value="BOT">BOT</option>
+            <option value="SUP">SUP</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">游戏账号</span>
+          <input class="input" id="formGameAccount" placeholder="LOL游戏账号（可选）" />
+        </label>
+
+        <label class="field">
+          <span class="field-label">队伍</span>
+          <select class="input" id="formTeam">
+            <option value="">自由人</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">选手状态</span>
+          <select class="input" id="formStatus">
+            <option value="1">在职</option>
+            <option value="2">离队</option>
+            <option value="3">自由人</option>
+          </select>
+        </label>
+
+        <label class="field" style="grid-column: 1 / -1;">
+          <span class="field-label">PUUID（可选）</span>
+          <input class="input" id="formPuuid" placeholder="LOL官方唯一标识符，用于获取游戏数据（可选）" />
+          <small class="muted" style="display:block; margin-top:.25rem;">PUUID是Riot Games提供的玩家唯一标识符，填写后可通过官方API获取玩家游戏数据。如不确定可留空。</small>
+        </label>
+
+        <label class="field" style="display:flex; align-items:center; gap:.5rem; padding-top:1.5rem;">
+          <input type="checkbox" id="formIsSubstitute" style="width:1.1rem;height:1.1rem;cursor:pointer;" />
+          <span style="color:#f3f8ff;">替补</span>
+        </label>
+        <div></div>
+      </div>
+
+      <div style="display:flex; justify-content: flex-end; gap: .5rem; margin-top: 1rem;">
+        <button class="btn primary" type="button" id="saveBtn">保存</button>
+      </div>
+
+      <input type="hidden" id="formPlayerId" />
+    </div>
+  </dialog>
+
+  <script type="module" src="src/admin/players.js"></script>
+  <script src="src/components/admin-nav.js"></script>
+  <script type="module">
+    import { setupNav } from "./src/features/navigation.js";
+    setupNav();
+  </script>
+</body>
+</html>

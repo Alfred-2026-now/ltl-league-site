@@ -1,4 +1,4 @@
-import { createManualValuationAdjustment, getPlayers, getTeams, listValuationChanges } from "./api.js";
+import { createManualValuationAdjustment, voidValuationChange, getPlayers, getTeams, listValuationChanges } from "./api.js";
 
 let teams = [];
 let players = [];
@@ -59,7 +59,7 @@ function formatDelta(row) {
 
 function renderRows(rows) {
   if (!rows.length) {
-    els.valuationBody.innerHTML = `<tr><td colspan="7" style="padding:1rem;" class="muted">暂无身价变化。</td></tr>`;
+    els.valuationBody.innerHTML = `<tr><td colspan="8" style="padding:1rem;" class="muted">暂无身价变化。</td></tr>`;
     return;
   }
   els.valuationBody.innerHTML = rows.map(row => `
@@ -71,6 +71,7 @@ function renderRows(rows) {
       <td style="padding:.75rem 1rem;">${formatDelta(row)}</td>
       <td style="padding:.75rem 1rem;"><span class="status-badge" data-tone="${row.isVoided ? "danger" : "success"}">${row.isVoided ? "已作废" : "有效"}</span></td>
       <td style="padding:.75rem 1rem;">${row.subjectiveReason || "-"}</td>
+      <td style="padding:.75rem 1rem;">${!row.isVoided ? `<button class="btn" style="padding:.25rem .5rem;font-size:.875rem;" data-id="${row.id}" data-action="void">撤回</button>` : "-"}</td>
     </tr>
   `).join("");
 }
@@ -110,7 +111,23 @@ async function init() {
   els.adjustPlayer.addEventListener("change", updateCurrentValueHint);
   els.adjustBtn.addEventListener("click", submitAdjustment);
   els.refreshBtn.addEventListener("click", refresh);
+  els.valuationBody.addEventListener("click", handleVoidClick);
   await refresh();
+}
+
+async function handleVoidClick(e) {
+  if (!e.target.matches("[data-action=\"void\"]")) return;
+  const changeId = e.target.dataset.id;
+  if (!confirm("确定要撤回这条身价变化吗？")) return;
+  try {
+    await voidValuationChange(changeId, "管理员撤回");
+    alert("身价变化已撤回");
+    players = await getPlayers();
+    renderOptions();
+    await refresh();
+  } catch (err) {
+    alert(`撤回失败：${err.message}`);
+  }
 }
 
 document.addEventListener("DOMContentLoaded", init);
