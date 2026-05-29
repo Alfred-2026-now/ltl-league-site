@@ -15,6 +15,7 @@
         <a href="announcements.html">公告</a>
         <a class="active" href="standings.html">积分榜</a>
         <a href="teams.html">队伍</a>
+        <a href="player-rankings.html">选手榜</a>
         <a href="rules.html">规则</a>
         <a href="tools.html">计算器</a>
         <a href="schedule.html">赛程</a>
@@ -34,5 +35,10 @@
   </main>
 
   <script type="module" src="src/main.js"></script>
+  <script src="src/components/public-nav.js"></script>
+  <script type="module">
+    import { setupNav } from "./src/features/navigation.js";
+    setupNav();
+  </script>
 </body>
 </html>

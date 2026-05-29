@@ -32,6 +32,8 @@ public class Player {
 
     private Integer status;
 
+    private Integer deposit;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 

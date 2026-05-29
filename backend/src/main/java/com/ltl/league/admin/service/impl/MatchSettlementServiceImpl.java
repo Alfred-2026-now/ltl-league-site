@@ -10,6 +10,7 @@ import com.ltl.league.admin.dto.SettlementInputDTO;
 import com.ltl.league.admin.dto.SettlementPreviewVO;
 import com.ltl.league.admin.dto.ValuationInputDTO;
 import com.ltl.league.admin.dto.ValuationPreviewVO;
+import com.ltl.league.admin.service.AdminPlayerDepositService;
 import com.ltl.league.admin.service.MatchSettlementCalculator;
 import com.ltl.league.admin.service.MatchSettlementService;
 import com.ltl.league.entity.Match;
@@ -55,6 +56,7 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
     private final ValuationChangeMapper valuationChangeMapper;
     private final TeamMapper teamMapper;
     private final PlayerMapper playerMapper;
+    private final AdminPlayerDepositService adminPlayerDepositService;
 
     public MatchSettlementServiceImpl(
             MatchSettlementCalculator calculator,
@@ -65,7 +67,8 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
             PLedgerMapper pLedgerMapper,
             ValuationChangeMapper valuationChangeMapper,
             TeamMapper teamMapper,
-            PlayerMapper playerMapper) {
+            PlayerMapper playerMapper,
+            AdminPlayerDepositService adminPlayerDepositService) {
         this.calculator = calculator;
         this.matchResultMapper = matchResultMapper;
         this.loanInputMapper = loanInputMapper;
@@ -75,6 +78,7 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
         this.valuationChangeMapper = valuationChangeMapper;
         this.teamMapper = teamMapper;
         this.playerMapper = playerMapper;
+        this.adminPlayerDepositService = adminPlayerDepositService;
     }
 
     @Override
@@ -407,6 +411,10 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
         Map<Long, Team> teams = loadTeams(drafts.stream().map(LedgerDraft::teamId).collect(Collectors.toSet()));
         Map<Long, Integer> balances = teams.values().stream().collect(Collectors.toMap(Team::getId, Team::getPCoins));
         String version = "r" + result.getVersionNo();
+
+        List<MatchResultLoanInput> loanInputs = loanInputMapper.selectList(
+                new LambdaQueryWrapper<MatchResultLoanInput>().eq(MatchResultLoanInput::getResultId, result.getId()));
+
         for (LedgerDraft draft : drafts) {
             Team team = teams.get(draft.teamId());
             int before = balances.getOrDefault(draft.teamId(), 0);
@@ -427,6 +435,27 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
             team.setPCoins(after);
             teamMapper.updateById(team);
             balances.put(team.getId(), after);
+        }
+
+        for (MatchResultLoanInput loanInput : loanInputs) {
+            if (loanInput.getPlayerId() == null) {
+                continue;
+            }
+            LoanFeeInputDTO dto = new LoanFeeInputDTO();
+            dto.setPlayerId(loanInput.getPlayerId());
+            dto.setPayingTeamId(loanInput.getPayingTeamId());
+            dto.setSourceTeamId(loanInput.getSourceTeamId());
+            dto.setPlayerValue(loanInput.getPlayerValue());
+            dto.setSourceType(loanInput.getSourceType());
+
+            Player player = playerMapper.selectById(dto.getPlayerId());
+            if (player != null) {
+                MatchSettlementCalculator.LoanFeeResult loanResult = calculator.calculateLoanFee(
+                        dto.getPlayerValue(), match.getFormat(), dto.getSourceType());
+                if (loanResult.playerIncome() > 0) {
+                    adminPlayerDepositService.addLoanFeeToPlayer(player.getId(), loanResult.playerIncome());
+                }
+            }
         }
     }
 

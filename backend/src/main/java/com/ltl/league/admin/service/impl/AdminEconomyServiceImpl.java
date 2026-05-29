@@ -3,6 +3,7 @@ package com.ltl.league.admin.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ltl.league.admin.dto.AdminPLedgerVO;
 import com.ltl.league.admin.dto.AdminValuationChangeVO;
+import com.ltl.league.admin.dto.ManualPLedgerRequest;
 import com.ltl.league.admin.dto.ManualValuationAdjustRequest;
 import com.ltl.league.admin.service.AdminEconomyService;
 import com.ltl.league.entity.PLedger;
@@ -176,5 +177,125 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
             return 100;
         }
         return Math.max(1, Math.min(limit, 500));
+    }
+
+    @Override
+    @Transactional
+    public AdminPLedgerVO manualAddPLedger(ManualPLedgerRequest request) {
+        if (request == null || request.getTeamId() == null || request.getAmount() == null) {
+            throw new BusinessException(400, "请选择队伍并填写金额");
+        }
+        if (request.getAmount() == 0) {
+            throw new BusinessException(400, "金额不能为 0");
+        }
+        if (request.getReason() == null || request.getReason().isBlank()) {
+            throw new BusinessException(400, "请填写原因");
+        }
+        Team team = teamMapper.selectById(request.getTeamId());
+        if (team == null) {
+            throw new BusinessException(404, "队伍不存在");
+        }
+
+        PLedger lastLedger = pLedgerMapper.selectOne(new LambdaQueryWrapper<PLedger>()
+                .eq(PLedger::getTeamId, team.getId())
+                .eq(PLedger::getDeleted, 0)
+                .eq(PLedger::getIsVoided, 0)
+                .orderByDesc(PLedger::getCreatedAt)
+                .last("LIMIT 1"));
+
+        Integer balanceBefore = lastLedger != null ? lastLedger.getBalanceAfter() : 0;
+        Integer balanceAfter = balanceBefore + request.getAmount();
+
+        if (balanceAfter < 0) {
+            throw new BusinessException(400, "队伍P币余额不足");
+        }
+
+        PLedger ledger = new PLedger();
+        ledger.setTeamId(team.getId());
+        ledger.setMatchId(null);
+        ledger.setResultId(null);
+        ledger.setType("manual_admin");
+        ledger.setAmount(request.getAmount());
+        ledger.setReason(request.getReason().trim());
+        ledger.setVersion(null);
+        ledger.setSource("manual_admin");
+        ledger.setBalanceBefore(balanceBefore);
+        ledger.setBalanceAfter(balanceAfter);
+        ledger.setIsVoided(0);
+        pLedgerMapper.insert(ledger);
+
+        team.setPCoins(balanceAfter);
+        teamMapper.updateById(team);
+
+        return toPLedgerVO(ledger, team);
+    }
+
+    @Override
+    @Transactional
+    public void voidPLedger(Long ledgerId, String reason) {
+        if (ledgerId == null) {
+            throw new BusinessException(400, "流水ID不能为空");
+        }
+        PLedger ledger = pLedgerMapper.selectById(ledgerId);
+        if (ledger == null) {
+            throw new BusinessException(404, "流水记录不存在");
+        }
+        if (ledger.getIsVoided() == 1) {
+            throw new BusinessException(400, "该流水已被撤回");
+        }
+
+        ledger.setIsVoided(1);
+        pLedgerMapper.updateById(ledger);
+
+        Team team = teamMapper.selectById(ledger.getTeamId());
+        if (team != null) {
+            Integer newBalance = team.getPCoins() - ledger.getAmount();
+            if (newBalance < 0) {
+                newBalance = 0;
+            }
+            team.setPCoins(newBalance);
+            teamMapper.updateById(team);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void voidValuationChange(Long changeId, String reason) {
+        if (changeId == null) {
+            throw new BusinessException(400, "身价变化ID不能为空");
+        }
+        ValuationChange change = valuationChangeMapper.selectById(changeId);
+        if (change == null) {
+            throw new BusinessException(404, "身价变化记录不存在");
+        }
+        if (change.getIsVoided() == 1) {
+            throw new BusinessException(400, "该身价变化已被撤回");
+        }
+
+        // 查找该选手在该变化之后的所有未撤回记录
+        List<ValuationChange> laterChanges = valuationChangeMapper.selectList(
+                new LambdaQueryWrapper<ValuationChange>()
+                        .eq(ValuationChange::getPlayerId, change.getPlayerId())
+                        .gt(ValuationChange::getCreatedAt, change.getCreatedAt())
+                        .eq(ValuationChange::getDeleted, 0)
+                        .eq(ValuationChange::getIsVoided, 0)
+                        .orderByAsc(ValuationChange::getCreatedAt)
+        );
+
+        // 将该变化及所有后续变化标记为撤回
+        change.setIsVoided(1);
+        valuationChangeMapper.updateById(change);
+
+        for (ValuationChange laterChange : laterChanges) {
+            laterChange.setIsVoided(1);
+            valuationChangeMapper.updateById(laterChange);
+        }
+
+        // 将选手身价恢复到该变化之前的值
+        Player player = playerMapper.selectById(change.getPlayerId());
+        if (player != null) {
+            player.setValue(change.getBeforeValue());
+            playerMapper.updateById(player);
+        }
     }
 }

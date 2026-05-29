@@ -170,16 +170,18 @@ export async function getMatchDetail(matchId) {
 }
 
 /**
- * 获取公告列表
+ * 获取公告列表（仅已发布）
  */
 export async function getAnnouncements() {
   const data = await request("/announcements");
-  return data.map(item => ({
-    date: item.announceDate,
-    title: item.title,
-    content: item.content,
-    active: item.isActive === 1
-  }));
+  return data
+    .filter(item => item.isActive === 1)
+    .map(item => ({
+      date: item.announceDate,
+      title: item.title,
+      content: item.content,
+      active: item.isActive === 1
+    }));
 }
 
 /**

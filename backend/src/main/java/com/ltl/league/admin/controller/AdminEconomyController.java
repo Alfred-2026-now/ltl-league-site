@@ -2,10 +2,12 @@ package com.ltl.league.admin.controller;
 
 import com.ltl.league.admin.dto.AdminPLedgerVO;
 import com.ltl.league.admin.dto.AdminValuationChangeVO;
+import com.ltl.league.admin.dto.ManualPLedgerRequest;
 import com.ltl.league.admin.dto.ManualValuationAdjustRequest;
 import com.ltl.league.admin.service.AdminEconomyService;
 import com.ltl.league.common.Result;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -49,5 +51,26 @@ public class AdminEconomyController {
     @PostMapping("/valuation-changes/manual-adjustment")
     public Result<AdminValuationChangeVO> manualAdjustment(@RequestBody ManualValuationAdjustRequest request) {
         return Result.success(adminEconomyService.manualAdjustment(request));
+    }
+
+    @PostMapping("/p-ledger/manual-add")
+    public Result<AdminPLedgerVO> manualAddPLedger(@RequestBody ManualPLedgerRequest request) {
+        return Result.success(adminEconomyService.manualAddPLedger(request));
+    }
+
+    @PostMapping("/p-ledger/{ledgerId}/void")
+    public Result<Void> voidPLedger(
+            @PathVariable Long ledgerId,
+            @RequestParam(required = false) String reason) {
+        adminEconomyService.voidPLedger(ledgerId, reason);
+        return Result.success();
+    }
+
+    @PostMapping("/valuation-changes/{changeId}/void")
+    public Result<Void> voidValuationChange(
+            @PathVariable Long changeId,
+            @RequestParam(required = false) String reason) {
+        adminEconomyService.voidValuationChange(changeId, reason);
+        return Result.success();
     }
 }

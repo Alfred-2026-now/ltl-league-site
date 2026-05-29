@@ -2,6 +2,7 @@ package com.ltl.league.admin.service;
 
 import com.ltl.league.admin.dto.AdminPLedgerVO;
 import com.ltl.league.admin.dto.AdminValuationChangeVO;
+import com.ltl.league.admin.dto.ManualPLedgerRequest;
 import com.ltl.league.admin.dto.ManualValuationAdjustRequest;
 
 import java.util.List;
@@ -13,4 +14,10 @@ public interface AdminEconomyService {
     List<AdminValuationChangeVO> listValuationChanges(Long playerId, Long teamId, Long matchId, String source, Integer isVoided, Integer limit);
 
     AdminValuationChangeVO manualAdjustment(ManualValuationAdjustRequest request);
+
+    AdminPLedgerVO manualAddPLedger(ManualPLedgerRequest request);
+
+    void voidPLedger(Long ledgerId, String reason);
+
+    void voidValuationChange(Long changeId, String reason);
 }
