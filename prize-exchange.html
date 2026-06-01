@@ -230,25 +230,6 @@
       border-radius: 8px;
       margin-bottom: 1rem;
     }
-
-    .player-info {
-      background: #ebf8ff;
-      padding: 1rem;
-      border-radius: 8px;
-      margin-bottom: 1rem;
-    }
-
-    .player-info-label {
-      font-size: 0.85rem;
-      color: #718096;
-      margin-bottom: 0.25rem;
-    }
-
-    .player-info-value {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #2b6cb0;
-    }
   </style>
 </head>
 <body>
@@ -286,9 +267,9 @@
     <div class="modal">
       <h2 class="modal-title">兑换奖品</h2>
       <div id="modalError" style="display: none;"></div>
-      <div id="modalPlayerInfo" style="display: none;"></div>
       <form id="exchangeForm">
         <input type="hidden" id="exchangePrizeId" />
+        <input type="hidden" id="exchangePlayerName" />
 
         <div class="form-group">
           <label class="form-label">奖品名称</label>
@@ -300,21 +281,6 @@
           <input type="text" id="exchangeCost" class="form-input" readonly />
         </div>
 
-        <div class="form-group">
-          <label class="form-label">选手名称 *</label>
-          <input type="text" id="exchangePlayerName" class="form-input" placeholder="请输入您的选手名称" required />
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">联系方式</label>
-          <input type="text" id="exchangeContact" class="form-input" placeholder="QQ/微信/手机号（选填）" />
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">备注</label>
-          <textarea id="exchangeRemark" class="form-input form-textarea" placeholder="有什么想说的？（选填）"></textarea>
-        </div>
-
         <div class="modal-buttons">
           <button type="button" class="modal-btn secondary" onclick="closeModal()">取消</button>
           <button type="submit" class="modal-btn primary">确认兑换</button>
@@ -324,11 +290,17 @@
   </div>
 
   <script type="module">
+    import { authApi } from './src/util/auth.js';
+
     const API_BASE = "http://123.57.19.160/api";
+    let currentUser = null;
 
     async function request(endpoint, options = {}) {
       const url = `${API_BASE}${endpoint}`;
-      const response = await fetch(url, options);
+      const response = await fetch(url, {
+        ...options,
+        credentials: 'include'
+      });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -418,21 +390,26 @@
       }
     }
 
-    function handleExchangeClick(e) {
+    async function handleExchangeClick(e) {
       const btn = e.target;
       const prizeId = btn.dataset.prizeId;
       const prizeName = btn.dataset.prizeName;
       const cost = btn.dataset.cost;
 
+      // 重新检查登录状态
+      const user = await authApi.getCurrentUser();
+      if (!user) {
+        alert('请先登录后再进行兑换');
+        window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+        return;
+      }
+
       document.getElementById('exchangePrizeId').value = prizeId;
+      document.getElementById('exchangePlayerName').value = user.playerName;
       document.getElementById('exchangePrizeName').value = prizeName;
       document.getElementById('exchangeCost').value = cost + ' 积分';
-      document.getElementById('exchangePlayerName').value = '';
-      document.getElementById('exchangeContact').value = '';
-      document.getElementById('exchangeRemark').value = '';
 
       document.getElementById('modalError').style.display = 'none';
-      document.getElementById('modalPlayerInfo').style.display = 'none';
 
       openModal();
     }
@@ -447,59 +424,15 @@
 
     window.closeModal = closeModal;
 
-    async function searchPlayer(playerName) {
-      const response = await fetch(`${API_BASE}/players?name=${encodeURIComponent(playerName)}`);
-      const data = await response.json();
-      if (data.code === 200 && data.data && data.data.length > 0) {
-        // 精确匹配选手名称
-        const exactMatch = data.data.find(p => p.name === playerName);
-        if (exactMatch) {
-          return exactMatch;
-        }
-        // 如果没有精确匹配，返回第一个结果（兼容性）
-        return data.data[0];
-      }
-      return null;
-    }
-
     document.getElementById('exchangeForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
       const prizeId = document.getElementById('exchangePrizeId').value;
       const playerName = document.getElementById('exchangePlayerName').value.trim();
-      const contact = document.getElementById('exchangeContact').value.trim();
-      const remark = document.getElementById('exchangeRemark').value.trim();
+      const modalError = document.getElementById('modalError');
 
       if (!playerName) {
-        document.getElementById('modalError').innerHTML = '<div class="error-message">请输入选手名称</div>';
-        document.getElementById('modalError').style.display = 'block';
-        return;
-      }
-
-      const player = await searchPlayer(playerName);
-      const modalError = document.getElementById('modalError');
-      const modalPlayerInfo = document.getElementById('modalPlayerInfo');
-
-      if (!player) {
-        modalError.innerHTML = '<div class="error-message">选手不存在，请检查选手名称</div>';
-        modalError.style.display = 'block';
-        modalPlayerInfo.style.display = 'none';
-        return;
-      }
-
-      modalPlayerInfo.innerHTML = `
-        <div class="player-info">
-          <div class="player-info-label">找到选手</div>
-          <div class="player-info-value">${player.name}</div>
-          <div class="player-info-label">当前积分</div>
-          <div class="player-info-value">${player.deposit || 0} 积分</div>
-        </div>
-      `;
-      modalPlayerInfo.style.display = 'block';
-
-      const cost = parseInt(document.getElementById('exchangeCost').value);
-      if ((player.deposit || 0) < cost) {
-        modalError.innerHTML = '<div class="error-message">积分不足，无法兑换</div>';
+        modalError.innerHTML = '<div class="error-message">用户信息异常，请重新登录</div>';
         modalError.style.display = 'block';
         return;
       }
@@ -510,9 +443,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             prizeId: parseInt(prizeId),
-            playerName: playerName,
-            contactInfo: contact,
-            remark: remark
+            playerName: playerName
           })
         });
 
@@ -526,39 +457,17 @@
       }
     });
 
-    document.getElementById('exchangePlayerName').addEventListener('blur', async (e) => {
-      const playerName = e.target.value.trim();
-      if (!playerName) {
-        document.getElementById('modalPlayerInfo').style.display = 'none';
-        return;
-      }
-
-      const player = await searchPlayer(playerName);
-      const modalPlayerInfo = document.getElementById('modalPlayerInfo');
-
-      if (player) {
-        modalPlayerInfo.innerHTML = `
-          <div class="player-info">
-            <div class="player-info-label">找到选手</div>
-            <div class="player-info-value">${player.name}</div>
-            <div class="player-info-label">当前积分</div>
-            <div class="player-info-value">${player.deposit || 0} 积分</div>
-          </div>
-        `;
-        modalPlayerInfo.style.display = 'block';
-      } else {
-        modalPlayerInfo.innerHTML = `
-          <div class="player-info" style="background: #fed7d7;">
-            <div class="player-info-value" style="color: #c53030;">未找到该选手</div>
-          </div>
-        `;
-        modalPlayerInfo.style.display = 'block';
-      }
-    });
-
     document.getElementById('exchangeModal').addEventListener('click', (e) => {
       if (e.target === document.getElementById('exchangeModal')) {
         closeModal();
+      }
+    });
+
+    // 检查登录状态
+    authApi.getCurrentUser().then(user => {
+      currentUser = user;
+      if (user) {
+        console.log('已登录用户:', user.playerName);
       }
     });
 

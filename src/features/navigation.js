@@ -19,7 +19,10 @@ export function setupNav() {
 
 export function setupActiveNav() {
   const links = [...document.querySelectorAll(".nav-links a")];
-  const hashLinks = links.filter(anchor => anchor.getAttribute("href")?.startsWith("#"));
+  const hashLinks = links.filter(anchor => {
+    const href = anchor.getAttribute("href");
+    return href && href.startsWith("#") && href !== "#";
+  });
   const sections = hashLinks.map(anchor => document.querySelector(anchor.getAttribute("href"))).filter(Boolean);
   if (!hashLinks.length || !sections.length) return;
 

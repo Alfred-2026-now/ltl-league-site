@@ -4,14 +4,11 @@ import com.ltl.league.common.Result;
 import com.ltl.league.dto.ExchangePrizeRequest;
 import com.ltl.league.dto.PrizeExchangeVO;
 import com.ltl.league.service.PrizeService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import com.ltl.league.util.AuthUtil;
+import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
 import java.util.List;
 
 @RestController
@@ -19,13 +16,26 @@ import java.util.List;
 public class PrizeExchangeController {
 
     private final PrizeService prizeService;
+    private final AuthUtil authUtil;
 
-    public PrizeExchangeController(PrizeService prizeService) {
+    private static final String COOKIE_NAME = "ltl_auth";
+
+    public PrizeExchangeController(PrizeService prizeService, AuthUtil authUtil) {
         this.prizeService = prizeService;
+        this.authUtil = authUtil;
     }
 
     @PostMapping
-    public Result<PrizeExchangeVO> exchangePrize(@RequestBody ExchangePrizeRequest request) {
+    public Result<PrizeExchangeVO> exchangePrize(
+            @Valid @RequestBody ExchangePrizeRequest request,
+            @CookieValue(value = COOKIE_NAME, required = false) String token) {
+        // 如果提供了 Cookie，使用 Cookie 中的用户名
+        if (token != null && !token.isEmpty()) {
+            AuthUtil.CookieData cookieData = authUtil.parseCookieValue(token);
+            if (cookieData != null) {
+                request.setPlayerName(cookieData.getPlayerName());
+            }
+        }
         return Result.success(prizeService.exchangePrize(request));
     }
 

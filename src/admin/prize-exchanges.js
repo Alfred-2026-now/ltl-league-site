@@ -81,6 +81,13 @@ async function loadExchanges(status = "") {
               <span class="detail-value">${formatTime(exchange.processedAt)}</span>
             </div>
           </div>
+        ` : exchange.status === 'cancelled' ? `
+          <div class="exchange-detail" style="background:#fee2e2;">
+            <div class="detail-row">
+              <span class="detail-label">取消原因</span>
+              <span class="detail-value" style="color:#c53030;">${extractCancelReason(exchange.remark) || '未提供'}</span>
+            </div>
+          </div>
         ` : ''}
       `;
 
@@ -113,6 +120,12 @@ function formatTime(timeStr) {
       minute: '2-digit'
     });
   }
+}
+
+function extractCancelReason(remark) {
+  if (!remark) return '';
+  const match = remark.match(/取消原因:\s*(.+)/);
+  return match ? match[1].trim() : remark;
 }
 
 async function processExchange(id) {

@@ -12,7 +12,7 @@ export const ADMIN_NAV = [
 
 export const PUBLIC_NAV = [
   { href: "announcements.html", text: "公告" },
-  { href: "standings.html", text: "积分榜" },
+  { href: "standings.html", text: "战队榜" },
   { href: "teams.html", text: "队伍" },
   { href: "player-rankings.html", text: "选手榜" },
   { href: "rules.html", text: "规则" },

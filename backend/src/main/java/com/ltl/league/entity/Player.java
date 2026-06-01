@@ -35,6 +35,10 @@ public class Player {
 
     private Integer deposit;
 
+    private Integer role;
+
+    private String password;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 

@@ -276,8 +276,6 @@
     </div>
   </div>
 
-  <!-- 管理员权限验证 -->
-  <script type="module" src="src/util/admin-auth.js"></script>
   <script type="module" src="src/admin/prizes.js"></script>
   <script src="src/components/admin-nav.js"></script>
 </body>

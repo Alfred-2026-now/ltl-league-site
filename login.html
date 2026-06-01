@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LTL联赛 - 登录</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+  <style>
+    .login-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .login-card {
+      background: white;
+      border-radius: 16px;
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .login-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #1a202c;
+      margin: 0 0 0.5rem 0;
+    }
+
+    .login-subtitle {
+      font-size: 0.95rem;
+      color: #718096;
+      margin: 0;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 0.5rem;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 0.875rem 1rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+      box-sizing: border-box;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .form-input::placeholder {
+      color: #a0aec0;
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 0.875rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .login-btn:hover:not(:disabled) {
+      transform: scale(1.02);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .login-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .alert {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+    }
+
+    .alert-error {
+      background: #fed7d7;
+      color: #c53030;
+      border: 1px solid #fc8181;
+    }
+
+    .alert-success {
+      background: #c6f6d5;
+      color: #2f855a;
+      border: 1px solid #68d391;
+    }
+
+    .alert-info {
+      background: #bee3f8;
+      color: #2b6cb0;
+      border: 1px solid #63b3ed;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid #ffffff;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 0.5rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .player-suggestions {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #f7fafc;
+      border-radius: 8px;
+    }
+
+    .suggestions-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 0.75rem;
+    }
+
+    .suggestions-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .suggestion-chip {
+      padding: 0.375rem 0.75rem;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      color: #4a5568;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .suggestion-chip:hover {
+      border-color: #667eea;
+      color: #667eea;
+      background: #ebf8ff;
+    }
+
+    .back-link {
+      text-align: center;
+      margin-top: 1.5rem;
+    }
+
+    .back-link a {
+      color: #667eea;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .back-link a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <h1 class="login-title">欢迎登录</h1>
+        <p class="login-subtitle">使用选手账号登录 LTL 联赛系统</p>
+      </div>
+
+      <div id="alertContainer"></div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label class="form-label">选手名称 *</label>
+          <input
+            type="text"
+            id="playerName"
+            class="form-input"
+            placeholder="请输入您的选手名称"
+            required
+            autocomplete="username"
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">密码 *</label>
+          <input
+            type="password"
+            id="password"
+            class="form-input"
+            placeholder="请输入密码（默认：123456）"
+            required
+            autocomplete="current-password"
+          />
+        </div>
+
+        <button type="submit" class="login-btn" id="loginBtn">
+          登录
+        </button>
+      </form>
+
+      <div class="player-suggestions">
+        <div class="suggestions-title">快速选择（点击自动填入）：</div>
+        <div class="suggestions-list">
+          <span class="suggestion-chip" data-name="天下人">天下人</span>
+          <span class="suggestion-chip" data-name="陶吉吉">陶吉吉</span>
+          <span class="suggestion-chip" data-name="大橙子">大橙子</span>
+          <span class="suggestion-chip" data-name="ZerstaN">ZerstaN</span>
+          <span class="suggestion-chip" data-name="樱岛麻衣">樱岛麻衣</span>
+          <span class="suggestion-chip" data-name="实践检验认识">实践检验认识</span>
+        </div>
+      </div>
+
+      <div class="back-link">
+        <a href="index.html">← 返回首页</a>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { authApi } from './src/util/auth.js';
+
+    const loginForm = document.getElementById('loginForm');
+    const loginBtn = document.getElementById('loginBtn');
+    const alertContainer = document.getElementById('alertContainer');
+    const playerNameInput = document.getElementById('playerName');
+    const passwordInput = document.getElementById('password');
+
+    // 从 URL 参数获取重定向地址
+    const urlParams = new URLSearchParams(window.location.search);
+    const redirectUrl = urlParams.get('redirect') || 'index.html';
+
+    // 显示提示信息
+    function showAlert(message, type = 'error') {
+      alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+      setTimeout(() => {
+        alertContainer.innerHTML = '';
+      }, 5000);
+    }
+
+    // 设置加载状态
+    function setLoading(isLoading) {
+      loginBtn.disabled = isLoading;
+      if (isLoading) {
+        loginBtn.innerHTML = '<span class="loading-spinner"></span>登录中...';
+      } else {
+        loginBtn.innerHTML = '登录';
+      }
+    }
+
+    // 快速选择选手
+    document.querySelectorAll('.suggestion-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        playerNameInput.value = chip.dataset.name;
+        passwordInput.focus();
+      });
+    });
+
+    // 表单提交
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const playerName = playerNameInput.value.trim();
+      const password = passwordInput.value.trim();
+
+      if (!playerName) {
+        showAlert('请输入选手名称');
+        return;
+      }
+
+      if (!password) {
+        showAlert('请输入密码');
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const user = await authApi.login(playerName, password);
+
+        showAlert(`登录成功！欢迎，${user.playerName}（${user.roleName}）`, 'success');
+
+        // 延迟跳转，让用户看到成功提示
+        setTimeout(() => {
+          window.location.href = redirectUrl;
+        }, 1000);
+
+      } catch (error) {
+        showAlert(error.message || '登录失败，请检查选手名称和密码是否正确');
+        setLoading(false);
+      }
+    });
+
+    // 检查是否已登录
+    authApi.getCurrentUser().then(user => {
+      if (user) {
+        showAlert(`您已登录为：${user.playerName}，正在跳转...`, 'info');
+        setTimeout(() => {
+          window.location.href = redirectUrl;
+        }, 1500);
+      }
+    });
+  </script>
+</body>
+</html>
