@@ -1,4 +1,4 @@
-import { getTeams, listPLedgers, manualAddPLedger, voidPLedger } from "./api.js";
+import { getTeams, listPLedgers, manualAddPLedger, voidPLedger, deductAllTeamsSalary, voidDeductAllTeamsSalary } from "./api.js";
 
 let teams = [];
 const els = {};
@@ -17,6 +17,12 @@ function bindEls() {
   els.addAmount = document.getElementById("addAmount");
   els.addReason = document.getElementById("addReason");
   els.addBtn = document.getElementById("addBtn");
+
+  // 扣除队伍工资相关元素
+  els.deductSalaryRate = document.getElementById("deductSalaryRate");
+  els.deductSalaryPreview = document.getElementById("deductSalaryPreview");
+  els.deductSalaryBtn = document.getElementById("deductSalaryBtn");
+  els.voidDeductSalaryBtn = document.getElementById("voidDeductSalaryBtn");
 }
 
 function renderTeamOptions() {
@@ -112,12 +118,67 @@ async function handleVoidClick(e) {
   }
 }
 
+function updateDeductSalaryPreview() {
+  const rate = Number(els.deductSalaryRate.value);
+  if (!rate || rate < 1 || rate > 100) {
+    els.deductSalaryPreview.value = "";
+    return;
+  }
+
+  // 计算将影响多少有选手的队伍
+  const teamsWithPlayers = teams.filter(t => {
+    // 这里简化处理，假设所有队伍都有选手
+    return true;
+  });
+  els.deductSalaryPreview.value = `将影响 ${teamsWithPlayers.length} 个队伍`;
+}
+
+async function submitDeductSalary() {
+  try {
+    const rate = Number(els.deductSalaryRate.value);
+    if (!rate || rate < 1 || rate > 100) {
+      alert("请填写有效的工资比例（1-100）");
+      return;
+    }
+
+    const confirmMsg = `确认为所有队伍扣除工资？\n工资比例：${rate}%\n金额 = 队伍选手总身价 × ${rate}%`;
+    if (!confirm(confirmMsg)) {
+      return;
+    }
+
+    await deductAllTeamsSalary(rate);
+    alert("工资扣除成功！");
+    els.deductSalaryRate.value = "10";
+    els.deductSalaryPreview.value = "";
+    await refresh();
+  } catch (e) {
+    alert(`扣除工资失败：${e.message}`);
+  }
+}
+
+async function submitVoidDeductSalary() {
+  try {
+    if (!confirm("确定要撤回最近一次的工资扣除吗？这将作废该批次的所有工资扣除流水，并恢复队伍的P币余额。")) {
+      return;
+    }
+    await voidDeductAllTeamsSalary();
+    alert("工资扣除已撤回");
+    await refresh();
+  } catch (e) {
+    alert(`撤回失败：${e.message}`);
+  }
+}
+
 async function init() {
   bindEls();
   teams = await getTeams();
   renderTeamOptions();
+  updateDeductSalaryPreview();
   els.refreshBtn.addEventListener("click", refresh);
   els.addBtn.addEventListener("click", submitManualAdd);
+  els.deductSalaryBtn.addEventListener("click", submitDeductSalary);
+  els.voidDeductSalaryBtn.addEventListener("click", submitVoidDeductSalary);
+  els.deductSalaryRate.addEventListener("input", updateDeductSalaryPreview);
   els.ledgerBody.addEventListener("click", handleVoidClick);
   await refresh();
 }

@@ -9,3 +9,9 @@ logging:
   level:
     com.ltl.league: info
     com.baomidou.mybatisplus: warn
+
+ltl:
+  upload:
+    dir: /var/www/ltl-league/uploads/prizes
+    url-prefix: http://123.57.19.160/uploads/prizes
+

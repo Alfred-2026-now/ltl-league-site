@@ -31,7 +31,7 @@
           <label class="field"><span class="field-label">选手</span><select class="input" id="filterPlayer"></select></label>
           <label class="field"><span class="field-label">队伍</span><select class="input" id="filterTeam"></select></label>
           <label class="field"><span class="field-label">类型</span><select class="input" id="filterType"><option value="">全部</option><option value="loan_fee">租借费</option><option value="manual_adjustment">手动调整</option><option value="race_reward">比赛奖励</option></select></label>
-          <label class="field"><span class="field-label">状态</span><select class="input" id="filterVoided"><option value="">全部</option><option value="0">未作废</option><option value="1">已作废</option></select></label>
+          <label class="field"><span class="field-label">状态</span><select class="input" id="filterVoided"><option value="0">未作废</option><option value="1">已作废</option><option value="">全部</option></select></label>
           <label class="field"></label>
         </div>
         <div style="display:flex;gap:.5rem;margin-top:.75rem;"><button class="btn primary" id="refreshBtn" type="button">刷新</button></div>
@@ -46,6 +46,23 @@
           <button class="btn primary" id="adjustBtn" type="button">提交</button>
         </div>
         <p class="muted" id="currentDepositHint" style="margin:.75rem 0 0;"></p>
+      </div>
+
+      <div class="panel" style="padding:1rem;margin-top:1rem;">
+        <h3 style="margin:0 0 1rem 0;">一键发工资</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:.75rem;align-items:end;">
+          <label class="field">
+            <span class="field-label">工资比例(%)</span>
+            <input class="input" id="salaryRate" type="number" value="10" min="1" max="100" placeholder="如:10表示10%" />
+          </label>
+          <label class="field">
+            <span class="field-label">预计影响</span>
+            <input class="input" id="salaryPreview" type="text" readonly placeholder="将显示影响的选手数量" />
+          </label>
+          <button class="btn primary" id="salaryBtn" type="button">一键发工资</button>
+          <button class="btn" id="voidSalaryBtn" type="button" style="background:#ff6b6b;color:white;">撤回最近工资</button>
+        </div>
+        <p class="muted" style="margin:.75rem 0 0;">说明：给所有在职选手（status=1且在队伍中）发放工资，金额 = 身价 × 比例%。撤回将作废最近一次发放的所有工资流水。</p>
       </div>
 
       <div class="panel" style="margin-top:1rem;overflow:auto;">

@@ -189,3 +189,89 @@ export async function deleteRewardRule(id) {
   return request(`/admin/reward-rules/${id}`, { method: "DELETE" });
 }
 
+export async function deductTeamPCoins(payload) {
+  return request("/admin/p-ledger/deduct-team-pcoins", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function voidSalary(batchId, reason) {
+  return request(`/admin/players/salary/${batchId}/void?reason=${encodeURIComponent(reason || "")}`, {
+    method: "POST"
+  });
+}
+
+export async function deductAllTeamsSalary(rate) {
+  return request("/admin/p-ledger/deduct-all-teams-salary", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rate })
+  });
+}
+
+export async function voidDeductAllTeamsSalary() {
+  return request("/admin/p-ledger/deduct-all-teams-salary-void", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason: "管理员撤回" })
+  });
+}
+
+export async function listAllPrizes() {
+  return request("/prizes/all");
+}
+
+export async function getPrize(id) {
+  return request(`/prizes/${id}`);
+}
+
+export async function createPrize(payload) {
+  return request("/prizes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updatePrize(id, payload) {
+  return request(`/prizes/${id}/update`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deletePrize(id) {
+  return request(`/prizes/${id}/delete`, {
+    method: "POST"
+  });
+}
+
+export async function listExchanges(params) {
+  const query = new URLSearchParams();
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (v === null || v === undefined || String(v).trim() === "") return;
+    query.set(k, String(v).trim());
+  });
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return request(`/prize-exchanges${suffix}`);
+}
+
+export async function getExchange(id) {
+  return request(`/prize-exchanges/${id}`);
+}
+
+export async function processExchange(id, processedBy) {
+  return request(`/prize-exchanges/${id}/process?processedBy=${encodeURIComponent(processedBy || "admin")}`, {
+    method: "POST"
+  });
+}
+
+export async function cancelExchange(id, reason) {
+  return request(`/prize-exchanges/${id}/cancel?reason=${encodeURIComponent(reason || "")}`, {
+    method: "POST"
+  });
+}
+

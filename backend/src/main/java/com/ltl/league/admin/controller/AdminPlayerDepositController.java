@@ -47,4 +47,18 @@ public class AdminPlayerDepositController {
         adminPlayerDepositService.voidPlayerDepositLedger(ledgerId, reason);
         return Result.success();
     }
+
+    @PostMapping("/players/salary")
+    public Result<Void> paySalary(@RequestBody SalaryRequest request) {
+        adminPlayerDepositService.paySalary(request);
+        return Result.success();
+    }
+
+    @PostMapping("/players/salary/{batchId}/void")
+    public Result<Void> voidSalary(
+            @PathVariable Long batchId,
+            @RequestParam(required = false) String reason) {
+        adminPlayerDepositService.voidSalary(batchId, reason);
+        return Result.success();
+    }
 }

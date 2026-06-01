@@ -4,6 +4,8 @@ import com.ltl.league.admin.dto.AdminPLedgerVO;
 import com.ltl.league.admin.dto.AdminValuationChangeVO;
 import com.ltl.league.admin.dto.ManualPLedgerRequest;
 import com.ltl.league.admin.dto.ManualValuationAdjustRequest;
+import com.ltl.league.admin.dto.DeductTeamPCoinsRequest;
+import com.ltl.league.admin.dto.SalaryRequest;
 import com.ltl.league.admin.service.AdminEconomyService;
 import com.ltl.league.common.Result;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -71,6 +73,25 @@ public class AdminEconomyController {
             @PathVariable Long changeId,
             @RequestParam(required = false) String reason) {
         adminEconomyService.voidValuationChange(changeId, reason);
+        return Result.success();
+    }
+
+    @PostMapping("/p-ledger/deduct-team-pcoins")
+    public Result<Void> deductTeamPCoins(@RequestBody DeductTeamPCoinsRequest request) {
+        adminEconomyService.deductTeamPCoins(request);
+        return Result.success();
+    }
+
+    @PostMapping("/p-ledger/deduct-all-teams-salary")
+    public Result<Void> deductAllTeamsSalary(@RequestBody SalaryRequest request) {
+        adminEconomyService.deductAllTeamsSalary(request.getRate());
+        return Result.success();
+    }
+
+    @PostMapping("/p-ledger/deduct-all-teams-salary-void")
+    public Result<Void> voidDeductAllTeamsSalary(@RequestBody(required = false) java.util.Map<String, String> payload) {
+        String reason = payload != null ? payload.get("reason") : null;
+        adminEconomyService.voidDeductAllTeamsSalary(reason);
         return Result.success();
     }
 }

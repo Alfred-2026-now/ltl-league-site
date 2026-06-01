@@ -11,7 +11,8 @@
       { href: "rules.html", text: "规则" },
       { href: "tools.html", text: "计算器" },
       { href: "schedule.html", text: "赛程" },
-      { href: "match-history.html", text: "战绩" }
+      { href: "match-history.html", text: "战绩" },
+      { href: "prize-exchange.html", text: "积分兑换", highlight: true }
     ];
 
     const navLinksContainer = document.getElementById('navLinks');
@@ -20,7 +21,8 @@
     if (navLinksContainer && toggle) {
       navLinksContainer.innerHTML = navItems.map(item => {
         const isActive = item.href === currentPage ? ' class="active"' : "";
-        return `<a href="${item.href}"${isActive}>${item.text}</a>`;
+        const style = item.highlight ? ' style="color: #667eea; font-weight: 600;"' : "";
+        return `<a href="${item.href}"${isActive}${style}>${item.text}</a>`;
       }).join("");
 
       // 立即绑定导航事件

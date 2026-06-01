@@ -4,6 +4,7 @@ import com.ltl.league.admin.dto.AdminPLedgerVO;
 import com.ltl.league.admin.dto.AdminValuationChangeVO;
 import com.ltl.league.admin.dto.ManualPLedgerRequest;
 import com.ltl.league.admin.dto.ManualValuationAdjustRequest;
+import com.ltl.league.admin.dto.DeductTeamPCoinsRequest;
 
 import java.util.List;
 
@@ -20,4 +21,10 @@ public interface AdminEconomyService {
     void voidPLedger(Long ledgerId, String reason);
 
     void voidValuationChange(Long changeId, String reason);
+
+    void deductTeamPCoins(DeductTeamPCoinsRequest request);
+
+    void deductAllTeamsSalary(Integer rate);
+
+    void voidDeductAllTeamsSalary(String reason);
 }
