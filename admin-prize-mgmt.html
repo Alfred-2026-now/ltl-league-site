@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>LTL 管理 - 奖品兑换管理</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+  <style>
+    .tab-container {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .tab-btn {
+      padding: 0.75rem 1.5rem;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      font-size: 1rem;
+      font-weight: 500;
+      color: #718096;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-bottom: -2px;
+    }
+
+    .tab-btn:hover {
+      color: #4a5568;
+      background: #f7fafc;
+    }
+
+    .tab-btn.active {
+      color: #3182ce;
+      border-bottom-color: #3182ce;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .prize-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .prize-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .prize-card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .prize-card.inactive {
+      opacity: 0.7;
+    }
+
+    .prize-image {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e0 100%);
+    }
+
+    .prize-body {
+      padding: 1rem;
+    }
+
+    .prize-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 0.5rem;
+    }
+
+    .prize-name {
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin: 0;
+      color: #1a202c;
+    }
+
+    .prize-status {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 12px;
+      background: #48bb78;
+      color: white;
+      font-weight: 500;
+    }
+
+    .prize-status.inactive {
+      background: #a0aec0;
+    }
+
+    .prize-description {
+      font-size: 0.85rem;
+      color: #4a5568;
+      margin: 0.5rem 0;
+      line-height: 1.4;
+    }
+
+    .prize-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 0.75rem 0;
+      padding: 0.5rem;
+      background: #f7fafc;
+      border-radius: 6px;
+    }
+
+    .prize-cost {
+      font-weight: 600;
+      color: #3182ce;
+      font-size: 1.1rem;
+    }
+
+    .prize-stock {
+      font-size: 0.85rem;
+      color: #4a5568;
+    }
+
+    .prize-stock.low {
+      color: #e53e3e;
+      font-weight: 600;
+    }
+
+    .prize-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .prize-actions button {
+      flex: 1;
+      padding: 0.5rem;
+      font-size: 0.85rem;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .status-pending {
+      background: #feebc8;
+      color: #9c4221;
+    }
+
+    .status-completed {
+      background: #c6f6d5;
+      color: #2f855a;
+    }
+
+    .status-cancelled {
+      background: #e2e8f0;
+      color: #4a5568;
+    }
+
+    .exchange-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .exchange-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .exchange-id {
+      font-size: 0.85rem;
+      color: #4a5568;
+    }
+
+    .exchange-time {
+      font-size: 0.8rem;
+      color: #718096;
+    }
+
+    .exchange-prize {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+      color: #1a202c;
+    }
+
+    .exchange-player {
+      font-size: 0.9rem;
+      color: #4a5568;
+      margin-bottom: 0.5rem;
+    }
+
+    .exchange-meta {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.85rem;
+      color: #718096;
+      margin-bottom: 0.75rem;
+    }
+
+    .exchange-detail {
+      background: #f7fafc;
+      padding: 0.75rem;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.25rem;
+    }
+
+    .detail-label {
+      font-size: 0.85rem;
+      color: #718096;
+    }
+
+    .detail-value {
+      font-weight: 600;
+      color: #1a202c;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .action-buttons button {
+      flex: 1;
+      padding: 0.5rem;
+      font-size: 0.85rem;
+    }
+
+    .filter-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .filter-tab {
+      padding: 0.5rem 1rem;
+      background: #e2e8f0;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .filter-tab:hover {
+      background: #cbd5e0;
+    }
+
+    .filter-tab.active {
+      background: #3182ce;
+      color: white;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 2rem;
+      color: #718096;
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal {
+      background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 500px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      border: 1px solid #4a5568;
+    }
+
+    .modal-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0 0 1.5rem 0;
+      color: #f7fafc;
+      text-align: center;
+    }
+
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #e2e8f0;
+      margin-bottom: 0.5rem;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #4a5568;
+      border-radius: 8px;
+      font-size: 1rem;
+      background: #2d3748;
+      color: #f7fafc;
+      transition: all 0.3s ease;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    }
+
+    .form-input::placeholder {
+      color: #718096;
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    select.form-input {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23e2e8f0' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      padding-right: 2.5rem;
+    }
+
+    .upload-area {
+      border: 2px dashed #4a5568;
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: #2d3748;
+    }
+
+    .upload-area:hover {
+      border-color: #667eea;
+      background: #1a202c;
+      transform: translateY(-2px);
+    }
+
+    .upload-area.dragover {
+      border-color: #667eea;
+      background: #1a202c;
+    }
+
+    .upload-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .upload-text {
+      color: #a0aec0;
+      font-size: 0.9rem;
+    }
+
+    .preview-image {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-top: 0.5rem;
+      display: none;
+      border: 2px solid #4a5568;
+    }
+
+    .preview-image.show {
+      display: block;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .modal-buttons button {
+      flex: 1;
+      padding: 0.6rem;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: #4a5568;
+      color: #e2e8f0;
+      border: 1px solid #718096;
+      transition: all 0.3s ease;
+    }
+
+    .btn-secondary:hover {
+      background: #2d3748;
+      border-color: #667eea;
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #fc8181 0%, #f56565 100%);
+      color: white;
+      border: none;
+      transition: all 0.3s ease;
+    }
+
+    .btn-danger:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(245, 101, 101, 0.4);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #68d391 0%, #48bb78 100%);
+      color: white;
+      border: none;
+      transition: all 0.3s ease;
+    }
+
+    .btn-success:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+    }
+
+    .modal-buttons button {
+      padding: 0.75rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    @media (min-width: 768px) {
+      .exchange-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="admin-matches.html"><span class="brand-mark">LTL</span><span class="brand-text">管理后台 · 奖品兑换管理</span></a>
+      <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+      <div class="nav-links" id="navLinks"></div>
+    </nav>
+  </header>
+
+  <main class="page-shell">
+    <section class="section">
+      <div class="section-heading row">
+        <div>
+          <p class="eyebrow">ADMIN · PRIZE MANAGEMENT</p>
+          <h1 class="page-title">奖品兑换管理</h1>
+          <p class="muted">管理奖品和处理兑换申请</p>
+        </div>
+      </div>
+
+      <div class="tab-container">
+        <button class="tab-btn active" data-tab="prizes">奖品管理</button>
+        <button class="tab-btn" data-tab="exchanges">兑换流水</button>
+      </div>
+
+      <div id="errorContainer" style="display: none;"></div>
+      <div id="successContainer" style="display: none;"></div>
+
+      <!-- 奖品管理 -->
+      <div id="prizesTab" class="tab-content active">
+        <div class="section-heading row" style="margin-bottom: 1rem;">
+          <div></div>
+          <button class="btn btn-primary" id="addPrizeBtn">添加奖品</button>
+        </div>
+
+        <div class="panel">
+          <div id="loadingPrizes" style="text-align: center; padding: 2rem;">加载中...</div>
+          <div id="prizeContainer" class="prize-grid"></div>
+          <div id="emptyPrizes" class="empty-state" style="display: none;">
+            <div class="empty-state-icon">🎁</div>
+            <p>暂无奖品，点击右上角添加</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 兑换流水 -->
+      <div id="exchangesTab" class="tab-content">
+        <div class="panel">
+          <div class="filter-tabs">
+            <button class="filter-tab active" data-status="">全部</button>
+            <button class="filter-tab" data-status="pending">待处理</button>
+            <button class="filter-tab" data-status="completed">已完成</button>
+            <button class="filter-tab" data-status="cancelled">已取消</button>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <button class="btn btn-secondary" id="refreshBtn">刷新</button>
+            <span class="muted" id="totalCount">共 0 条记录</span>
+          </div>
+
+          <div id="loadingExchanges" style="text-align: center; padding: 2rem;">加载中...</div>
+          <div id="exchangeContainer" class="exchange-grid"></div>
+          <div id="emptyExchanges" class="empty-state" style="display: none;">
+            <div class="empty-state-icon">📋</div>
+            <p>暂无兑换记录</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="prizeModal" class="modal-overlay">
+    <div class="modal">
+      <h2 class="modal-title" id="modalTitle">添加奖品</h2>
+      <form id="prizeForm">
+        <input type="hidden" id="prizeId" />
+
+        <div class="form-group">
+          <label class="form-label">奖品名称 *</label>
+          <input type="text" id="prizeName" class="form-input" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">奖品描述</label>
+          <textarea id="prizeDescription" class="form-input form-textarea"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">奖品图片</label>
+          <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📷</div>
+            <div class="upload-text">点击或拖拽上传图片</div>
+            <input type="file" id="imageFile" accept="image/*" style="display: none;">
+          </div>
+          <img id="imagePreview" class="preview-image" alt="预览" />
+          <input type="hidden" id="prizeImageUrl" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">兑换积分 *</label>
+          <input type="number" id="prizeCostPoints" class="form-input" min="1" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">库存数量 *</label>
+          <input type="number" id="prizeStock" class="form-input" min="0" required />
+        </div>
+
+        <div class="form-group" id="isActiveGroup" style="display: none;">
+          <label class="form-label">状态</label>
+          <select id="prizeIsActive" class="form-input">
+            <option value="1">启用</option>
+            <option value="0">禁用</option>
+          </select>
+        </div>
+
+        <div class="modal-buttons">
+          <button type="button" class="btn btn-secondary" onclick="closePrizeModal()">取消</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 管理员权限验证 -->
+  <script type="module" src="src/util/admin-auth.js"></script>
+  <script type="module" src="src/admin/prize-mgmt.js"></script>
+  <script src="src/components/admin-nav.js"></script>
+</body>
+</html>

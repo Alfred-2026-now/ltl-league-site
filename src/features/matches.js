@@ -17,6 +17,12 @@ export function renderSchedule(matches, teams) {
   const list = document.getElementById("scheduleList");
   if (!list) return;
 
+  // 检查是否没有赛程
+  if (!matches || matches.length === 0) {
+    list.innerHTML = `<div class="empty-state">暂无赛程</div>`;
+    return;
+  }
+
   const groups = groupMatchesByRound(matches);
   list.innerHTML = [...groups.entries()].map(([roundLabel, roundMatches]) => `
     <section class="schedule-round">

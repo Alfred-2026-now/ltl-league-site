@@ -1266,9 +1266,15 @@ code {
     border-radius: 14px;
     background: rgba(5, 9, 22, 0.96);
     flex-direction: column;
+    z-index: 1000;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   }
   .nav-links.show {
     display: flex;
+  }
+  .nav-links a {
+    padding: 12px 14px;
+    border-radius: 8px;
   }
   .hero,
   .stats-grid,
@@ -1407,5 +1413,38 @@ code {
 
   .participant-extra {
     flex-direction: column;
+  }
+
+  /* 选手排行榜移动端优化 */
+  .panel table {
+    font-size: 13px;
+  }
+
+  .panel table th,
+  .panel table td {
+    padding: 0.5rem 0.4rem;
+  }
+
+  .panel {
+    padding: 1rem;
+    border-radius: 14px;
+  }
+
+  .section-heading {
+    text-align: center;
+  }
+
+  .section-heading .page-title {
+    font-size: 28px;
+  }
+
+  /* 表格水平滚动 */
+  .panel {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .panel table {
+    min-width: 500px;
   }
 }

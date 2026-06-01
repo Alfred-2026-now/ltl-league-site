@@ -12,16 +12,7 @@
     <nav class="nav">
       <a class="brand" href="admin-matches.html"><span class="brand-mark">LTL</span><span class="brand-text">管理后台 · 选手管理</span></a>
       <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
-      <div class="nav-links" id="navLinks">
-        <a href="admin-matches.html">赛程管理</a>
-        <a href="admin-p-ledger.html">P币流水</a>
-        <a href="admin-valuation.html">身价管理</a>
-        <a href="admin-reward-rules.html">奖励规则</a>
-        <a href="admin-announcements.html">公告管理</a>
-        <a href="admin-players.html">选手管理</a>
-        <a href="admin-player-deposit-ledger.html">选手存款流水</a>
-        <a href="index.html">返回官网</a>
-      </div>
+      <div class="nav-links" id="navLinks"></div>
     </nav>
   </header>
   <main class="page-shell">
@@ -30,7 +21,7 @@
         <div>
           <p class="eyebrow">ADMIN · PLAYERS</p>
           <h1 class="page-title">选手管理</h1>
-          <p class="muted">管理选手信息和状态，存款流水请访问<a href="admin-player-deposit-ledger.html" style="color:#7cffb2;">选手存款流水</a>页面。</p>
+          <p class="muted">管理选手信息和状态，积分流水请访问<a href="admin-player-deposit-ledger.html" style="color:#7cffb2;">选手积分流水</a>页面。</p>
         </div>
         <button class="btn primary" id="createPlayerBtn" type="button">创建选手</button>
       </div>
@@ -50,7 +41,7 @@
               <th style="text-align:left;padding:.75rem 1rem;">选手</th>
               <th style="text-align:left;padding:.75rem 1rem;">队伍</th>
               <th style="text-align:left;padding:.75rem 1rem;">身价</th>
-              <th style="text-align:left;padding:.75rem 1rem;">存款</th>
+              <th style="text-align:left;padding:.75rem 1rem;">积分</th>
               <th style="text-align:left;padding:.75rem 1rem;">状态</th>
               <th style="text-align:left;padding:.75rem 1rem;">操作</th>
             </tr>
@@ -130,11 +121,10 @@
     </div>
   </dialog>
 
+  <!-- 管理员权限验证 -->
+  <script type="module" src="src/util/admin-auth.js"></script>
   <script type="module" src="src/admin/players.js"></script>
   <script src="src/components/admin-nav.js"></script>
-  <script type="module">
-    import { setupNav } from "./src/features/navigation.js";
-    setupNav();
-  </script>
+  
 </body>
 </html>

@@ -192,16 +192,18 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
             }
             player.setStatus(request.getStatus());
         }
-        if (request.getTeamId() != null) {
-            // 队伍变更时的逻辑验证
-            if (player.getStatus() == 3 && request.getTeamId() != null) {
-                throw new BusinessException(400, "自由人不能属于任何队伍");
-            }
-            if (player.getStatus() != 3 && request.getTeamId() == null) {
-                throw new BusinessException(400, "在职选手必须属于某个队伍");
-            }
-            player.setTeamId(request.getTeamId());
+        // 队伍变更时的逻辑验证
+        // 注意：request.getTeamId() 可能为 null（自由人），需要显式设置
+        Long newTeamId = request.getTeamId();
+        Integer newStatus = request.getStatus() != null ? request.getStatus() : player.getStatus();
+
+        if (newStatus == 3 && newTeamId != null) {
+            throw new BusinessException(400, "自由人不能属于任何队伍");
         }
+        if (newStatus != 3 && newTeamId == null) {
+            throw new BusinessException(400, "在职选手必须属于某个队伍");
+        }
+        player.setTeamId(newTeamId);
 
         playerMapper.updateById(player);
         return player;
@@ -301,6 +303,144 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
             player.setDeposit(ledger.getBalanceBefore());
             playerMapper.updateById(player);
         }
+    }
+
+    @Override
+    @Transactional
+    public void paySalary(SalaryRequest request) {
+        if (request == null || request.getRate() == null) {
+            throw new BusinessException(400, "工资比例不能为空");
+        }
+        Integer rate = request.getRate();
+        if (rate < 1 || rate > 100) {
+            throw new BusinessException(400, "工资比例必须在1-100之间");
+        }
+
+        // 生成批次ID：使用时间戳
+        String salaryBatchId = "SALARY_" + System.currentTimeMillis();
+
+        // 查询所有在职且在队伍中的选手
+        List<Player> activePlayers = playerMapper.selectList(new LambdaQueryWrapper<Player>()
+                .eq(Player::getStatus, 1)
+                .isNotNull(Player::getTeamId)
+                .eq(Player::getDeleted, 0));
+
+        if (activePlayers.isEmpty()) {
+            throw new BusinessException(400, "没有在职的选手可以发放工资");
+        }
+
+        // 为每个选手发放工资
+        for (Player player : activePlayers) {
+            Integer currentDeposit = player.getDeposit() != null ? player.getDeposit() : 0;
+            Integer salary = player.getValue() * rate / 100;
+
+            // 创建流水记录，使用reason字段存储批次ID
+            PlayerDepositLedger ledger = new PlayerDepositLedger();
+            ledger.setPlayerId(player.getId());
+            ledger.setMatchId(null);
+            ledger.setResultId(null);
+            ledger.setType("salary");
+            ledger.setAmount(salary);
+            ledger.setReason("工资发放 [" + salaryBatchId + "]");  // 存储批次ID
+            ledger.setBalanceBefore(currentDeposit);
+            ledger.setBalanceAfter(currentDeposit + salary);
+            ledger.setSource("salary_payment");
+            ledger.setOperator("admin");
+            ledger.setIsVoided(0);
+            depositLedgerMapper.insert(ledger);
+
+            // 更新选手存款
+            player.setDeposit(currentDeposit + salary);
+            playerMapper.updateById(player);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void voidSalary(Long batchId, String reason) {
+        // batchId 参数未使用，我们总是撤回最近一次的工资发放
+        // 查找最近的工资发放批次
+        List<PlayerDepositLedger> recentSalaryLedgers = depositLedgerMapper.selectList(
+                new LambdaQueryWrapper<PlayerDepositLedger>()
+                        .eq(PlayerDepositLedger::getType, "salary")
+                        .eq(PlayerDepositLedger::getDeleted, 0)
+                        .eq(PlayerDepositLedger::getIsVoided, 0)
+                        .orderByDesc(PlayerDepositLedger::getCreatedAt)
+                        .last("LIMIT 100")
+        );
+
+        if (recentSalaryLedgers.isEmpty()) {
+            throw new BusinessException(404, "未找到可撤回的工资流水");
+        }
+
+        // 取最早的流水作为批次起始
+        PlayerDepositLedger firstLedger = recentSalaryLedgers.get(0);
+        String batchIdentifier = extractBatchId(firstLedger.getReason());
+
+        // 找出该批次的所有流水
+        List<PlayerDepositLedger> batchLedgers = recentSalaryLedgers.stream()
+                .filter(ledger -> {
+                    String ledgerBatchId = extractBatchId(ledger.getReason());
+                    return ledgerBatchId != null && ledgerBatchId.equals(batchIdentifier);
+                })
+                .collect(Collectors.toList());
+
+        // 撤回该批次的所有工资及其后续流水
+        for (PlayerDepositLedger salaryLedger : batchLedgers) {
+            // 查找该选手在该流水之后的所有未撤回记录
+            List<PlayerDepositLedger> laterLedgers = depositLedgerMapper.selectList(
+                    new LambdaQueryWrapper<PlayerDepositLedger>()
+                            .eq(PlayerDepositLedger::getPlayerId, salaryLedger.getPlayerId())
+                            .gt(PlayerDepositLedger::getCreatedAt, salaryLedger.getCreatedAt())
+                            .eq(PlayerDepositLedger::getDeleted, 0)
+                            .eq(PlayerDepositLedger::getIsVoided, 0)
+                            .orderByAsc(PlayerDepositLedger::getCreatedAt)
+            );
+
+            // 将该流水及所有后续流水标记为撤回
+            salaryLedger.setIsVoided(1);
+            salaryLedger.setVoidedAt(java.time.LocalDateTime.now());
+            salaryLedger.setVoidReason(reason);
+            depositLedgerMapper.updateById(salaryLedger);
+
+            for (PlayerDepositLedger laterLedger : laterLedgers) {
+                laterLedger.setIsVoided(1);
+                laterLedger.setVoidedAt(java.time.LocalDateTime.now());
+                laterLedger.setVoidReason("工资撤回-关联");
+                depositLedgerMapper.updateById(laterLedger);
+            }
+
+            // 将选手存款恢复到该工资流水之前的值
+            List<PlayerDepositLedger> beforeLedgers = depositLedgerMapper.selectList(
+                    new LambdaQueryWrapper<PlayerDepositLedger>()
+                            .eq(PlayerDepositLedger::getPlayerId, salaryLedger.getPlayerId())
+                            .lt(PlayerDepositLedger::getCreatedAt, salaryLedger.getCreatedAt())
+                            .eq(PlayerDepositLedger::getDeleted, 0)
+                            .eq(PlayerDepositLedger::getIsVoided, 0)
+                            .orderByDesc(PlayerDepositLedger::getCreatedAt)
+                            .last("LIMIT 1")
+            );
+
+            Player player = playerMapper.selectById(salaryLedger.getPlayerId());
+            if (player != null) {
+                Integer restoreBalance = beforeLedgers.isEmpty() ? 0 : beforeLedgers.get(0).getBalanceAfter();
+                player.setDeposit(restoreBalance);
+                playerMapper.updateById(player);
+            }
+        }
+    }
+
+    // 辅助方法：从reason中提取批次ID
+    private String extractBatchId(String reason) {
+        if (reason == null || !reason.contains("[")) {
+            return null;
+        }
+        int start = reason.lastIndexOf("[");
+        int end = reason.lastIndexOf("]");
+        if (start > 0 && end > start) {
+            return reason.substring(start + 1, end);
+        }
+        return null;
     }
 
     private int normalizeLimit(Integer limit) {

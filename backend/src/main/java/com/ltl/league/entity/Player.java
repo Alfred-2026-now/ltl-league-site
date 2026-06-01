@@ -12,6 +12,7 @@ public class Player {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    @TableField(updateStrategy = FieldStrategy.IGNORED)
     private Long teamId;
 
     private String name;
@@ -33,6 +34,10 @@ public class Player {
     private Integer status;
 
     private Integer deposit;
+
+    private Integer role;
+
+    private String password;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

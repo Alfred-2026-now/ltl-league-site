@@ -13,15 +13,7 @@
       <a class="brand" href="admin-matches.html">
         <span class="brand-mark">LTL</span><span class="brand-text">管理后台 · 赛果录入</span>
       </a>
-      <div class="nav-links" id="navLinks">
-        <a href="admin-matches.html">赛程管理</a>
-        <a href="admin-p-ledger.html">P币流水</a>
-        <a href="admin-valuation.html">身价管理</a>
-        <a href="admin-reward-rules.html">奖励规则</a>
-        <a href="admin-announcements.html">公告管理</a>
-        <a href="admin-players.html">选手管理</a>
-        <a href="index.html">返回官网</a>
-      </div>
+      <div class="nav-links" id="navLinks"></div>
     </nav>
   </header>
 
@@ -135,6 +127,8 @@
     </section>
   </main>
 
+  <!-- 管理员权限验证 -->
+  <script type="module" src="src/util/admin-auth.js"></script>
   <script type="module" src="src/admin/match-result.js"></script>
 </body>
 </html>

@@ -36,7 +36,7 @@ export async function getTeams() {
   return data.map(item => {
     const teamPlayers = allPlayers
       .filter(p => p.teamId === item.id)
-      .map(p => [p.name, p.value]);
+      .map(p => [p.name, p.value, p.deposit || 0]);
 
     return {
       id: item.id,

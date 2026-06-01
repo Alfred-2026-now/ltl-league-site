@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LTL联赛 - 积分兑换</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+  <style>
+    .prize-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.5rem;
+      padding: 1rem 0;
+    }
+
+    .prize-card {
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      background: white;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .prize-card:hover {
+      border-color: #667eea;
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+      transform: translateY(-4px);
+    }
+
+    .prize-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e0 100%);
+    }
+
+    .prize-content {
+      padding: 1.25rem;
+    }
+
+    .prize-name {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin: 0 0 0.5rem 0;
+      color: #1a202c;
+    }
+
+    .prize-description {
+      font-size: 0.9rem;
+      color: #718096;
+      margin: 0 0 1rem 0;
+      line-height: 1.5;
+    }
+
+    .prize-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .prize-cost {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #667eea;
+    }
+
+    .prize-stock {
+      font-size: 0.9rem;
+      color: #718096;
+      padding: 0.25rem 0.75rem;
+      background: #f7fafc;
+      border-radius: 20px;
+    }
+
+    .prize-stock.low {
+      color: #e53e3e;
+      background: #fed7d7;
+    }
+
+    .exchange-btn {
+      width: 100%;
+      padding: 0.75rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .exchange-btn:hover:not(:disabled) {
+      transform: scale(1.02);
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .exchange-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #718096;
+    }
+
+    .empty-state-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal {
+      background: white;
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 500px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0 0 1.5rem 0;
+      color: #1a202c;
+    }
+
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 0.5rem;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .modal-btn {
+      flex: 1;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .modal-btn.primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .modal-btn.secondary {
+      background: #e2e8f0;
+      color: #4a5568;
+    }
+
+    .modal-btn:hover {
+      transform: scale(1.02);
+    }
+
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: #718096;
+    }
+
+    .error-message {
+      background: #fed7d7;
+      color: #c53030;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .success-message {
+      background: #c6f6d5;
+      color: #2f855a;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header class="site-header">
+      <nav class="nav">
+        <a class="brand" href="index.html"><span class="brand-mark">LTL</span><span class="brand-text">积分兑换</span></a>
+        <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+        <div class="nav-links" id="navLinks"></div>
+      </nav>
+    </header>
+
+    <main class="page-shell">
+      <section class="section">
+        <div class="section-heading">
+          <p class="eyebrow">PRIZE EXCHANGE</p>
+          <h1 class="page-title">积分兑换</h1>
+          <p class="muted">使用选手积分兑换精美奖品</p>
+        </div>
+
+        <div id="errorContainer" style="display: none;"></div>
+        <div id="successContainer" style="display: none;"></div>
+
+        <div id="prizeContainer" class="prize-grid"></div>
+        <div id="loadingContainer" class="loading">加载中...</div>
+        <div id="emptyContainer" class="empty-state" style="display: none;">
+          <div class="empty-state-icon">🎁</div>
+          <p>暂无可兑换的奖品</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="exchangeModal" class="modal-overlay">
+    <div class="modal">
+      <h2 class="modal-title">兑换奖品</h2>
+      <div id="modalError" style="display: none;"></div>
+      <form id="exchangeForm">
+        <input type="hidden" id="exchangePrizeId" />
+        <input type="hidden" id="exchangePlayerName" />
+
+        <div class="form-group">
+          <label class="form-label">奖品名称</label>
+          <input type="text" id="exchangePrizeName" class="form-input" readonly />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">兑换积分</label>
+          <input type="text" id="exchangeCost" class="form-input" readonly />
+        </div>
+
+        <div class="modal-buttons">
+          <button type="button" class="modal-btn secondary" onclick="closeModal()">取消</button>
+          <button type="submit" class="modal-btn primary">确认兑换</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { authApi } from './src/util/auth.js';
+
+    const API_BASE = "http://123.57.19.160/api";
+    let currentUser = null;
+
+    async function request(endpoint, options = {}) {
+      const url = `${API_BASE}${endpoint}`;
+      const response = await fetch(url, {
+        ...options,
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const data = await response.json();
+      if (data.code !== 200) {
+        throw new Error(data.message || "请求失败");
+      }
+      return data.data;
+    }
+
+    function showError(message) {
+      const container = document.getElementById('errorContainer');
+      container.innerHTML = `<div class="error-message">${message}</div>`;
+      container.style.display = 'block';
+      setTimeout(() => {
+        container.style.display = 'none';
+      }, 5000);
+    }
+
+    function showSuccess(message) {
+      const container = document.getElementById('successContainer');
+      container.innerHTML = `<div class="success-message">${message}</div>`;
+      container.style.display = 'block';
+      setTimeout(() => {
+        container.style.display = 'none';
+      }, 5000);
+    }
+
+    async function loadPrizes() {
+      const loadingContainer = document.getElementById('loadingContainer');
+      const prizeContainer = document.getElementById('prizeContainer');
+      const emptyContainer = document.getElementById('emptyContainer');
+
+      try {
+        loadingContainer.style.display = 'block';
+        const prizes = await request('/prizes');
+
+        prizeContainer.innerHTML = '';
+        loadingContainer.style.display = 'none';
+
+        if (prizes.length === 0) {
+          emptyContainer.style.display = 'block';
+          return;
+        }
+
+        prizes.forEach(prize => {
+          const card = document.createElement('div');
+          card.className = 'prize-card';
+
+          const isOutOfStock = prize.stock <= 0;
+          const stockClass = prize.stock <= 3 ? 'low' : '';
+
+          card.innerHTML = `
+            <img src="${prize.imageUrl || 'https://via.placeholder.com/400x300?text=No+Image'}"
+                 alt="${prize.name}"
+                 class="prize-image"
+                 onerror="this.src='https://via.placeholder.com/400x300?text=No+Image'" />
+            <div class="prize-content">
+              <h3 class="prize-name">${prize.name}</h3>
+              ${prize.description ? `<p class="prize-description">${prize.description}</p>` : ''}
+              <div class="prize-meta">
+                <span class="prize-cost">${prize.costPoints} 积分</span>
+                <span class="prize-stock ${stockClass}">剩余 ${prize.stock} 件</span>
+              </div>
+              <button class="exchange-btn"
+                      data-prize-id="${prize.id}"
+                      data-prize-name="${prize.name}"
+                      data-cost="${prize.costPoints}"
+                      ${isOutOfStock ? 'disabled' : ''}>
+                ${isOutOfStock ? '已售罄' : '立即兑换'}
+              </button>
+            </div>
+          `;
+
+          prizeContainer.appendChild(card);
+        });
+
+        prizeContainer.querySelectorAll('.exchange-btn').forEach(btn => {
+          if (!btn.disabled) {
+            btn.addEventListener('click', handleExchangeClick);
+          }
+        });
+
+      } catch (error) {
+        loadingContainer.style.display = 'none';
+        showError('加载奖品失败：' + error.message);
+      }
+    }
+
+    async function handleExchangeClick(e) {
+      const btn = e.target;
+      const prizeId = btn.dataset.prizeId;
+      const prizeName = btn.dataset.prizeName;
+      const cost = btn.dataset.cost;
+
+      // 重新检查登录状态
+      const user = await authApi.getCurrentUser();
+      if (!user) {
+        alert('请先登录后再进行兑换');
+        window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.href);
+        return;
+      }
+
+      document.getElementById('exchangePrizeId').value = prizeId;
+      document.getElementById('exchangePlayerName').value = user.playerName;
+      document.getElementById('exchangePrizeName').value = prizeName;
+      document.getElementById('exchangeCost').value = cost + ' 积分';
+
+      document.getElementById('modalError').style.display = 'none';
+
+      openModal();
+    }
+
+    function openModal() {
+      document.getElementById('exchangeModal').classList.add('show');
+    }
+
+    function closeModal() {
+      document.getElementById('exchangeModal').classList.remove('show');
+    }
+
+    window.closeModal = closeModal;
+
+    document.getElementById('exchangeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const prizeId = document.getElementById('exchangePrizeId').value;
+      const playerName = document.getElementById('exchangePlayerName').value.trim();
+      const modalError = document.getElementById('modalError');
+
+      if (!playerName) {
+        modalError.innerHTML = '<div class="error-message">用户信息异常，请重新登录</div>';
+        modalError.style.display = 'block';
+        return;
+      }
+
+      try {
+        await request('/prize-exchanges', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prizeId: parseInt(prizeId),
+            playerName: playerName
+          })
+        });
+
+        closeModal();
+        showSuccess('兑换成功！请等待管理员处理');
+        loadPrizes();
+
+      } catch (error) {
+        modalError.innerHTML = `<div class="error-message">${error.message}</div>`;
+        modalError.style.display = 'block';
+      }
+    });
+
+    document.getElementById('exchangeModal').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('exchangeModal')) {
+        closeModal();
+      }
+    });
+
+    // 检查登录状态
+    authApi.getCurrentUser().then(user => {
+      currentUser = user;
+      if (user) {
+        console.log('已登录用户:', user.playerName);
+      }
+    });
+
+    loadPrizes();
+  </script>
+  <script src="src/components/public-nav.js"></script>
+</body>
+</html>

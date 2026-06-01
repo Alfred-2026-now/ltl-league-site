@@ -31,6 +31,9 @@ cd "$(dirname "$0")/.."
 if [ ! -f "$LOCAL_JAR" ] || [ "${FORCE_REBUILD:-0}" = "1" ]; then
     echo "开始编译..."
     cd backend
+    # 使用Java 17编译
+    export JAVA_HOME=/Users/a58/Library/Java/JavaVirtualMachines/ms-17.0.16/Contents/Home
+    export PATH=$JAVA_HOME/bin:$PATH
     mvn clean package -DskipTests
     cd ..
     echo "编译完成"

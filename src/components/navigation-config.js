@@ -6,13 +6,13 @@ export const ADMIN_NAV = [
   { href: "admin-reward-rules.html", text: "奖励规则" },
   { href: "admin-announcements.html", text: "公告管理" },
   { href: "admin-players.html", text: "选手管理" },
-  { href: "admin-player-deposit-ledger.html", text: "选手存款流水" },
+  { href: "admin-player-deposit-ledger.html", text: "选手积分流水" },
   { href: "index.html", text: "返回官网" }
 ];
 
 export const PUBLIC_NAV = [
   { href: "announcements.html", text: "公告" },
-  { href: "standings.html", text: "积分榜" },
+  { href: "standings.html", text: "战队榜" },
   { href: "teams.html", text: "队伍" },
   { href: "player-rankings.html", text: "选手榜" },
   { href: "rules.html", text: "规则" },

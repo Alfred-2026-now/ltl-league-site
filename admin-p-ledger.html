@@ -12,16 +12,7 @@
     <nav class="nav">
       <a class="brand" href="admin-matches.html"><span class="brand-mark">LTL</span><span class="brand-text">管理后台 · P币流水</span></a>
       <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
-      <div class="nav-links" id="navLinks">
-        <a href="admin-matches.html">赛程管理</a>
-        <a href="admin-p-ledger.html">P币流水</a>
-        <a href="admin-valuation.html">身价管理</a>
-        <a href="admin-reward-rules.html">奖励规则</a>
-        <a href="admin-announcements.html">公告管理</a>
-        <a href="admin-players.html">选手管理</a>
-        <a href="admin-player-deposit-ledger.html">选手存款流水</a>
-        <a href="index.html">返回官网</a>
-      </div>
+      <div class="nav-links" id="navLinks"></div>
     </nav>
   </header>
   <main class="page-shell">
@@ -52,6 +43,23 @@
           <button class="btn primary" id="addBtn" type="button">添加</button>
         </div>
       </div>
+
+      <div class="panel" style="padding:1rem;margin-top:1rem;">
+        <h3 style="margin:0 0 1rem 0;">扣除队伍工资</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:.75rem;align-items:end;">
+          <label class="field">
+            <span class="field-label">工资比例(%)</span>
+            <input class="input" id="deductSalaryRate" type="number" value="10" min="1" max="100" placeholder="如:10表示10%" />
+          </label>
+          <label class="field">
+            <span class="field-label">预计影响</span>
+            <input class="input" id="deductSalaryPreview" type="text" readonly placeholder="将显示影响的队伍数量" />
+          </label>
+          <button class="btn primary" id="deductSalaryBtn" type="button">一键扣除工资</button>
+          <button class="btn" id="voidDeductSalaryBtn" type="button" style="background:#ff6b6b;color:white;">撤回最近扣除</button>
+        </div>
+        <p class="muted" style="margin:.75rem 0 0;">说明：给所有队伍扣除工资，金额 = 队伍选手总身价 × 比例%。撤回将作废最近一次的所有工资扣除流水。</p>
+      </div>
       <div class="panel" style="margin-top:1rem;overflow:auto;">
         <table class="admin-table" style="width:100%;border-collapse:collapse;">
           <thead><tr><th style="text-align:left;padding:.75rem 1rem;">时间</th><th style="text-align:left;padding:.75rem 1rem;">队伍</th><th style="text-align:left;padding:.75rem 1rem;">类型</th><th style="text-align:left;padding:.75rem 1rem;">金额</th><th style="text-align:left;padding:.75rem 1rem;">余额</th><th style="text-align:left;padding:.75rem 1rem;">比赛/版本</th><th style="text-align:left;padding:.75rem 1rem;">状态</th><th style="text-align:left;padding:.75rem 1rem;">原因</th><th style="text-align:left;padding:.75rem 1rem;">操作</th></tr></thead>
@@ -60,11 +68,10 @@
       </div>
     </section>
   </main>
+  <!-- 管理员权限验证 -->
+  <script type="module" src="src/util/admin-auth.js"></script>
   <script type="module" src="src/admin/p-ledger.js"></script>
   <script src="src/components/admin-nav.js"></script>
-  <script type="module">
-    import { setupNav } from "./src/features/navigation.js";
-    setupNav();
-  </script>
+  
 </body>
 </html>

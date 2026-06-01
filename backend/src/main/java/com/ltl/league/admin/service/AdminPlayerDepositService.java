@@ -17,4 +17,8 @@ public interface AdminPlayerDepositService {
     List<PlayerDepositLedgerVO> listPlayerDepositLedgers(Long playerId, Integer isVoided, Integer limit);
 
     void voidPlayerDepositLedger(Long ledgerId, String reason);
+
+    void paySalary(SalaryRequest request);
+
+    void voidSalary(Long salaryBatchId, String reason);
 }
