@@ -4,7 +4,7 @@ import { loadAllData } from "./services/api.js";
 
 async function initMatchHistory() {
   try {
-    setupNav();
+    // setupNav() 已在 public-nav.js 中处理，不需要再次调用
     const data = await loadAllData();
     setupMatchHistory(data.schedule, data.teams);
   } catch (error) {

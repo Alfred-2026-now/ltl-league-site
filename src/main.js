@@ -18,7 +18,7 @@ async function initApp() {
     renderSchedule(data.schedule, data.teams);
 
     setupAccordion();
-    setupNav();
+    // setupNav() 已在 public-nav.js 中处理，不需要再次调用
     setupTeamSearch(data.teams);
     setupCalculators(data.teams);
     setupActiveNav();
