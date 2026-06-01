@@ -24,7 +24,7 @@ export function renderTeams(teams, filter = "") {
         <div><span>在职人数</span><strong>${team.players.length}人</strong></div>
       </div>
       <ul class="roster">
-        ${team.players.map(player => `<li><span>${player[0]}</span><small>身价 ${formatP(player[1])} | 存款 ${formatP(player[2] || 0)}</small></li>`).join("")}
+        ${team.players.map(player => `<li><span>${player[0]}</span><small>身价 ${formatP(player[1])} | 积分 ${formatP(player[2] || 0)}</small></li>`).join("")}
       </ul>
     </article>
   `).join("");

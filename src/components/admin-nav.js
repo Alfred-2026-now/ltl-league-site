@@ -11,7 +11,7 @@
       { href: "admin-valuation.html", text: "身价管理" },
       { href: "admin-reward-rules.html", text: "奖励规则" },
       { href: "admin-players.html", text: "选手管理" },
-      { href: "admin-player-deposit-ledger.html", text: "选手存款" },
+      { href: "admin-player-deposit-ledger.html", text: "选手积分" },
       { href: "admin-prize-mgmt.html", text: "奖品兑换" },
       { href: "admin-announcements.html", text: "公告" },
       { href: "admin-rules.html", text: "规则" },

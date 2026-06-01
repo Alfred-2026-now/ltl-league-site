@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>LTL 管理 - 兑换流水</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+  <style>
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .status-pending {
+      background: #feebc8;
+      color: #9c4221;
+    }
+
+    .status-completed {
+      background: #c6f6d5;
+      color: #2f855a;
+    }
+
+    .status-cancelled {
+      background: #e2e8f0;
+      color: #4a5568;
+    }
+
+    .exchange-detail {
+      background: #f7fafc;
+      padding: 0.75rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+
+    .detail-label {
+      font-size: 0.85rem;
+      color: #718096;
+    }
+
+    .detail-value {
+      font-weight: 600;
+      color: #2d3748;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .action-buttons button {
+      flex: 1;
+      padding: 0.5rem;
+      font-size: 0.85rem;
+    }
+
+    .exchange-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .exchange-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .exchange-id {
+      font-size: 0.85rem;
+      color: #718096;
+    }
+
+    .exchange-time {
+      font-size: 0.8rem;
+      color: #a0aec0;
+    }
+
+    .exchange-prize {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .exchange-player {
+      font-size: 0.9rem;
+      color: #4a5568;
+      margin-bottom: 0.5rem;
+    }
+
+    .exchange-meta {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.85rem;
+      color: #718096;
+      margin-bottom: 0.75rem;
+    }
+
+    .filter-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .filter-tab {
+      padding: 0.5rem 1rem;
+      background: #e2e8f0;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .filter-tab:hover {
+      background: #cbd5e0;
+    }
+
+    .filter-tab.active {
+      background: #667eea;
+      color: white;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 2rem;
+      color: #718096;
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    @media (min-width: 768px) {
+      .exchange-card {
+        padding: 1.25rem;
+      }
+
+      .exchange-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="admin-matches.html"><span class="brand-mark">LTL</span><span class="brand-text">管理后台 · 兑换流水</span></a>
+      <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+      <div class="nav-links" id="navLinks"></div>
+    </nav>
+  </header>
+
+  <main class="page-shell">
+    <section class="section">
+      <div class="section-heading">
+        <p class="eyebrow">ADMIN · EXCHANGES</p>
+        <h1 class="page-title">兑换流水</h1>
+        <p class="muted">查看和处理选手的兑换申请</p>
+      </div>
+
+      <div class="panel" style="margin-top: 1rem;">
+        <div class="filter-tabs">
+          <button class="filter-tab active" data-status="">全部</button>
+          <button class="filter-tab" data-status="pending">待处理</button>
+          <button class="filter-tab" data-status="completed">已完成</button>
+          <button class="filter-tab" data-status="cancelled">已取消</button>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <button class="btn secondary" id="refreshBtn">刷新</button>
+          <span class="muted" id="totalCount">共 0 条记录</span>
+        </div>
+
+        <div id="loadingContainer" style="text-align: center; padding: 2rem;">加载中...</div>
+        <div id="exchangeContainer" class="exchange-grid"></div>
+        <div id="emptyContainer" class="empty-state" style="display: none;">
+          <div class="empty-state-icon">📋</div>
+          <p>暂无兑换记录</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="detailModal" class="modal-overlay">
+    <div class="modal">
+      <h2 class="modal-title">兑换详情</h2>
+      <div id="detailContent"></div>
+      <div class="modal-buttons">
+        <button type="button" class="btn secondary" onclick="closeDetailModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/admin/prize-exchanges.js"></script>
+  <script src="src/components/admin-nav.js"></script>
+</body>
+</html>

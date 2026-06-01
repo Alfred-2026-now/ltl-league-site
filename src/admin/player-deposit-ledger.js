@@ -72,7 +72,7 @@ function bindEls() {
   els.refreshBtn = document.getElementById("refreshBtn");
   els.ledgerBody = document.getElementById("ledgerBody");
 
-  // 调整存款相关元素
+  // 调整积分相关元素
   els.adjustPlayer = document.getElementById("adjustPlayer");
   els.adjustAmount = document.getElementById("adjustAmount");
   els.adjustReason = document.getElementById("adjustReason");
@@ -87,10 +87,10 @@ function bindEls() {
 }
 
 function renderPlayerOptions() {
-  const playerOpts = `<option value="">全部</option>${players.map(p => `<option value="${p.id}">${p.name} · 存款 ${p.deposit || 0}P</option>`).join("")}`;
+  const playerOpts = `<option value="">全部</option>${players.map(p => `<option value="${p.id}">${p.name} · 积分 ${p.deposit || 0}P</option>`).join("")}`;
   els.filterPlayer.innerHTML = playerOpts;
 
-  const adjustPlayerOpts = `<option value="">选择选手</option>${players.map(p => `<option value="${p.id}">${p.name} · 存款 ${p.deposit || 0}P</option>`).join("")}`;
+  const adjustPlayerOpts = `<option value="">选择选手</option>${players.map(p => `<option value="${p.id}">${p.name} · 积分 ${p.deposit || 0}P</option>`).join("")}`;
   els.adjustPlayer.innerHTML = adjustPlayerOpts;
 }
 
@@ -166,7 +166,7 @@ function renderRows(rows) {
 
 function updateCurrentDepositHint() {
   const player = players.find(p => String(p.id) === String(els.adjustPlayer.value));
-  els.currentDepositHint.textContent = player ? `当前存款：${player.deposit || 0}P${player.status === 3 ? '（自由人）' : ''}` : "请选择选手。";
+  els.currentDepositHint.textContent = player ? `当前积分：${player.deposit || 0}P${player.status === 3 ? '（自由人）' : ''}` : "请选择选手。";
 }
 
 function getTypeText(type) {
@@ -220,7 +220,7 @@ async function submitAdjust() {
       amount: Number(els.adjustAmount.value),
       reason: els.adjustReason.value.trim()
     });
-    alert("存款已调整");
+    alert("积分已调整");
     els.adjustAmount.value = "";
     els.adjustReason.value = "";
     await refresh();
@@ -304,7 +304,7 @@ async function submitSalary() {
 
 async function submitVoidSalary() {
   try {
-    if (!confirm("确定要撤回最近一次的工资发放吗？这将作废该批次的所有工资流水，并恢复选手的存款余额。")) {
+    if (!confirm("确定要撤回最近一次的工资发放吗？这将作废该批次的所有工资流水，并恢复选手的积分余额。")) {
       return;
     }
     // 使用 0 作为 batchId，后端会撤回最近一次的工资发放

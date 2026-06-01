@@ -52,7 +52,7 @@ function renderRankings() {
     els.depositHeader.style.display = "none";
   } else {
     rankedPlayers = [...players].sort((a, b) => (b.deposit || 0) - (a.deposit || 0));
-    els.rankingTitle.textContent = "选手存款排行榜";
+    els.rankingTitle.textContent = "选手积分排行榜";
     els.valueHeader.style.display = "none";
     els.depositHeader.style.display = "";
   }
@@ -159,7 +159,7 @@ function renderRankings() {
               <div class="ranking-card-stat-value" style="color:${valueStyle};">${valueDisplay}P</div>
             </div>
             <div class="ranking-card-stat">
-              <div class="ranking-card-stat-label">存款</div>
+              <div class="ranking-card-stat-label">积分</div>
               <div class="ranking-card-stat-value" style="color:#a8b6d6;font-size:0.9rem;">${depositDisplay}P</div>
             </div>
             <div class="ranking-card-team">${team ? `${team.state} · ${team.name}` : "自由人"}</div>
@@ -183,7 +183,7 @@ function renderRankings() {
               <div class="ranking-card-stat-value" style="color:#a8b6d6;font-size:0.9rem;">${valueDisplay}P</div>
             </div>
             <div class="ranking-card-stat">
-              <div class="ranking-card-stat-label">存款</div>
+              <div class="ranking-card-stat-label">积分</div>
               <div class="ranking-card-stat-value" style="color:${depositStyle};">${depositDisplay}P</div>
             </div>
             <div class="ranking-card-team">${team ? `${team.state} · ${team.name}` : "自由人"}</div>

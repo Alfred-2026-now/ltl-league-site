@@ -6,7 +6,7 @@ export const ADMIN_NAV = [
   { href: "admin-reward-rules.html", text: "奖励规则" },
   { href: "admin-announcements.html", text: "公告管理" },
   { href: "admin-players.html", text: "选手管理" },
-  { href: "admin-player-deposit-ledger.html", text: "选手存款流水" },
+  { href: "admin-player-deposit-ledger.html", text: "选手积分流水" },
   { href: "index.html", text: "返回官网" }
 ];
 

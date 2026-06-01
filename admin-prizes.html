@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>LTL 管理 - 奖品管理</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+  <style>
+    .prize-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+
+    .prize-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .prize-card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .prize-card.inactive {
+      opacity: 0.6;
+    }
+
+    .prize-image {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .prize-body {
+      padding: 1rem;
+    }
+
+    .prize-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 0.5rem;
+    }
+
+    .prize-name {
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin: 0;
+    }
+
+    .prize-status {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 12px;
+      background: #48bb78;
+      color: white;
+    }
+
+    .prize-status.inactive {
+      background: #cbd5e0;
+    }
+
+    .prize-description {
+      font-size: 0.85rem;
+      color: #718096;
+      margin: 0.5rem 0;
+      line-height: 1.4;
+    }
+
+    .prize-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 0.75rem 0;
+      padding: 0.5rem;
+      background: #f7fafc;
+      border-radius: 6px;
+    }
+
+    .prize-cost {
+      font-weight: 600;
+      color: #667eea;
+      font-size: 1.1rem;
+    }
+
+    .prize-stock {
+      font-size: 0.85rem;
+      color: #718096;
+    }
+
+    .prize-stock.low {
+      color: #e53e3e;
+      font-weight: 600;
+    }
+
+    .prize-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .prize-actions button {
+      flex: 1;
+      padding: 0.5rem;
+      font-size: 0.85rem;
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    .modal {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      max-width: 500px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 0 0 1rem 0;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 0.25rem;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 0.6rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .modal-buttons button {
+      flex: 1;
+      padding: 0.6rem;
+    }
+
+    .preview-image {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+      border-radius: 6px;
+      margin-top: 0.5rem;
+      display: none;
+    }
+
+    .preview-image.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="admin-matches.html"><span class="brand-mark">LTL</span><span class="brand-text">管理后台 · 奖品管理</span></a>
+      <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+      <div class="nav-links" id="navLinks"></div>
+    </nav>
+  </header>
+
+  <main class="page-shell">
+    <section class="section">
+      <div class="section-heading row">
+        <div>
+          <p class="eyebrow">ADMIN · PRIZES</p>
+          <h1 class="page-title">奖品管理</h1>
+          <p class="muted">管理可兑换的奖品，设置名称、图片、积分和库存</p>
+        </div>
+        <button class="btn primary" id="addPrizeBtn">添加奖品</button>
+      </div>
+
+      <div id="errorContainer" style="display: none;"></div>
+      <div id="successContainer" style="display: none;"></div>
+
+      <div class="panel" style="margin-top: 1rem;">
+        <div id="loadingContainer" style="text-align: center; padding: 2rem;">加载中...</div>
+        <div id="prizeContainer" class="prize-grid"></div>
+        <div id="emptyContainer" style="text-align: center; padding: 3rem; display: none;">
+          <p style="font-size: 2rem; margin-bottom: 0.5rem;">🎁</p>
+          <p class="muted">暂无奖品，点击右上角添加</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="prizeModal" class="modal-overlay">
+    <div class="modal">
+      <h2 class="modal-title" id="modalTitle">添加奖品</h2>
+      <form id="prizeForm">
+        <input type="hidden" id="prizeId" />
+
+        <div class="form-group">
+          <label class="form-label">奖品名称 *</label>
+          <input type="text" id="prizeName" class="form-input" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">奖品描述</label>
+          <textarea id="prizeDescription" class="form-input form-textarea"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">图片URL</label>
+          <input type="url" id="prizeImageUrl" class="form-input" placeholder="https://..." />
+          <img id="imagePreview" class="preview-image" alt="预览" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">兑换积分 *</label>
+          <input type="number" id="prizeCostPoints" class="form-input" min="1" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">库存数量 *</label>
+          <input type="number" id="prizeStock" class="form-input" min="0" required />
+        </div>
+
+        <div class="form-group" id="isActiveGroup" style="display: none;">
+          <label class="form-label">状态</label>
+          <select id="prizeIsActive" class="form-input">
+            <option value="1">启用</option>
+            <option value="0">禁用</option>
+          </select>
+        </div>
+
+        <div class="modal-buttons">
+          <button type="button" class="btn secondary" onclick="closeModal()">取消</button>
+          <button type="submit" class="btn primary">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="src/admin/prizes.js"></script>
+  <script src="src/components/admin-nav.js"></script>
+</body>
+</html>
