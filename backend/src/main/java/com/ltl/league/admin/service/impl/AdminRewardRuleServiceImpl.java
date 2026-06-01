@@ -7,6 +7,7 @@ import com.ltl.league.admin.service.AdminRewardRuleService;
 import com.ltl.league.entity.SettlementRewardRule;
 import com.ltl.league.exception.BusinessException;
 import com.ltl.league.mapper.SettlementRewardRuleMapper;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,9 +17,11 @@ import java.util.stream.Collectors;
 public class AdminRewardRuleServiceImpl implements AdminRewardRuleService {
 
     private final SettlementRewardRuleMapper rewardRuleMapper;
+    private final JdbcTemplate jdbcTemplate;
 
-    public AdminRewardRuleServiceImpl(SettlementRewardRuleMapper rewardRuleMapper) {
+    public AdminRewardRuleServiceImpl(SettlementRewardRuleMapper rewardRuleMapper, JdbcTemplate jdbcTemplate) {
         this.rewardRuleMapper = rewardRuleMapper;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Override
@@ -59,7 +62,8 @@ public class AdminRewardRuleServiceImpl implements AdminRewardRuleService {
         if (rule == null) {
             throw new BusinessException(404, "规则不存在");
         }
-        rewardRuleMapper.deleteById(id);
+        // 使用物理删除，避免唯一索引冲突（逻辑删除时deleted字段会导致重复键）
+        jdbcTemplate.update("DELETE FROM settlement_reward_rules WHERE id = ?", id);
     }
 
     private void validateRequest(RewardRuleRequest request) {
@@ -72,8 +76,12 @@ public class AdminRewardRuleServiceImpl implements AdminRewardRuleService {
     }
 
     private void applyRequest(SettlementRewardRule rule, RewardRuleRequest request) {
-        rule.setFormat(request.getFormat().trim().toUpperCase());
-        rule.setScorePattern(request.getScorePattern().trim());
+        if (request.getFormat() != null && !request.getFormat().isBlank()) {
+            rule.setFormat(request.getFormat().trim().toUpperCase());
+        }
+        if (request.getScorePattern() != null && !request.getScorePattern().isBlank()) {
+            rule.setScorePattern(request.getScorePattern().trim());
+        }
         rule.setWinnerAmount(request.getWinnerAmount());
         rule.setLoserAmount(request.getLoserAmount());
         rule.setDrawAmount(request.getDrawAmount());

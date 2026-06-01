@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>LTL 管理 - 规则管理</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="admin-matches.html"><span class="brand-mark">LTL</span><span class="brand-text">管理后台 · 规则管理</span></a>
+      <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+      <div class="nav-links" id="navLinks"></div>
+    </nav>
+  </header>
+
+  <main class="page-shell">
+    <section class="section">
+      <div class="section-heading row">
+        <div>
+          <p class="eyebrow">ADMIN · RULES</p>
+          <h1 class="page-title">规则管理</h1>
+          <p class="muted">管理规则手册内容，修改后实时生效于官网规则页面。</p>
+        </div>
+        <button class="btn primary" id="createRuleBtn" type="button">创建规则</button>
+      </div>
+
+      <div class="panel" style="margin-top:1rem;overflow:auto;">
+        <table class="admin-table" style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:.75rem 1rem;">序号</th>
+              <th style="text-align:left;padding:.75rem 1rem;">标题</th>
+              <th style="text-align:left;padding:.75rem 1rem;">展开状态</th>
+              <th style="text-align:left;padding:.75rem 1rem;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="rulesBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="ruleDialog" style="max-width: 800px; width: calc(100% - 2rem); border: 1px solid rgba(126,200,255,.28); background: rgba(12, 22, 48, 0.95); color: var(--text); border-radius: 16px; padding: 0; box-shadow: var(--shadow);">
+    <div style="padding: 1rem;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap: 1rem;">
+        <h2 style="margin:0; font-size: 1.1rem;" id="dialogTitle">创建规则</h2>
+        <button class="btn ghost" id="closeDialogBtn" type="button">关闭</button>
+      </div>
+
+      <div style="display:grid; gap: .75rem; margin-top: .75rem;">
+        <label class="field">
+          <span class="field-label">规则标题（必填）</span>
+          <input class="input" id="formTitle" />
+        </label>
+
+        <label class="field">
+          <span class="field-label">显示顺序</span>
+          <input class="input" id="formDisplayOrder" type="number" min="0" value="0" />
+          <small class="muted">数字越小越靠前</small>
+        </label>
+
+        <label class="field">
+          <span class="field-label">规则内容（HTML格式，必填）</span>
+          <textarea class="input" id="formContent" rows="10" placeholder="支持HTML格式，如：&lt;p&gt;段落内容&lt;/p&gt;"></textarea>
+          <small class="muted">可以使用HTML标签来格式化内容，如&lt;p&gt;、&lt;ul&gt;、&lt;table&gt;等</small>
+        </label>
+
+        <label class="field" style="display:flex; align-items:center; gap:.5rem; padding-top:.5rem;">
+          <input type="checkbox" id="formIsOpen" style="width:1.1rem;height:1.1rem;cursor:pointer;" />
+          <span style="color:#f3f8ff;">默认展开</span>
+        </label>
+      </div>
+
+      <div style="display:flex; justify-content: flex-end; gap: .5rem; margin-top: 1rem;">
+        <button class="btn primary" type="button" id="saveBtn">保存</button>
+      </div>
+
+      <input type="hidden" id="formRuleId" />
+    </div>
+  </dialog>
+
+  <script type="module" src="src/admin/rules.js"></script>
+  <script src="src/components/admin-nav.js"></script>
+  
+</body>
+</html>

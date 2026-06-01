@@ -12,6 +12,7 @@ public class Player {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    @TableField(updateStrategy = FieldStrategy.IGNORED)
     private Long teamId;
 
     private String name;

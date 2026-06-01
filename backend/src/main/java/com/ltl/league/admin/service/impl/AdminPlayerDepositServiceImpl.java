@@ -192,16 +192,18 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
             }
             player.setStatus(request.getStatus());
         }
-        if (request.getTeamId() != null) {
-            // 队伍变更时的逻辑验证
-            if (player.getStatus() == 3 && request.getTeamId() != null) {
-                throw new BusinessException(400, "自由人不能属于任何队伍");
-            }
-            if (player.getStatus() != 3 && request.getTeamId() == null) {
-                throw new BusinessException(400, "在职选手必须属于某个队伍");
-            }
-            player.setTeamId(request.getTeamId());
+        // 队伍变更时的逻辑验证
+        // 注意：request.getTeamId() 可能为 null（自由人），需要显式设置
+        Long newTeamId = request.getTeamId();
+        Integer newStatus = request.getStatus() != null ? request.getStatus() : player.getStatus();
+
+        if (newStatus == 3 && newTeamId != null) {
+            throw new BusinessException(400, "自由人不能属于任何队伍");
         }
+        if (newStatus != 3 && newTeamId == null) {
+            throw new BusinessException(400, "在职选手必须属于某个队伍");
+        }
+        player.setTeamId(newTeamId);
 
         playerMapper.updateById(player);
         return player;

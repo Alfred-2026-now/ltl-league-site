@@ -33,6 +33,7 @@ function bindEls() {
   els.valueHeader = document.getElementById("valueHeader");
   els.depositHeader = document.getElementById("depositHeader");
   els.rankingBody = document.getElementById("rankingBody");
+  els.rankingCards = document.getElementById("rankingCards");
 }
 
 function renderRankings() {
@@ -56,6 +57,7 @@ function renderRankings() {
     els.depositHeader.style.display = "";
   }
 
+  // 桌面端表格渲染
   els.rankingBody.innerHTML = rankedPlayers.map((player, index) => {
     const team = teamMap.get(player.teamId);
     const rank = index + 1;
@@ -107,6 +109,90 @@ function renderRankings() {
       </tr>
     `;
   }).join("");
+
+  // 移动端卡片渲染
+  if (els.rankingCards) {
+    els.rankingCards.innerHTML = rankedPlayers.map((player, index) => {
+    const team = teamMap.get(player.teamId);
+    const rank = index + 1;
+    let rankDisplay = rank;
+    let rankStyle = "color:#f3f8ff;";
+    let cardBg = "rgba(10, 15, 35, 0.6)";
+
+    if (rank === 1) {
+      rankDisplay = "🥇";
+      rankStyle = "color:#ffd700;font-size:1.8rem;";
+      cardBg = "linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(10, 15, 35, 0.8))";
+    } else if (rank === 2) {
+      rankDisplay = "🥈";
+      rankStyle = "color:#c0c0c0;font-size:1.6rem;";
+      cardBg = "linear-gradient(135deg, rgba(192, 192, 192, 0.12), rgba(10, 15, 35, 0.8))";
+    } else if (rank === 3) {
+      rankDisplay = "🥉";
+      rankStyle = "color:#cd7f32;font-size:1.6rem;";
+      cardBg = "linear-gradient(135deg, rgba(205, 127, 50, 0.12), rgba(10, 15, 35, 0.8))";
+    }
+
+    const isFreeAgent = player.status === 3;
+    const statusBadge = isFreeAgent ? '<span style="background:linear-gradient(135deg, #ff6b6b, #ee5a5a);color:white;padding:2px 6px;border-radius:4px;font-size:0.7rem;">自由人</span>' : '';
+    const substituteBadge = player.isSubstitute ? '<span style="background:rgba(121, 231, 255, 0.2);color:#7cffb2;padding:2px 6px;border-radius:4px;font-size:0.7rem;">替补</span>' : '';
+
+    let valueStyle = "#7cffb2";
+    let depositStyle = "#ffd700";
+    let valueDisplay = player.value || 0;
+    let depositDisplay = player.deposit || 0;
+
+    if (currentMode === "value") {
+      return `
+        <div class="ranking-card" style="background:${cardBg};border:1px solid ${rank === 1 ? 'rgba(255, 215, 0, 0.3)' : rank === 2 ? 'rgba(192, 192, 192, 0.3)' : rank === 3 ? 'rgba(205, 127, 50, 0.3)' : 'rgba(121, 231, 255, 0.2)'};">
+          <div class="ranking-card-header">
+            <div class="ranking-card-rank" style="${rankStyle}">${rankDisplay}</div>
+            <div class="ranking-card-name">${player.name || "-"}</div>
+            <div class="ranking-card-tags">
+              ${statusBadge}
+              ${substituteBadge}
+            </div>
+          </div>
+          <div class="ranking-card-info">
+            <div class="ranking-card-stat">
+              <div class="ranking-card-stat-label">身价</div>
+              <div class="ranking-card-stat-value" style="color:${valueStyle};">${valueDisplay}P</div>
+            </div>
+            <div class="ranking-card-stat">
+              <div class="ranking-card-stat-label">存款</div>
+              <div class="ranking-card-stat-value" style="color:#a8b6d6;font-size:0.9rem;">${depositDisplay}P</div>
+            </div>
+            <div class="ranking-card-team">${team ? `${team.state} · ${team.name}` : "自由人"}</div>
+          </div>
+        </div>
+      `;
+    } else {
+      return `
+        <div class="ranking-card" style="background:${cardBg};border:1px solid ${rank === 1 ? 'rgba(255, 215, 0, 0.3)' : rank === 2 ? 'rgba(192, 192, 192, 0.3)' : rank === 3 ? 'rgba(205, 127, 50, 0.3)' : 'rgba(121, 231, 255, 0.2)'};">
+          <div class="ranking-card-header">
+            <div class="ranking-card-rank" style="${rankStyle}">${rankDisplay}</div>
+            <div class="ranking-card-name">${player.name || "-"}</div>
+            <div class="ranking-card-tags">
+              ${statusBadge}
+              ${substituteBadge}
+            </div>
+          </div>
+          <div class="ranking-card-info">
+            <div class="ranking-card-stat">
+              <div class="ranking-card-stat-label">身价</div>
+              <div class="ranking-card-stat-value" style="color:#a8b6d6;font-size:0.9rem;">${valueDisplay}P</div>
+            </div>
+            <div class="ranking-card-stat">
+              <div class="ranking-card-stat-label">存款</div>
+              <div class="ranking-card-stat-value" style="color:${depositStyle};">${depositDisplay}P</div>
+            </div>
+            <div class="ranking-card-team">${team ? `${team.state} · ${team.name}` : "自由人"}</div>
+          </div>
+        </div>
+      `;
+    }
+  }).join("");
+  }
 }
 
 async function init() {
