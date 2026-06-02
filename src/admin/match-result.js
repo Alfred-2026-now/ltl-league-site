@@ -112,6 +112,14 @@ function isDraftEditable() {
   return resultCtx?.status === "draft" && resultCtx?.readOnly !== true;
 }
 
+function canEditResult() {
+  return !readOnly && resultCtx?.readOnly !== true && resultCtx?.status !== "published";
+}
+
+function canUploadScreenshots() {
+  return canEditResult() || resultCtx?.status === "published";
+}
+
 /** 秒 → 分:秒（如 1935 → "32:15"） */
 function formatDurationInput(seconds) {
   if (seconds == null || seconds === "") return "";
@@ -140,6 +148,10 @@ function renderGames(games = []) {
   const slots = requiredGameSlots();
   const states = stateOptions();
   const byIndex = new Map((games || []).map(g => [g.gameIndex, g]));
+  const canUpload = canUploadScreenshots();
+  const emptyScreenshotHint = resultCtx?.status === "published"
+    ? "暂无截图，上传后会追加到已发布赛果，其他已录入数据不会被修改。"
+    : "暂无截图，上传后保存草稿并发布赛果，前台战绩详情会展示图片。";
 
   els.gamesContainer.innerHTML = Array.from({ length: slots }, (_, i) => {
     const idx = i + 1;
@@ -160,13 +172,22 @@ function renderGames(games = []) {
             <input class="input game-duration" type="text" inputmode="numeric" placeholder="32:15" value="${formatDurationInput(g.durationSeconds)}" /></label>
         </div>
         <div class="game-screenshots" style="margin-top:.5rem;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-bottom:.5rem;">
+            <strong>战绩截图</strong>
+            ${canUpload ? `
+              <label class="btn ghost" style="cursor:pointer;">
+                上传第 ${idx} 局截图
+                <input type="file" accept="image/*" class="game-upload" data-game-index="${idx}" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;" />
+              </label>
+            ` : ""}
+          </div>
           ${shots.map(s => `
             <div style="display:flex;align-items:center;gap:.5rem;margin:.25rem 0;">
               <a href="${s.url}" target="_blank" rel="noreferrer">${s.label || "截图"}</a>
               ${isDraftEditable() ? `<button type="button" class="btn ghost" data-del-att="${s.id}">删除</button>` : ""}
             </div>
           `).join("")}
-          ${isDraftEditable() ? `<input type="file" accept="image/*" class="game-upload" data-game-index="${idx}" />` : ""}
+          ${!shots.length ? `<p class="muted" style="margin:.25rem 0 0;">${emptyScreenshotHint}</p>` : ""}
         </div>
       </div>
     `;
@@ -439,6 +460,19 @@ async function persistDraftForUpload(gameIndex) {
   return ensureDraft();
 }
 
+async function getScreenshotUploadTarget(gameIndex) {
+  if (resultCtx?.status === "published") {
+    return resultCtx;
+  }
+  return persistDraftForUpload(gameIndex);
+}
+
+function getScreenshotUploadSuccessMessage() {
+  return resultCtx?.status === "published"
+    ? "截图已上传，已发布赛果的其他数据未修改。"
+    : "截图已上传。";
+}
+
 function renderSettlementPreview(preview) {
   if (!els.settlementPreview) return;
   const errors = preview.errors || [];
@@ -705,12 +739,13 @@ function wireEvents() {
     if (!input?.files?.[0]) return;
     const gameIndex = Number(input.dataset.gameIndex);
     try {
-      resultCtx = await persistDraftForUpload(gameIndex);
-      await uploadGameScreenshot(matchId, resultCtx.id, gameIndex, input.files[0]);
+      const uploadTarget = await getScreenshotUploadTarget(gameIndex);
+      await uploadGameScreenshot(matchId, uploadTarget.id, gameIndex, input.files[0]);
       input.value = "";
       resultCtx = await getMatchResult(matchId);
       applyStatusUi();
       fillForm(resultCtx);
+      alert(getScreenshotUploadSuccessMessage());
     } catch (err) {
       alert(`上传失败：${err.message}`);
     }
