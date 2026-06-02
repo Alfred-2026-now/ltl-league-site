@@ -32,6 +32,12 @@ public class AdminPlayerDepositController {
         return Result.success(adminPlayerDepositService.updatePlayer(playerId, request));
     }
 
+    @DeleteMapping("/players/{playerId}")
+    public Result<Void> deletePlayer(@PathVariable Long playerId) {
+        adminPlayerDepositService.deletePlayer(playerId);
+        return Result.success();
+    }
+
     @GetMapping("/players/deposit-ledgers")
     public Result<java.util.List<PlayerDepositLedgerVO>> listPlayerDepositLedgers(
             @RequestParam(required = false) Long playerId,

@@ -210,6 +210,21 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
     }
 
     @Override
+    @Transactional
+    public void deletePlayer(Long playerId) {
+        if (playerId == null) {
+            throw new BusinessException(400, "选手ID不能为空");
+        }
+
+        Player player = playerMapper.selectById(playerId);
+        if (player == null) {
+            throw new BusinessException(404, "选手不存在");
+        }
+
+        playerMapper.deleteById(playerId);
+    }
+
+    @Override
     public List<PlayerDepositLedgerVO> listPlayerDepositLedgers(Long playerId, Integer isVoided, Integer limit) {
         List<PlayerDepositLedger> ledgers = depositLedgerMapper.selectList(new LambdaQueryWrapper<PlayerDepositLedger>()
                 .eq(playerId != null, PlayerDepositLedger::getPlayerId, playerId)

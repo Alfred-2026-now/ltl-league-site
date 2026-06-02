@@ -1,12 +1,13 @@
+import { getApiBase } from "../config/api.js";
+
 // 认证工具类
-const API_BASE = "http://123.57.19.160/api";
 const COOKIE_NAME = "ltl_auth";
 
 // 认证相关 API
 export const authApi = {
   // 登录
   async login(playerName, password) {
-    const response = await fetch(`${API_BASE}/auth/login`, {
+    const response = await fetch(`${getApiBase()}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -22,7 +23,7 @@ export const authApi = {
 
   // 登出
   async logout() {
-    await fetch(`${API_BASE}/auth/logout`, {
+    await fetch(`${getApiBase()}/auth/logout`, {
       method: 'POST',
       credentials: 'include'
     });
@@ -30,7 +31,7 @@ export const authApi = {
 
   // 修改密码
   async changePassword(currentPassword, newPassword, confirmPassword) {
-    const response = await fetch(`${API_BASE}/user/change-password`, {
+    const response = await fetch(`${getApiBase()}/user/change-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -51,7 +52,7 @@ export const authApi = {
   // 获取当前用户
   async getCurrentUser() {
     try {
-      const response = await fetch(`${API_BASE}/auth/current`, {
+      const response = await fetch(`${getApiBase()}/auth/current`, {
         credentials: 'include'
       });
 
@@ -69,7 +70,7 @@ export const authApi = {
   // 获取用户信息
   async getUserInfo() {
     try {
-      const response = await fetch(`${API_BASE}/user/info`, {
+      const response = await fetch(`${getApiBase()}/user/info`, {
         credentials: 'include'
       });
 
@@ -87,7 +88,7 @@ export const authApi = {
   // 获取用户兑换记录
   async getUserPrizeExchanges() {
     try {
-      const response = await fetch(`${API_BASE}/user/prize-exchanges`, {
+      const response = await fetch(`${getApiBase()}/user/prize-exchanges`, {
         credentials: 'include'
       });
 

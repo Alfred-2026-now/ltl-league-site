@@ -37,6 +37,12 @@ async function updatePlayer(playerId, payload) {
   });
 }
 
+async function deletePlayer(playerId) {
+  return request(`/admin/players/${playerId}`, {
+    method: "DELETE"
+  });
+}
+
 let players = [];
 let teams = [];
 let currentEditingPlayer = null;
@@ -47,6 +53,7 @@ function bindEls() {
   els.playerDialog = document.getElementById("playerDialog");
   els.closeDialogBtn = document.getElementById("closeDialogBtn");
   els.dialogTitle = document.getElementById("dialogTitle");
+  els.deletePlayerBtn = document.getElementById("deletePlayerBtn");
   els.saveBtn = document.getElementById("saveBtn");
 
   els.formName = document.getElementById("formName");
@@ -143,6 +150,8 @@ function openCreateDialog() {
   els.formStatus.value = "1";
   els.formIsSubstitute.checked = false;
   els.formPlayerId.value = "";
+  els.formTeam.disabled = false;
+  els.deletePlayerBtn.style.display = "none";
   els.playerDialog.showModal();
 }
 
@@ -159,6 +168,8 @@ function openEditDialog(player) {
   els.formStatus.value = String(player.status || 1);
   els.formIsSubstitute.checked = player.isSubstitute === 1;
   els.formPlayerId.value = player.id;
+  els.deletePlayerBtn.style.display = "";
+  handleStatusChange();
   els.playerDialog.showModal();
 }
 
@@ -204,6 +215,27 @@ async function savePlayer() {
   }
 }
 
+async function deleteCurrentPlayer() {
+  if (!currentEditingPlayer) return;
+  const playerName = currentEditingPlayer.name || `#${currentEditingPlayer.id}`;
+  if (!confirm(`确认删除选手「${playerName}」？删除后前台列表将不再显示该选手。`)) {
+    return;
+  }
+
+  els.deletePlayerBtn.disabled = true;
+  try {
+    await deletePlayer(currentEditingPlayer.id);
+    alert("选手已删除");
+    els.playerDialog.close();
+    currentEditingPlayer = null;
+    await refresh();
+  } catch (e) {
+    alert(`删除失败：${e.message}`);
+  } finally {
+    els.deletePlayerBtn.disabled = false;
+  }
+}
+
 function handleTableClick(e) {
   if (!e.target.matches("[data-action=\"edit\"]")) return;
   const playerId = Number(e.target.dataset.id);
@@ -233,6 +265,7 @@ async function init() {
 
     els.createPlayerBtn.addEventListener("click", openCreateDialog);
     els.closeDialogBtn.addEventListener("click", () => els.playerDialog.close());
+    els.deletePlayerBtn.addEventListener("click", deleteCurrentPlayer);
     els.saveBtn.addEventListener("click", savePlayer);
     els.refreshBtn.addEventListener("click", refresh);
     els.playersBody.addEventListener("click", handleTableClick);

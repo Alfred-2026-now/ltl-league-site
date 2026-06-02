@@ -21,6 +21,7 @@ const els = {
   matchTableBody: document.getElementById("matchTableBody"),
 
   matchDialog: document.getElementById("matchDialog"),
+  closeMatchDialogBtn: document.getElementById("closeMatchDialogBtn"),
   dialogTitle: document.getElementById("dialogTitle"),
   saveBtn: document.getElementById("saveBtn"),
   formMatchId: document.getElementById("formMatchId"),
@@ -232,6 +233,7 @@ function wireEvents() {
 
   els.refreshBtn?.addEventListener("click", refresh);
   els.createMatchBtn?.addEventListener("click", () => openDialog("create"));
+  els.closeMatchDialogBtn?.addEventListener("click", () => els.matchDialog.close());
   els.saveBtn?.addEventListener("click", saveCurrent);
 
   els.matchTableBody?.addEventListener("click", e => {
