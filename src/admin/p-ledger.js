@@ -48,6 +48,16 @@ function formatAmount(value) {
   return `<span style="color:${n >= 0 ? "#7CFFB2" : "#ff9f9f"};">${n > 0 ? "+" : ""}${n}P</span>`;
 }
 
+function getTypeText(type) {
+  const typeMap = {
+    match_reward: "比赛奖励",
+    luxury_tax: "奢侈税",
+    loan_fee: "租借费",
+    player_donation: "选手赠与"
+  };
+  return typeMap[type] || type;
+}
+
 function renderRows(rows) {
   if (!rows.length) {
     els.ledgerBody.innerHTML = `<tr><td colspan="9" style="padding:1rem;" class="muted">暂无流水。</td></tr>`;
@@ -57,7 +67,7 @@ function renderRows(rows) {
     <tr>
       <td style="padding:.75rem 1rem;">${row.createdAt || "-"}</td>
       <td style="padding:.75rem 1rem;">${row.teamState || "-"}</td>
-      <td style="padding:.75rem 1rem;">${row.type}</td>
+      <td style="padding:.75rem 1rem;">${getTypeText(row.type)}</td>
       <td style="padding:.75rem 1rem;">${formatAmount(row.amount)}</td>
       <td style="padding:.75rem 1rem;">${row.balanceBefore ?? "-"} → ${row.balanceAfter ?? "-"}</td>
       <td style="padding:.75rem 1rem;">#${row.matchId || "-"} ${row.version || ""}</td>

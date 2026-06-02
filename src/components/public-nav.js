@@ -1,8 +1,10 @@
 // 前台页面统一导航注入脚本
 (async function() {
+  const { getApiBase } = await import("../config/api.js");
+
   async function fetchCurrentUser() {
     try {
-      const response = await fetch('http://123.57.19.160/api/auth/current', {
+      const response = await fetch(`${getApiBase()}/auth/current`, {
         credentials: 'include'
       });
       const data = await response.json();
@@ -30,7 +32,8 @@
       { href: "tools.html", text: "计算器" },
       { href: "schedule.html", text: "赛程" },
       { href: "match-history.html", text: "战绩" },
-      { href: "prize-exchange.html", text: "积分兑换", highlight: true }
+      { href: "prize-exchange.html", text: "积分兑换", highlight: true },
+      { href: "point-transfer.html", text: "积分转赠", highlight: true }
     ];
 
     let navItems = [...baseNavItems];
@@ -97,7 +100,7 @@
     window.handleLogout = async function(e) {
       e.preventDefault();
       try {
-        await fetch('http://123.57.19.160/api/auth/logout', {
+        await fetch(`${getApiBase()}/auth/logout`, {
           method: 'POST',
           credentials: 'include'
         });

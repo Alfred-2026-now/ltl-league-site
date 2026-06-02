@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LTL联赛 - 积分转赠</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+  <style>
+    .transfer-shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .transfer-panel {
+      background: linear-gradient(180deg, rgba(20, 35, 76, 0.86), rgba(10, 18, 42, 0.84));
+      border: 1px solid rgba(126, 200, 255, 0.28);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 1.25rem;
+    }
+
+    .transfer-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: .85rem;
+    }
+
+    .transfer-type {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: .5rem;
+      margin-bottom: 1rem;
+    }
+
+    .type-option {
+      border: 1px solid rgba(126, 200, 255, 0.28);
+      border-radius: 12px;
+      background: rgba(5, 12, 30, 0.82);
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 800;
+      padding: .8rem;
+    }
+
+    .type-option.active {
+      border-color: rgba(121, 231, 255, 0.7);
+      background: rgba(25, 168, 255, 0.2);
+      color: #fff;
+    }
+
+    .field-label {
+      display: block;
+      color: var(--muted);
+      font-size: .85rem;
+      font-weight: 700;
+      margin-bottom: .4rem;
+    }
+
+    .readonly-box,
+    .preview-row,
+    .history-item {
+      border: 1px solid rgba(126, 200, 255, 0.18);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .readonly-box {
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      padding: .75rem .85rem;
+      color: #fff;
+      font-weight: 800;
+    }
+
+    .preview-list {
+      display: grid;
+      gap: .65rem;
+      margin-top: .75rem;
+    }
+
+    .preview-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .75rem .85rem;
+    }
+
+    .preview-row span {
+      color: var(--muted);
+    }
+
+    .preview-row strong {
+      color: var(--text);
+    }
+
+    .preview-row.total strong {
+      color: var(--gold);
+      font-size: 1.15rem;
+    }
+
+    .status-line {
+      min-height: 1.5rem;
+      margin-top: .75rem;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .status-line.ok {
+      color: #7cffb2;
+    }
+
+    .status-line.error {
+      color: #ff9f9f;
+    }
+
+    .history-list {
+      display: grid;
+      gap: .65rem;
+      margin-top: .75rem;
+    }
+
+    .history-item {
+      padding: .75rem;
+    }
+
+    .history-main {
+      display: flex;
+      justify-content: space-between;
+      gap: .75rem;
+      font-weight: 800;
+    }
+
+    .history-meta {
+      color: var(--muted);
+      font-size: .85rem;
+      margin-top: .35rem;
+    }
+
+    .action-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: .5rem;
+      margin-top: 1rem;
+    }
+
+    .confirm-dialog {
+      max-width: 520px;
+      width: calc(100% - 2rem);
+      border: 1px solid rgba(126, 200, 255, 0.28);
+      border-radius: 16px;
+      background: rgba(12, 22, 48, 0.98);
+      color: var(--text);
+      box-shadow: var(--shadow);
+      padding: 0;
+    }
+
+    .confirm-dialog::backdrop {
+      background: rgba(0, 0, 0, 0.55);
+    }
+
+    .confirm-body {
+      padding: 1rem;
+    }
+
+    .confirm-title {
+      margin: 0 0 .75rem;
+      font-size: 1.2rem;
+    }
+
+    @media (max-width: 900px) {
+      .transfer-shell,
+      .transfer-grid,
+      .transfer-type {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="index.html"><span class="brand-mark">LTL</span><span class="brand-text">积分转赠</span></a>
+      <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+      <div class="nav-links" id="navLinks"></div>
+    </nav>
+  </header>
+
+  <main class="page-shell">
+    <section class="section">
+      <div class="section-heading">
+        <p class="eyebrow">POINT TRANSFER</p>
+        <h1 class="page-title">积分转赠</h1>
+      </div>
+
+      <div class="transfer-shell">
+        <div class="transfer-panel">
+          <div class="transfer-type" role="tablist" aria-label="转赠类型">
+            <button class="type-option active" type="button" data-type="TEAM">赠与我的战队</button>
+            <button class="type-option" type="button" data-type="PLAYER">转赠给选手</button>
+          </div>
+
+          <div class="transfer-grid">
+            <label>
+              <span class="field-label">赠与人</span>
+              <div class="readonly-box" id="donorName">加载中...</div>
+            </label>
+            <label>
+              <span class="field-label">当前积分</span>
+              <div class="readonly-box" id="donorBalance">-</div>
+            </label>
+            <label id="teamRecipientField">
+              <span class="field-label">受赠战队</span>
+              <div class="readonly-box" id="teamRecipient">-</div>
+            </label>
+            <label id="playerRecipientField" style="display:none;">
+              <span class="field-label">受赠人</span>
+              <select id="recipientPlayer" class="input"></select>
+            </label>
+            <label>
+              <span class="field-label">额度</span>
+              <input id="amountInput" class="input" type="number" min="10" max="100000" step="10" placeholder="10-100000" />
+            </label>
+          </div>
+
+          <div class="preview-list">
+            <div class="preview-row">
+              <span>到账金额</span>
+              <strong id="previewAmount">-</strong>
+            </div>
+            <div class="preview-row">
+              <span>手续费</span>
+              <strong id="previewFee">-</strong>
+            </div>
+            <div class="preview-row total">
+              <span>总扣款</span>
+              <strong id="previewTotal">-</strong>
+            </div>
+            <div class="preview-row">
+              <span>预计余额</span>
+              <strong id="previewBalanceAfter">-</strong>
+            </div>
+          </div>
+
+          <div class="status-line" id="statusLine"></div>
+          <div class="action-row">
+            <button class="btn primary" id="submitBtn" type="button" disabled>转赠</button>
+          </div>
+        </div>
+
+        <aside class="transfer-panel">
+          <h2 style="margin:0;font-size:1.15rem;">最近记录</h2>
+          <div class="history-list" id="historyList">
+            <div class="history-item">
+              <div class="history-meta">加载中...</div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <dialog class="confirm-dialog" id="confirmDialog">
+    <div class="confirm-body">
+      <h2 class="confirm-title">确认转赠</h2>
+      <div class="preview-list">
+        <div class="preview-row">
+          <span>收款方</span>
+          <strong id="confirmRecipient">-</strong>
+        </div>
+        <div class="preview-row">
+          <span>到账金额</span>
+          <strong id="confirmAmount">-</strong>
+        </div>
+        <div class="preview-row">
+          <span>手续费</span>
+          <strong id="confirmFee">-</strong>
+        </div>
+        <div class="preview-row total">
+          <span>总扣款</span>
+          <strong id="confirmTotal">-</strong>
+        </div>
+      </div>
+      <div class="action-row">
+        <button class="btn ghost" id="cancelConfirmBtn" type="button">取消</button>
+        <button class="btn primary" id="confirmSubmitBtn" type="button">确认转赠</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script type="module" src="src/player-transfer.js"></script>
+  <script src="src/components/public-nav.js"></script>
+</body>
+</html>

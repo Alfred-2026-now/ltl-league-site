@@ -173,7 +173,9 @@ function getTypeText(type) {
   const typeMap = {
     loan_fee: "租借费",
     manual_adjustment: "手动调整",
-    race_reward: "比赛奖励"
+    race_reward: "比赛奖励",
+    transfer_out: "转赠扣款",
+    transfer_in: "转赠收款"
   };
   return typeMap[type] || type;
 }
