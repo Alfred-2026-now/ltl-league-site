@@ -268,7 +268,7 @@ public class AdminMatchResultServiceImpl implements AdminMatchResultService {
     @Override
     @Transactional
     public MatchResultAttachmentVO uploadScreenshot(Long matchId, Long resultId, Integer gameIndex, MultipartFile file) {
-        MatchResult result = getDraftOrThrow(matchId, resultId);
+        MatchResult result = getScreenshotUploadResultOrThrow(matchId, resultId);
         if (file == null || file.isEmpty()) {
             throw new BusinessException(400, "请选择文件");
         }
@@ -357,6 +357,17 @@ public class AdminMatchResultServiceImpl implements AdminMatchResultService {
         }
         if (!"draft".equals(result.getStatus())) {
             throw new BusinessException(400, "只能编辑草稿状态的赛果");
+        }
+        return result;
+    }
+
+    private MatchResult getScreenshotUploadResultOrThrow(Long matchId, Long resultId) {
+        MatchResult result = matchResultMapper.selectById(resultId);
+        if (result == null || !result.getMatchId().equals(matchId)) {
+            throw new BusinessException(404, "赛果不存在");
+        }
+        if (!"draft".equals(result.getStatus()) && !"published".equals(result.getStatus())) {
+            throw new BusinessException(400, "只能为草稿或已发布赛果上传截图");
         }
         return result;
     }
