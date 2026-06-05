@@ -10,4 +10,5 @@ public class RewardRuleRequest {
     private Integer loserAmount;
     private Integer drawAmount;
     private Integer isActive;
+    private String changeReason;
 }

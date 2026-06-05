@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ltl.league.admin.dto.RewardRuleRequest;
 import com.ltl.league.admin.dto.RewardRuleVO;
 import com.ltl.league.admin.service.AdminRewardRuleService;
+import com.ltl.league.admin.service.RuleParameterCatalog;
+import com.ltl.league.admin.service.RuleParameterService;
 import com.ltl.league.entity.SettlementRewardRule;
 import com.ltl.league.exception.BusinessException;
 import com.ltl.league.mapper.SettlementRewardRuleMapper;
@@ -18,10 +20,15 @@ public class AdminRewardRuleServiceImpl implements AdminRewardRuleService {
 
     private final SettlementRewardRuleMapper rewardRuleMapper;
     private final JdbcTemplate jdbcTemplate;
+    private final RuleParameterService ruleParameterService;
 
-    public AdminRewardRuleServiceImpl(SettlementRewardRuleMapper rewardRuleMapper, JdbcTemplate jdbcTemplate) {
+    public AdminRewardRuleServiceImpl(
+            SettlementRewardRuleMapper rewardRuleMapper,
+            JdbcTemplate jdbcTemplate,
+            RuleParameterService ruleParameterService) {
         this.rewardRuleMapper = rewardRuleMapper;
         this.jdbcTemplate = jdbcTemplate;
+        this.ruleParameterService = ruleParameterService;
     }
 
     @Override
@@ -37,32 +44,35 @@ public class AdminRewardRuleServiceImpl implements AdminRewardRuleService {
     }
 
     @Override
-    public RewardRuleVO create(RewardRuleRequest request) {
+    public RewardRuleVO create(RewardRuleRequest request, String operator) {
         validateRequest(request);
         SettlementRewardRule rule = new SettlementRewardRule();
         applyRequest(rule, request);
         rewardRuleMapper.insert(rule);
+        logRewardHistory("新增", null, rule, operator, request.getChangeReason());
         return toVO(rule);
     }
 
     @Override
-    public RewardRuleVO update(Long id, RewardRuleRequest request) {
+    public RewardRuleVO update(Long id, RewardRuleRequest request, String operator) {
         SettlementRewardRule rule = rewardRuleMapper.selectById(id);
         if (rule == null) {
             throw new BusinessException(404, "规则不存在");
         }
+        SettlementRewardRule before = copy(rule);
         applyRequest(rule, request);
         rewardRuleMapper.updateById(rule);
+        logRewardHistory("修改", before, rule, operator, request.getChangeReason());
         return toVO(rule);
     }
 
     @Override
-    public void delete(Long id) {
+    public void delete(Long id, String operator, String reason) {
         SettlementRewardRule rule = rewardRuleMapper.selectById(id);
         if (rule == null) {
             throw new BusinessException(404, "规则不存在");
         }
-        // 使用物理删除，避免唯一索引冲突（逻辑删除时deleted字段会导致重复键）
+        logRewardHistory("删除", rule, null, operator, reason);
         jdbcTemplate.update("DELETE FROM settlement_reward_rules WHERE id = ?", id);
     }
 
@@ -86,6 +96,44 @@ public class AdminRewardRuleServiceImpl implements AdminRewardRuleService {
         rule.setLoserAmount(request.getLoserAmount());
         rule.setDrawAmount(request.getDrawAmount());
         rule.setIsActive(request.getIsActive() != null ? request.getIsActive() : 1);
+    }
+
+    private void logRewardHistory(String action, SettlementRewardRule before, SettlementRewardRule after, String operator, String reason) {
+        SettlementRewardRule current = after != null ? after : before;
+        String format = current.getFormat();
+        String score = current.getScorePattern();
+        ruleParameterService.recordHistory(
+                RuleParameterCatalog.GROUP_REWARD,
+                "比赛奖励",
+                "reward." + format + "." + score,
+                format + " " + score + " 比赛奖励",
+                before == null ? "-" : rewardSummary(before),
+                after == null ? "-" : rewardSummary(after),
+                operator,
+                reason == null || reason.isBlank() ? action + "比赛奖励规则" : reason);
+    }
+
+    private String rewardSummary(SettlementRewardRule rule) {
+        return "胜方=" + valueOrDash(rule.getWinnerAmount())
+                + "，败方=" + valueOrDash(rule.getLoserAmount())
+                + "，平局=" + valueOrDash(rule.getDrawAmount())
+                + "，状态=" + (rule.getIsActive() != null && rule.getIsActive() == 1 ? "启用" : "停用");
+    }
+
+    private String valueOrDash(Integer value) {
+        return value == null ? "-" : value + "P";
+    }
+
+    private SettlementRewardRule copy(SettlementRewardRule source) {
+        SettlementRewardRule copy = new SettlementRewardRule();
+        copy.setId(source.getId());
+        copy.setFormat(source.getFormat());
+        copy.setScorePattern(source.getScorePattern());
+        copy.setWinnerAmount(source.getWinnerAmount());
+        copy.setLoserAmount(source.getLoserAmount());
+        copy.setDrawAmount(source.getDrawAmount());
+        copy.setIsActive(source.getIsActive());
+        return copy;
     }
 
     private RewardRuleVO toVO(SettlementRewardRule rule) {

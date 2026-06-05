@@ -185,8 +185,32 @@ export async function updateRewardRule(id, payload) {
   });
 }
 
-export async function deleteRewardRule(id) {
-  return request(`/admin/reward-rules/${id}`, { method: "DELETE" });
+export async function deleteRewardRule(id, reason) {
+  const query = reason ? `?reason=${encodeURIComponent(reason)}` : "";
+  return request(`/admin/reward-rules/${id}${query}`, { method: "DELETE" });
+}
+
+export async function listRuleParameters(groupKey) {
+  const query = groupKey ? `?groupKey=${encodeURIComponent(groupKey)}` : "";
+  return request(`/admin/rule-parameters${query}`);
+}
+
+export async function updateRuleParameter(key, payload) {
+  return request(`/admin/rule-parameters/${encodeURIComponent(key)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function listRuleParameterHistory(params) {
+  const query = new URLSearchParams();
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (v === null || v === undefined || String(v).trim() === "") return;
+    query.set(k, String(v).trim());
+  });
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return request(`/admin/rule-parameters/history${suffix}`);
 }
 
 export async function deductTeamPCoins(payload) {

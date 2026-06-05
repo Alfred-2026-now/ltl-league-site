@@ -21,6 +21,10 @@ async function getTeams() {
   return request("/teams");
 }
 
+async function listRuleParameters(groupKey) {
+  return request(`/admin/rule-parameters?groupKey=${encodeURIComponent(groupKey)}`);
+}
+
 async function listPlayerDepositLedgers(params) {
   const query = new URLSearchParams();
   Object.entries(params || {}).forEach(([k, v]) => {
@@ -62,6 +66,7 @@ async function voidSalary(batchId) {
 let players = [];
 let teams = [];
 let ledgers = [];
+let salaryConfig = { min: 1, max: 100, defaultRate: 10 };
 const els = {};
 
 function bindEls() {
@@ -190,6 +195,23 @@ async function refresh() {
   }
 }
 
+async function loadSalaryConfig() {
+  try {
+    const params = await listRuleParameters("salary");
+    const byKey = Object.fromEntries(params.map(item => [item.paramKey, Number(item.valueText)]));
+    salaryConfig = {
+      min: byKey["salary.min_rate"] || 1,
+      max: byKey["salary.max_rate"] || 100,
+      defaultRate: byKey["salary.default_rate"] || 10
+    };
+    if (els.salaryRate && (!els.salaryRate.value || els.salaryRate.value === "10")) {
+      els.salaryRate.value = String(salaryConfig.defaultRate);
+    }
+  } catch (e) {
+    salaryConfig = { min: 1, max: 100, defaultRate: 10 };
+  }
+}
+
 async function handleVoidClick(e) {
   if (!e.target.matches("[data-action=\"void\"]")) return;
   const ledgerId = e.target.dataset.id;
@@ -234,6 +256,7 @@ async function submitAdjust() {
 async function init() {
   bindEls();
   try {
+    await loadSalaryConfig();
     teams = await getTeams();
     players = await getPlayers();
     renderPlayerOptions();
@@ -264,7 +287,7 @@ async function init() {
 
 function updateSalaryPreview() {
   const rate = Number(els.salaryRate.value);
-  if (!rate || rate < 1 || rate > 100) {
+  if (!rate || rate < salaryConfig.min || rate > salaryConfig.max) {
     els.salaryPreview.value = "";
     return;
   }
@@ -277,8 +300,8 @@ function updateSalaryPreview() {
 async function submitSalary() {
   try {
     const rate = Number(els.salaryRate.value);
-    if (!rate || rate < 1 || rate > 100) {
-      alert("请填写有效的工资比例（1-100）");
+    if (!rate || rate < salaryConfig.min || rate > salaryConfig.max) {
+      alert(`请填写有效的工资比例（${salaryConfig.min}-${salaryConfig.max}）`);
       return;
     }
 
@@ -296,7 +319,7 @@ async function submitSalary() {
 
     await paySalary(rate);
     alert(`工资发放成功！共发放 ${totalSalary}P`);
-    els.salaryRate.value = "10";
+    els.salaryRate.value = String(salaryConfig.defaultRate);
     els.salaryPreview.value = "";
     await refresh();
   } catch (e) {

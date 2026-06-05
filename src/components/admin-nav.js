@@ -9,7 +9,7 @@
       { href: "admin-matches.html", text: "赛程管理" },
       { href: "admin-p-ledger.html", text: "P币流水" },
       { href: "admin-valuation.html", text: "身价管理" },
-      { href: "admin-reward-rules.html", text: "奖励规则" },
+      { href: "admin-reward-rules.html", text: "规则参数调整" },
       { href: "admin-players.html", text: "选手管理" },
       { href: "admin-player-deposit-ledger.html", text: "选手积分" },
       { href: "admin-prize-mgmt.html", text: "奖品兑换" },

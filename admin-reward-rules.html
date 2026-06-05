@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex,nofollow" />
-  <title>LTL 管理 - 奖励规则</title>
+  <title>LTL 管理 - 规则参数调整</title>
   <link rel="stylesheet" href="src/styles/main.css" />
 </head>
 <body>
   <header class="site-header">
     <nav class="nav">
-      <a class="brand" href="admin-matches.html"><span class="brand-mark">LTL</span><span class="brand-text">管理后台 · 奖励规则</span></a>
+      <a class="brand" href="admin-matches.html"><span class="brand-mark">LTL</span><span class="brand-text">管理后台 · 规则参数调整</span></a>
       <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
       <div class="nav-links" id="navLinks"></div>
     </nav>
@@ -19,45 +19,68 @@
     <section class="section">
       <div class="section-heading row">
         <div>
-          <p class="eyebrow">ADMIN · REWARD RULES</p>
-          <h1 class="page-title">赛果奖励规则</h1>
-          <p class="muted">按赛制和比分配置 P 币奖励金额。缺少规则的比分模式会阻止赛果发布。</p>
+          <p class="eyebrow">ADMIN · RULE PARAMETERS</p>
+          <h1 class="page-title">规则参数调整</h1>
+          <p class="muted">集中维护比赛奖励、奢侈税、租借费、选手转赠和工资发放参数。修改只影响后续结算，已生成流水不会回算。</p>
         </div>
       </div>
-      <div class="panel" style="padding:1rem;">
-        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:.75rem;align-items:end;">
-          <label class="field"><span class="field-label">赛制+比分</span>
-            <select class="input" id="ruleFormat">
-              <option value="BO1">BO1</option><option value="BO2">BO2</option><option value="BO3">BO3</option><option value="BO5">BO5</option>
-            </select>
-          </label>
-          <label class="field"><span class="field-label">胜方奖励</span><input class="input" id="ruleWinner" type="number" /></label>
-          <label class="field"><span class="field-label">败方奖励</span><input class="input" id="ruleLoser" type="number" /></label>
-          <label class="field"><span class="field-label">平局双方</span><input class="input" id="ruleDraw" type="number" /></label>
-          <label class="field"><span class="field-label">比分模式</span><input class="input" id="ruleScore" placeholder="如 2:1" /></label>
-          <button class="btn primary" id="addRuleBtn" type="button">添加规则</button>
+
+      <div class="rule-param-layout">
+        <div class="rule-param-main">
+          <details class="rule-param-group" data-group="reward">
+            <summary>
+              <span>比赛奖励</span>
+              <small id="rewardSummary">默认收起</small>
+            </summary>
+            <div class="rule-param-content">
+              <div class="rule-reward-form">
+                <label class="field"><span class="field-label">赛制</span>
+                  <select class="input" id="ruleFormat">
+                    <option value="BO1">BO1</option><option value="BO2">BO2</option><option value="BO3">BO3</option><option value="BO5">BO5</option>
+                  </select>
+                </label>
+                <label class="field"><span class="field-label">比分模式</span><input class="input" id="ruleScore" placeholder="如 2:1" /></label>
+                <label class="field"><span class="field-label">胜方奖励</span><input class="input" id="ruleWinner" type="number" /></label>
+                <label class="field"><span class="field-label">败方奖励</span><input class="input" id="ruleLoser" type="number" /></label>
+                <label class="field"><span class="field-label">平局双方</span><input class="input" id="ruleDraw" type="number" /></label>
+                <button class="btn primary" id="addRuleBtn" type="button">添加规则</button>
+              </div>
+              <div class="rule-table-wrap">
+                <table class="admin-table">
+                  <thead><tr>
+                    <th>赛制</th>
+                    <th>比分</th>
+                    <th>胜方奖励</th>
+                    <th>败方奖励</th>
+                    <th>平局双方</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr></thead>
+                  <tbody id="rulesBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </details>
+
+          <div id="parameterGroups"></div>
         </div>
-      </div>
-      <div class="panel" style="margin-top:1rem;overflow:auto;">
-        <table class="admin-table" style="width:100%;border-collapse:collapse;">
-          <thead><tr>
-            <th style="text-align:left;padding:.75rem 1rem;">赛制</th>
-            <th style="text-align:left;padding:.75rem 1rem;">比分</th>
-            <th style="text-align:left;padding:.75rem 1rem;">胜方奖励</th>
-            <th style="text-align:left;padding:.75rem 1rem;">败方奖励</th>
-            <th style="text-align:left;padding:.75rem 1rem;">平局双方</th>
-            <th style="text-align:left;padding:.75rem 1rem;">状态</th>
-            <th style="text-align:left;padding:.75rem 1rem;">操作</th>
-          </tr></thead>
-          <tbody id="rulesBody"></tbody>
-        </table>
+
+        <aside class="rule-history-panel">
+          <div class="rule-history-head">
+            <div>
+              <p class="eyebrow">HISTORY</p>
+              <h2>变更历史</h2>
+            </div>
+            <button class="btn ghost" id="refreshHistoryBtn" type="button">刷新</button>
+          </div>
+          <div class="rule-history-list" id="historyList"></div>
+        </aside>
       </div>
     </section>
   </main>
-  <!-- 管理员权限验证 -->
+
   <script type="module" src="src/util/admin-auth.js"></script>
   <script type="module" src="src/admin/reward-rules.js"></script>
   <script src="src/components/admin-nav.js"></script>
-  
 </body>
 </html>
