@@ -13,6 +13,7 @@ import com.ltl.league.admin.dto.ValuationPreviewVO;
 import com.ltl.league.admin.service.AdminPlayerDepositService;
 import com.ltl.league.admin.service.MatchSettlementCalculator;
 import com.ltl.league.admin.service.MatchSettlementService;
+import com.ltl.league.admin.service.RuleParameterService;
 import com.ltl.league.entity.Match;
 import com.ltl.league.entity.MatchResult;
 import com.ltl.league.entity.MatchResultLoanInput;
@@ -57,6 +58,7 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
     private final TeamMapper teamMapper;
     private final PlayerMapper playerMapper;
     private final AdminPlayerDepositService adminPlayerDepositService;
+    private final RuleParameterService ruleParameterService;
 
     public MatchSettlementServiceImpl(
             MatchSettlementCalculator calculator,
@@ -68,7 +70,8 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
             ValuationChangeMapper valuationChangeMapper,
             TeamMapper teamMapper,
             PlayerMapper playerMapper,
-            AdminPlayerDepositService adminPlayerDepositService) {
+            AdminPlayerDepositService adminPlayerDepositService,
+            RuleParameterService ruleParameterService) {
         this.calculator = calculator;
         this.matchResultMapper = matchResultMapper;
         this.loanInputMapper = loanInputMapper;
@@ -79,6 +82,7 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
         this.teamMapper = teamMapper;
         this.playerMapper = playerMapper;
         this.adminPlayerDepositService = adminPlayerDepositService;
+        this.ruleParameterService = ruleParameterService;
     }
 
     @Override
@@ -315,7 +319,7 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
             throw new BusinessException(400, "缺少在职选手，无法计算奢侈税税线");
         }
         double average = players.stream().map(Player::getValue).filter(Objects::nonNull).mapToInt(Integer::intValue).average().orElse(0);
-        return average * 5;
+        return average * ruleParameterService.getInt("luxury.standard_roster_size");
     }
 
     private List<LedgerDraft> buildLoanFeeLedgers(Match match, SettlementInputDTO settlement) {

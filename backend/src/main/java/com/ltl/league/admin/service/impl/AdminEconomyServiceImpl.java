@@ -7,6 +7,7 @@ import com.ltl.league.admin.dto.DeductTeamPCoinsRequest;
 import com.ltl.league.admin.dto.ManualPLedgerRequest;
 import com.ltl.league.admin.dto.ManualValuationAdjustRequest;
 import com.ltl.league.admin.service.AdminEconomyService;
+import com.ltl.league.admin.service.RuleParameterService;
 import com.ltl.league.entity.PLedger;
 import com.ltl.league.entity.Player;
 import com.ltl.league.entity.Team;
@@ -34,16 +35,19 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
     private final ValuationChangeMapper valuationChangeMapper;
     private final TeamMapper teamMapper;
     private final PlayerMapper playerMapper;
+    private final RuleParameterService ruleParameterService;
 
     public AdminEconomyServiceImpl(
             PLedgerMapper pLedgerMapper,
             ValuationChangeMapper valuationChangeMapper,
             TeamMapper teamMapper,
-            PlayerMapper playerMapper) {
+            PlayerMapper playerMapper,
+            RuleParameterService ruleParameterService) {
         this.pLedgerMapper = pLedgerMapper;
         this.valuationChangeMapper = valuationChangeMapper;
         this.teamMapper = teamMapper;
         this.playerMapper = playerMapper;
+        this.ruleParameterService = ruleParameterService;
     }
 
     @Override
@@ -351,8 +355,10 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
     @Override
     @Transactional
     public void deductAllTeamsSalary(Integer rate) {
-        if (rate == null || rate < 1 || rate > 100) {
-            throw new BusinessException(400, "工资比例必须在1-100之间");
+        int minRate = ruleParameterService.getInt("salary.min_rate");
+        int maxRate = ruleParameterService.getInt("salary.max_rate");
+        if (rate == null || rate < minRate || rate > maxRate) {
+            throw new BusinessException(400, "工资比例必须在" + minRate + "-" + maxRate + "之间");
         }
 
         // 查询所有队伍

@@ -9,9 +9,9 @@ public interface AdminRewardRuleService {
 
     List<RewardRuleVO> list(String format);
 
-    RewardRuleVO create(RewardRuleRequest request);
+    RewardRuleVO create(RewardRuleRequest request, String operator);
 
-    RewardRuleVO update(Long id, RewardRuleRequest request);
+    RewardRuleVO update(Long id, RewardRuleRequest request, String operator);
 
-    void delete(Long id);
+    void delete(Long id, String operator, String reason);
 }

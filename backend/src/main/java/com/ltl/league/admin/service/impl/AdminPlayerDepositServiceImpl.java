@@ -3,6 +3,7 @@ package com.ltl.league.admin.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ltl.league.admin.dto.*;
 import com.ltl.league.admin.service.AdminPlayerDepositService;
+import com.ltl.league.admin.service.RuleParameterService;
 import com.ltl.league.entity.*;
 import com.ltl.league.exception.BusinessException;
 import com.ltl.league.mapper.*;
@@ -22,14 +23,17 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
     private final PlayerMapper playerMapper;
     private final PlayerDepositLedgerMapper depositLedgerMapper;
     private final TeamMapper teamMapper;
+    private final RuleParameterService ruleParameterService;
 
     public AdminPlayerDepositServiceImpl(
             PlayerMapper playerMapper,
             PlayerDepositLedgerMapper depositLedgerMapper,
-            TeamMapper teamMapper) {
+            TeamMapper teamMapper,
+            RuleParameterService ruleParameterService) {
         this.playerMapper = playerMapper;
         this.depositLedgerMapper = depositLedgerMapper;
         this.teamMapper = teamMapper;
+        this.ruleParameterService = ruleParameterService;
     }
 
     @Override
@@ -327,8 +331,10 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
             throw new BusinessException(400, "工资比例不能为空");
         }
         Integer rate = request.getRate();
-        if (rate < 1 || rate > 100) {
-            throw new BusinessException(400, "工资比例必须在1-100之间");
+        int minRate = ruleParameterService.getInt("salary.min_rate");
+        int maxRate = ruleParameterService.getInt("salary.max_rate");
+        if (rate < minRate || rate > maxRate) {
+            throw new BusinessException(400, "工资比例必须在" + minRate + "-" + maxRate + "之间");
         }
 
         // 生成批次ID：使用时间戳

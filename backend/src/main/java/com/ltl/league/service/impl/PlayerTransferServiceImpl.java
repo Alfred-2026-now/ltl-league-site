@@ -1,6 +1,7 @@
 package com.ltl.league.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.ltl.league.admin.service.RuleParameterService;
 import com.ltl.league.dto.PlayerTransferPreviewVO;
 import com.ltl.league.dto.PlayerTransferRequest;
 import com.ltl.league.dto.PlayerTransferVO;
@@ -35,27 +36,27 @@ public class PlayerTransferServiceImpl implements PlayerTransferService {
     private static final String RECIPIENT_PLAYER = "PLAYER";
     private static final String RECIPIENT_TEAM = "TEAM";
     private static final String STATUS_COMPLETED = "completed";
-    private static final int MIN_AMOUNT = 10;
-    private static final int MAX_AMOUNT = 100000;
-    private static final int PERSONAL_TRANSFER_COOLDOWN_DAYS = 3;
 
     private final PlayerMapper playerMapper;
     private final TeamMapper teamMapper;
     private final PlayerTransferMapper transferMapper;
     private final PlayerDepositLedgerMapper playerDepositLedgerMapper;
     private final PLedgerMapper pLedgerMapper;
+    private final RuleParameterService ruleParameterService;
 
     public PlayerTransferServiceImpl(
             PlayerMapper playerMapper,
             TeamMapper teamMapper,
             PlayerTransferMapper transferMapper,
             PlayerDepositLedgerMapper playerDepositLedgerMapper,
-            PLedgerMapper pLedgerMapper) {
+            PLedgerMapper pLedgerMapper,
+            RuleParameterService ruleParameterService) {
         this.playerMapper = playerMapper;
         this.teamMapper = teamMapper;
         this.transferMapper = transferMapper;
         this.playerDepositLedgerMapper = playerDepositLedgerMapper;
         this.pLedgerMapper = pLedgerMapper;
+        this.ruleParameterService = ruleParameterService;
     }
 
     @Override
@@ -248,8 +249,11 @@ public class PlayerTransferServiceImpl implements PlayerTransferService {
         if (amount == null) {
             throw new BusinessException(400, "请输入转赠金额");
         }
-        if (amount < MIN_AMOUNT || amount > MAX_AMOUNT || amount % 10 != 0) {
-            throw new BusinessException(400, "转赠金额必须为 10 到 100000 之间的 10 的倍数");
+        int minAmount = ruleParameterService.getInt("transfer.min_amount");
+        int maxAmount = ruleParameterService.getInt("transfer.max_amount");
+        int amountStep = ruleParameterService.getInt("transfer.amount_step");
+        if (amount < minAmount || amount > maxAmount || amountStep <= 0 || amount % amountStep != 0) {
+            throw new BusinessException(400, "转赠金额必须为 " + minAmount + " 到 " + maxAmount + " 之间的 " + amountStep + " 的倍数");
         }
     }
 
@@ -267,16 +271,21 @@ public class PlayerTransferServiceImpl implements PlayerTransferService {
 
     private Integer calculateFee(String recipientType, Integer amount) {
         if (RECIPIENT_TEAM.equals(recipientType)) {
-            return amount / 10;
+            return Math.toIntExact(Math.round(amount * ruleParameterService.getDecimal("transfer.team_fee_rate")));
         }
-        int firstTier = Math.min(amount, 1000);
-        int secondTier = Math.min(Math.max(amount - 1000, 0), 1000);
-        int thirdTier = Math.max(amount - 2000, 0);
-        return 100 + firstTier * 20 / 100 + secondTier * 40 / 100 + thirdTier * 60 / 100;
+        int tierWidth = ruleParameterService.getInt("transfer.player_tier_width");
+        int firstTier = Math.min(amount, tierWidth);
+        int secondTier = Math.min(Math.max(amount - tierWidth, 0), tierWidth);
+        int thirdTier = Math.max(amount - tierWidth * 2, 0);
+        double fee = ruleParameterService.getInt("transfer.player_base_fee")
+                + firstTier * ruleParameterService.getDecimal("transfer.player_tier1_rate")
+                + secondTier * ruleParameterService.getDecimal("transfer.player_tier2_rate")
+                + thirdTier * ruleParameterService.getDecimal("transfer.player_tier3_rate");
+        return Math.toIntExact(Math.round(fee));
     }
 
     private void ensurePersonalTransferCooldown(Long donorPlayerId) {
-        LocalDateTime cutoff = LocalDateTime.now().minusDays(PERSONAL_TRANSFER_COOLDOWN_DAYS);
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(ruleParameterService.getInt("transfer.personal_cooldown_days"));
         Long count = transferMapper.selectCount(new LambdaQueryWrapper<PlayerTransfer>()
                 .eq(PlayerTransfer::getDonorPlayerId, donorPlayerId)
                 .eq(PlayerTransfer::getRecipientType, RECIPIENT_PLAYER)
@@ -302,7 +311,7 @@ public class PlayerTransferServiceImpl implements PlayerTransferService {
         if (lastTransfer == null || lastTransfer.getCreatedAt() == null) {
             return;
         }
-        LocalDateTime nextAt = lastTransfer.getCreatedAt().plusDays(PERSONAL_TRANSFER_COOLDOWN_DAYS);
+        LocalDateTime nextAt = lastTransfer.getCreatedAt().plusDays(ruleParameterService.getInt("transfer.personal_cooldown_days"));
         if (nextAt.isAfter(LocalDateTime.now())) {
             vo.setAllowed(false);
             vo.setMessage("三天内只能进行一次对个人的转赠");
