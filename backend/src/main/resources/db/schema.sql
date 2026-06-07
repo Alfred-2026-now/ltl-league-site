@@ -195,6 +195,32 @@ CREATE TABLE IF NOT EXISTS `p_ledger` (
   CONSTRAINT `fk_ledger_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='P币流水表';
 
+-- 6.1 联盟总资产流水表
+CREATE TABLE IF NOT EXISTS `league_asset_ledger` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '联盟资产流水ID',
+  `type` VARCHAR(50) NOT NULL COMMENT '类型',
+  `amount` INT NOT NULL COMMENT '金额，正数表示联盟资产增加，负数表示减少',
+  `reason` VARCHAR(500) NULL COMMENT '原因说明',
+  `source` VARCHAR(50) NOT NULL DEFAULT 'system' COMMENT '来源',
+  `ref_table` VARCHAR(50) NULL COMMENT '来源表',
+  `ref_id` BIGINT UNSIGNED NULL COMMENT '来源记录ID',
+  `match_id` BIGINT UNSIGNED NULL COMMENT '关联比赛ID',
+  `result_id` BIGINT UNSIGNED NULL COMMENT '关联赛果版本ID',
+  `operator` VARCHAR(50) NULL COMMENT '操作人',
+  `balance_before` INT NOT NULL DEFAULT 0 COMMENT '变动前联盟资产',
+  `balance_after` INT NOT NULL DEFAULT 0 COMMENT '变动后联盟资产',
+  `is_voided` TINYINT NOT NULL DEFAULT 0 COMMENT '是否作废',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除标记',
+  PRIMARY KEY (`id`),
+  KEY `idx_type` (`type`),
+  KEY `idx_source` (`source`),
+  KEY `idx_ref` (`ref_table`, `ref_id`),
+  KEY `idx_match_result` (`match_id`, `result_id`),
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_latest_balance` (`deleted`, `created_at`, `id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='联盟总资产流水表';
+
 -- 7. 身价变化表
 CREATE TABLE IF NOT EXISTS `valuation_changes` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '变化ID',

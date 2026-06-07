@@ -1,6 +1,7 @@
 package com.ltl.league.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.ltl.league.admin.service.AdminAssetService;
 import com.ltl.league.dto.CreatePrizeRequest;
 import com.ltl.league.dto.ExchangePrizeRequest;
 import com.ltl.league.dto.PrizeExchangeVO;
@@ -34,16 +35,19 @@ public class PrizeServiceImpl implements PrizeService {
     private final PrizeExchangeMapper prizeExchangeMapper;
     private final PlayerMapper playerMapper;
     private final PlayerDepositLedgerMapper depositLedgerMapper;
+    private final AdminAssetService adminAssetService;
 
     public PrizeServiceImpl(
             PrizeMapper prizeMapper,
             PrizeExchangeMapper prizeExchangeMapper,
             PlayerMapper playerMapper,
-            PlayerDepositLedgerMapper depositLedgerMapper) {
+            PlayerDepositLedgerMapper depositLedgerMapper,
+            AdminAssetService adminAssetService) {
         this.prizeMapper = prizeMapper;
         this.prizeExchangeMapper = prizeExchangeMapper;
         this.playerMapper = playerMapper;
         this.depositLedgerMapper = depositLedgerMapper;
+        this.adminAssetService = adminAssetService;
     }
 
     @Override
@@ -214,6 +218,16 @@ public class PrizeServiceImpl implements PrizeService {
         ledger.setOperator("system");
         ledger.setIsVoided(0);
         depositLedgerMapper.insert(ledger);
+        adminAssetService.recordIncome(
+                prize.getCostPoints(),
+                "prize_exchange",
+                "兑换奖品：" + prize.getName(),
+                "prize_exchange",
+                "prize_exchanges",
+                exchange.getId(),
+                null,
+                null,
+                "system");
 
         prize.setStock(prize.getStock() - 1);
         prizeMapper.updateById(prize);
@@ -325,6 +339,16 @@ public class PrizeServiceImpl implements PrizeService {
             ledger.setOperator("admin");
             ledger.setIsVoided(0);
             depositLedgerMapper.insert(ledger);
+            adminAssetService.recordReversal(
+                    exchange.getCostPoints(),
+                    "prize_exchange_refund",
+                    "取消兑换退款，回滚联盟资产",
+                    "prize_exchange_refund",
+                    "prize_exchanges",
+                    exchange.getId(),
+                    null,
+                    null,
+                    "admin");
 
             player.setDeposit(newDeposit);
             playerMapper.updateById(player);

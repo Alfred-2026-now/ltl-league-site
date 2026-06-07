@@ -1,6 +1,7 @@
 package com.ltl.league.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.ltl.league.admin.service.AdminAssetService;
 import com.ltl.league.admin.service.RuleParameterService;
 import com.ltl.league.dto.PlayerTransferPreviewVO;
 import com.ltl.league.dto.PlayerTransferRequest;
@@ -43,6 +44,7 @@ public class PlayerTransferServiceImpl implements PlayerTransferService {
     private final PlayerDepositLedgerMapper playerDepositLedgerMapper;
     private final PLedgerMapper pLedgerMapper;
     private final RuleParameterService ruleParameterService;
+    private final AdminAssetService adminAssetService;
 
     public PlayerTransferServiceImpl(
             PlayerMapper playerMapper,
@@ -50,13 +52,15 @@ public class PlayerTransferServiceImpl implements PlayerTransferService {
             PlayerTransferMapper transferMapper,
             PlayerDepositLedgerMapper playerDepositLedgerMapper,
             PLedgerMapper pLedgerMapper,
-            RuleParameterService ruleParameterService) {
+            RuleParameterService ruleParameterService,
+            AdminAssetService adminAssetService) {
         this.playerMapper = playerMapper;
         this.teamMapper = teamMapper;
         this.transferMapper = transferMapper;
         this.playerDepositLedgerMapper = playerDepositLedgerMapper;
         this.pLedgerMapper = pLedgerMapper;
         this.ruleParameterService = ruleParameterService;
+        this.adminAssetService = adminAssetService;
     }
 
     @Override
@@ -169,11 +173,12 @@ public class PlayerTransferServiceImpl implements PlayerTransferService {
 
         PlayerTransfer transfer = insertTransfer(donor.getId(), RECIPIENT_PLAYER, recipient.getId(), null, amount, fee, totalCost);
         insertPlayerLedger(donor.getId(), "transfer_out", -totalCost,
-                "转赠给选手 " + recipient.getName() + "，到账 " + amount + "P，手续费 " + fee + "P（销毁）",
+                "转赠给选手 " + recipient.getName() + "，到账 " + amount + "P，手续费 " + fee + "P（上交联盟）",
                 donorBalance, donor.getDeposit());
         insertPlayerLedger(recipient.getId(), "transfer_in", amount,
                 "收到选手 " + donor.getName() + " 转赠",
                 recipientBalance, recipient.getDeposit());
+        recordTransferFee(transfer, fee, "选手转赠手续费");
 
         return toVO(transfer, donor, recipient, null);
     }
@@ -208,11 +213,12 @@ public class PlayerTransferServiceImpl implements PlayerTransferService {
 
         PlayerTransfer transfer = insertTransfer(donor.getId(), RECIPIENT_TEAM, null, team.getId(), amount, fee, totalCost);
         insertPlayerLedger(donor.getId(), "transfer_out", -totalCost,
-                "赠与战队 " + team.getState() + " " + team.getName() + "，到账 " + amount + "P，手续费 " + fee + "P（销毁）",
+                "赠与战队 " + team.getState() + " " + team.getName() + "，到账 " + amount + "P，手续费 " + fee + "P（上交联盟）",
                 donorBalance, donor.getDeposit());
         insertTeamLedger(team.getId(), amount,
-                "选手 " + donor.getName() + " 赠与战队，手续费 " + fee + "P 由赠与人承担并销毁",
+                "选手 " + donor.getName() + " 赠与战队，手续费 " + fee + "P 由赠与人承担并上交联盟",
                 teamBalance, team.getPCoins());
+        recordTransferFee(transfer, fee, "选手赠与战队手续费");
 
         return toVO(transfer, donor, null, team);
     }
@@ -460,5 +466,21 @@ public class PlayerTransferServiceImpl implements PlayerTransferService {
             return 50;
         }
         return Math.max(1, Math.min(limit, 200));
+    }
+
+    private void recordTransferFee(PlayerTransfer transfer, Integer fee, String reason) {
+        if (fee == null || fee <= 0 || transfer == null) {
+            return;
+        }
+        adminAssetService.recordIncome(
+                fee,
+                "transfer_fee",
+                reason,
+                "player_transfer",
+                "player_transfers",
+                transfer.getId(),
+                null,
+                null,
+                "system");
     }
 }

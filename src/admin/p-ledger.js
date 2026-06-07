@@ -53,7 +53,11 @@ function getTypeText(type) {
     match_reward: "比赛奖励",
     luxury_tax: "奢侈税",
     loan_fee: "租借费",
-    player_donation: "选手赠与"
+    player_donation: "选手赠与",
+    player_sign_loss: "买入损耗",
+    player_release_loss: "解约损耗",
+    salary_deduct: "工资扣除",
+    manual_admin: "管理员调整"
   };
   return typeMap[type] || type;
 }

@@ -1,6 +1,7 @@
 // 统一导航配置
 export const ADMIN_NAV = [
   { href: "admin-matches.html", text: "赛程管理" },
+  { href: "admin-assets.html", text: "资产监测" },
   { href: "admin-p-ledger.html", text: "P币流水" },
   { href: "admin-valuation.html", text: "身价管理" },
   { href: "admin-reward-rules.html", text: "规则参数调整" },

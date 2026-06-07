@@ -9,7 +9,7 @@ SERVER_USER="root"
 APP_USER="ltl"
 DEPLOY_PATH="/opt/ltl-league/backend"
 LOCAL_JAR="backend/target/league-backend-1.0.0.jar"
-SCRIPT_DIR="$(dirname "$0")"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SSH_KEY="$SCRIPT_DIR/deploy-key.pem"
 
 echo "========================================="
@@ -25,15 +25,17 @@ fi
 
 # 1. 本地编译打包
 echo "[1/4] 本地编译打包..."
-cd "$(dirname "$0")/.."
+cd "$SCRIPT_DIR/.."
 
 # 编译打包（CI/自动化场景避免交互输入）
 if [ ! -f "$LOCAL_JAR" ] || [ "${FORCE_REBUILD:-0}" = "1" ]; then
     echo "开始编译..."
     cd backend
-    # 使用Java 17编译
-    export JAVA_HOME=/Users/a58/Library/Java/JavaVirtualMachines/ms-17.0.16/Contents/Home
-    export PATH=$JAVA_HOME/bin:$PATH
+    # 使用 Java 17 编译；macOS 优先通过 java_home 定位，其他环境使用已有 JAVA_HOME/PATH。
+    if [ -x /usr/libexec/java_home ]; then
+        export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+        export PATH=$JAVA_HOME/bin:$PATH
+    fi
     mvn clean package -DskipTests
     cd ..
     echo "编译完成"

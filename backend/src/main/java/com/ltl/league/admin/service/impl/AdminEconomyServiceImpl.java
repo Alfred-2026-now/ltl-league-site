@@ -6,6 +6,7 @@ import com.ltl.league.admin.dto.AdminValuationChangeVO;
 import com.ltl.league.admin.dto.DeductTeamPCoinsRequest;
 import com.ltl.league.admin.dto.ManualPLedgerRequest;
 import com.ltl.league.admin.dto.ManualValuationAdjustRequest;
+import com.ltl.league.admin.service.AdminAssetService;
 import com.ltl.league.admin.service.AdminEconomyService;
 import com.ltl.league.admin.service.RuleParameterService;
 import com.ltl.league.entity.PLedger;
@@ -36,18 +37,21 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
     private final TeamMapper teamMapper;
     private final PlayerMapper playerMapper;
     private final RuleParameterService ruleParameterService;
+    private final AdminAssetService adminAssetService;
 
     public AdminEconomyServiceImpl(
             PLedgerMapper pLedgerMapper,
             ValuationChangeMapper valuationChangeMapper,
             TeamMapper teamMapper,
             PlayerMapper playerMapper,
-            RuleParameterService ruleParameterService) {
+            RuleParameterService ruleParameterService,
+            AdminAssetService adminAssetService) {
         this.pLedgerMapper = pLedgerMapper;
         this.valuationChangeMapper = valuationChangeMapper;
         this.teamMapper = teamMapper;
         this.playerMapper = playerMapper;
         this.ruleParameterService = ruleParameterService;
+        this.adminAssetService = adminAssetService;
     }
 
     @Override
@@ -206,6 +210,7 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
                 .eq(PLedger::getDeleted, 0)
                 .eq(PLedger::getIsVoided, 0)
                 .orderByDesc(PLedger::getCreatedAt)
+                .orderByDesc(PLedger::getId)
                 .last("LIMIT 1"));
 
         Integer balanceBefore = lastLedger != null ? lastLedger.getBalanceAfter() : 0;
@@ -228,6 +233,7 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
         ledger.setBalanceAfter(balanceAfter);
         ledger.setIsVoided(0);
         pLedgerMapper.insert(ledger);
+        recordLeagueIncomeForNegativePLedger(ledger, "manual_team_loss", "manual_admin");
 
         team.setPCoins(balanceAfter);
         teamMapper.updateById(team);
@@ -261,6 +267,7 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
             team.setPCoins(newBalance);
             teamMapper.updateById(team);
         }
+        reverseLeagueIncomeForNegativePLedger(ledger, reason);
     }
 
     @Override
@@ -346,6 +353,7 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
         ledger.setBalanceAfter(newPCoins);
         ledger.setIsVoided(0);
         pLedgerMapper.insert(ledger);
+        recordLeagueIncomeForNegativePLedger(ledger, "team_salary_deduct", "salary_payment");
 
         // 更新队伍P币
         team.setPCoins(newPCoins);
@@ -413,6 +421,7 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
             ledger.setBalanceAfter(newPCoins);
             ledger.setIsVoided(0);
             pLedgerMapper.insert(ledger);
+            recordLeagueIncomeForNegativePLedger(ledger, "team_salary_deduct", "salary_payment");
 
             // 更新队伍P币
             team.setPCoins(newPCoins);
@@ -458,6 +467,7 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
             // 标记为撤回
             salaryLedger.setIsVoided(1);
             pLedgerMapper.updateById(salaryLedger);
+            reverseLeagueIncomeForNegativePLedger(salaryLedger, reason);
 
             // 恢复队伍P币（加上扣除的金额）
             Team team = teamMapper.selectById(salaryLedger.getTeamId());
@@ -481,5 +491,37 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
             return reason.substring(start + 1, end);
         }
         return null;
+    }
+
+    private void recordLeagueIncomeForNegativePLedger(PLedger ledger, String type, String source) {
+        if (ledger == null || ledger.getAmount() == null || ledger.getAmount() >= 0) {
+            return;
+        }
+        adminAssetService.recordIncome(
+                Math.abs(ledger.getAmount()),
+                type,
+                ledger.getReason(),
+                source,
+                "p_ledger",
+                ledger.getId(),
+                ledger.getMatchId(),
+                ledger.getResultId(),
+                "system");
+    }
+
+    private void reverseLeagueIncomeForNegativePLedger(PLedger ledger, String reason) {
+        if (ledger == null || ledger.getAmount() == null || ledger.getAmount() >= 0) {
+            return;
+        }
+        adminAssetService.recordReversal(
+                Math.abs(ledger.getAmount()),
+                "team_loss_reversal",
+                reason != null && !reason.isBlank() ? reason : "队伍扣款撤回，回滚联盟资产",
+                "ledger_void",
+                "p_ledger",
+                ledger.getId(),
+                ledger.getMatchId(),
+                ledger.getResultId(),
+                "admin");
     }
 }

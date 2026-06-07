@@ -10,6 +10,7 @@ import com.ltl.league.admin.dto.SettlementInputDTO;
 import com.ltl.league.admin.dto.SettlementPreviewVO;
 import com.ltl.league.admin.dto.ValuationInputDTO;
 import com.ltl.league.admin.dto.ValuationPreviewVO;
+import com.ltl.league.admin.service.AdminAssetService;
 import com.ltl.league.admin.service.AdminPlayerDepositService;
 import com.ltl.league.admin.service.MatchSettlementCalculator;
 import com.ltl.league.admin.service.MatchSettlementService;
@@ -59,6 +60,7 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
     private final PlayerMapper playerMapper;
     private final AdminPlayerDepositService adminPlayerDepositService;
     private final RuleParameterService ruleParameterService;
+    private final AdminAssetService adminAssetService;
 
     public MatchSettlementServiceImpl(
             MatchSettlementCalculator calculator,
@@ -71,7 +73,8 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
             TeamMapper teamMapper,
             PlayerMapper playerMapper,
             AdminPlayerDepositService adminPlayerDepositService,
-            RuleParameterService ruleParameterService) {
+            RuleParameterService ruleParameterService,
+            AdminAssetService adminAssetService) {
         this.calculator = calculator;
         this.matchResultMapper = matchResultMapper;
         this.loanInputMapper = loanInputMapper;
@@ -83,6 +86,7 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
         this.playerMapper = playerMapper;
         this.adminPlayerDepositService = adminPlayerDepositService;
         this.ruleParameterService = ruleParameterService;
+        this.adminAssetService = adminAssetService;
     }
 
     @Override
@@ -436,6 +440,18 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
             ledger.setBalanceAfter(after);
             ledger.setIsVoided(0);
             pLedgerMapper.insert(ledger);
+            if ("luxury_tax".equals(draft.type()) && draft.amount() < 0) {
+                adminAssetService.recordIncome(
+                        Math.abs(draft.amount()),
+                        "luxury_tax",
+                        draft.reason(),
+                        "match_result",
+                        "p_ledger",
+                        ledger.getId(),
+                        match.getId(),
+                        result.getId(),
+                        "system");
+            }
             team.setPCoins(after);
             teamMapper.updateById(team);
             balances.put(team.getId(), after);
@@ -458,6 +474,18 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
                         dto.getPlayerValue(), match.getFormat(), dto.getSourceType());
                 if (loanResult.playerIncome() > 0) {
                     adminPlayerDepositService.addLoanFeeToPlayer(player.getId(), loanResult.playerIncome());
+                }
+                if (loanResult.leagueIncome() > 0) {
+                    adminAssetService.recordIncome(
+                            loanResult.leagueIncome(),
+                            "loan_fee",
+                            loanReason(player, loanResult, dto),
+                            "match_result",
+                            "match_result_loan_inputs",
+                            loanInput.getId(),
+                            match.getId(),
+                            result.getId(),
+                            "system");
                 }
             }
         }
@@ -555,6 +583,7 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
                     .in(PLedger::getId, ledgers.stream().map(PLedger::getId).collect(Collectors.toList()))
                     .set(PLedger::getIsVoided, 1));
         }
+        adminAssetService.reverseMatchResult(result.getId(), "赛果撤回，回滚联盟资产");
     }
 
     private void rollbackValuations(Match match, MatchResult result) {

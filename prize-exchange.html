@@ -291,8 +291,9 @@
 
   <script type="module">
     import { authApi } from './src/util/auth.js';
+    import { getApiBase } from './src/config/api.js';
 
-    const API_BASE = "http://123.57.19.160/api";
+    const API_BASE = getApiBase();
     let currentUser = null;
 
     async function request(endpoint, options = {}) {

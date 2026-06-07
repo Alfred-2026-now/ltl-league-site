@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:123.57.19.160}:${DB_PORT:3306}/${DB_NAME:ltl_league_test}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&connectTimeout=5000&socketTimeout=10000&tcpKeepAlive=true
+    username: ${DB_USERNAME:ltl_user}
+    password: ${DB_PASSWORD:a5201314}
+    hikari:
+      max-lifetime: 900000
+      keepalive-time: 300000
+      validation-timeout: 5000
+
+server:
+  address: ${BACKEND_HOST:127.0.0.1}
+  port: ${BACKEND_PORT:8080}
+  servlet:
+    context-path: /api
+
+logging:
+  level:
+    com.ltl.league: debug
+    com.baomidou.mybatisplus: warn
+
+ltl:
+  upload:
+    dir: ${TEST_UPLOAD_DIR:../uploads-test}
+    url-prefix: ${TEST_UPLOAD_URL_PREFIX:http://127.0.0.1:4173/uploads-test}

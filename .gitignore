@@ -51,6 +51,8 @@ build/
 .env
 application-local.properties
 application-local.yml
+.local-test/
+uploads-test/
 
 ### Logs ###
 log/
@@ -152,4 +154,3 @@ CLAUDE.md
 /.spec-workflow/
 /.tocodex/
 /.fastRequest/
-

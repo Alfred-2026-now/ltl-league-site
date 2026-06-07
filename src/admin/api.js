@@ -1,4 +1,6 @@
-const API_BASE_URL = "http://123.57.19.160/api";
+import { getApiBase } from "../config/api.js";
+
+const API_BASE_URL = getApiBase();
 
 async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
@@ -243,6 +245,22 @@ export async function voidDeductAllTeamsSalary() {
   });
 }
 
+export async function getAssetOverview(days = 14) {
+  return request(`/admin/assets/overview?days=${encodeURIComponent(days)}`);
+}
+
+export async function listLeagueAssetLedgers(limit = 100) {
+  return request(`/admin/league-assets/ledger?limit=${encodeURIComponent(limit)}`);
+}
+
+export async function manualAdjustLeagueAsset(payload) {
+  return request("/admin/league-assets/manual-adjustment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function listAllPrizes() {
   return request("/prizes/all");
 }
@@ -298,4 +316,3 @@ export async function cancelExchange(id, reason) {
     method: "POST"
   });
 }
-

@@ -1,4 +1,6 @@
-const API_BASE_URL = "http://123.57.19.160/api";
+import { getApiBase } from "./config/api.js";
+
+const API_BASE_URL = getApiBase();
 
 async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;

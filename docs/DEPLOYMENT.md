@@ -11,26 +11,19 @@
 
 ## 1. 部署架构
 
+当前部署支持生产环境和本地测试环境并行运行。生产环境保持服务器根路径访问不变，测试环境在本机启动前端和后端，只连接服务器上的测试数据库。
+
+| 环境 | 访问地址 | 前端目录 | 后端服务 | 后端端口 | 数据库 |
+|------|----------|----------|----------|----------|--------|
+| 生产 | `http://123.57.19.160/` | `/var/www/ltl-league` | `ltl-league-backend` | `8080` | `ltl_league` |
+| 测试 | `http://127.0.0.1:4173/` | 本地仓库目录 | 本地 Java 进程 | `8080` | `ltl_league_test` |
+
+本地测试前端访问 `127.0.0.1` 时会自动请求 `http://127.0.0.1:8080/api`。测试后端连接服务器上的 `ltl_league_test`，不会写生产库，也不占用服务器测试端口。
+
 ```
-                    ┌─────────────┐
-                    │   Nginx     │
-                    │   :80       │
-                    └──────┬──────┘
-                           │
-        ┌──────────────────┼──────────────────┐
-        │                  │                  │
-        ▼                  ▼                  ▼
-┌───────────────┐  ┌───────────────┐  ┌───────────────┐
-│  静态资源     │  │   API代理     │  │   上传文件     │
-│  /var/www/    │  │   /api/ →     │  │   /uploads/    │
-│  ltl-league/  │  │   :8080      │  │                │
-└───────────────┘  └───────────────┘  └───────────────┘
-                           │
-                           ▼
-                  ┌────────────────┐
-                  │  Spring Boot   │
-                  │  :8080         │
-                  └────────────────┘
+生产：浏览器 → 123.57.19.160:80 → Nginx → 127.0.0.1:8080/api → ltl_league
+
+测试：浏览器 → 127.0.0.1:4173 → 127.0.0.1:8080/api → 123.57.19.160:3306/ltl_league_test
 ```
 
 ---
@@ -58,6 +51,19 @@
 └── assets/                     # 静态资源
 ```
 
+本地测试运行时目录：
+
+```
+.local-test/
+├── backend.pid                 # 本地测试后端 PID
+├── frontend.pid                # 本地测试前端 PID
+└── logs/
+    ├── backend.log
+    └── frontend.log
+
+uploads-test/                   # 本地测试上传文件目录
+```
+
 ---
 
 ## 3. 部署脚本
@@ -67,12 +73,12 @@
 **功能**：
 1. 本地编译打包 JAR
 2. 上传 JAR 到服务器
-3. 生成生产环境配置
-4. 重启 systemd 服务
+3. 按环境生成后端配置和 systemd 服务
+4. 重启对应环境的 systemd 服务
 
 **使用**：
 ```bash
-cd /Users/a58/xinghe/ltl-league-site
+# 部署生产环境
 bash scripts/deploy.sh
 ```
 
@@ -81,7 +87,31 @@ bash scripts/deploy.sh
 FORCE_REBUILD=1 bash scripts/deploy.sh
 ```
 
-### 3.2 前端部署脚本 (`scripts/deploy-frontend.sh`)
+### 3.2 测试后端部署脚本 (`scripts/deploy-test.sh`)
+
+**功能**：
+1. 本地编译打包 JAR
+2. 停止旧的本地测试后端进程
+3. 以 `test` profile 在本地启动后端
+4. 默认监听 `127.0.0.1:8080`
+5. 连接服务器上的 `ltl_league_test` 数据库
+
+**使用**：
+```bash
+bash scripts/deploy-test.sh
+```
+
+**强制重新编译**：
+```bash
+FORCE_REBUILD=1 bash scripts/deploy-test.sh
+```
+
+可选环境变量：
+```bash
+DB_NAME=ltl_league_test bash scripts/deploy-test.sh
+```
+
+### 3.3 前端部署脚本 (`scripts/deploy-frontend.sh`)
 
 **功能**：
 1. 检查本地文件
@@ -91,8 +121,41 @@ FORCE_REBUILD=1 bash scripts/deploy.sh
 
 **使用**：
 ```bash
+# 部署生产前端
 bash scripts/deploy-frontend.sh
 ```
+
+### 3.4 测试前端部署脚本 (`scripts/deploy-frontend-test.sh`)
+
+**功能**：
+1. 检查本地前端文件
+2. 停止旧的本地测试前端进程
+3. 使用 `tools/static-server.mjs` 启动本地静态服务
+4. 默认访问地址 `http://127.0.0.1:4173/`
+5. 前端在本地访问时自动请求 `http://127.0.0.1:8080/api`
+
+**使用**：
+```bash
+bash scripts/deploy-frontend-test.sh
+```
+
+这个脚本只启动本地前端，不会上传远程目录、不会修改 Nginx、不会占用服务器端口。
+
+### 3.5 联盟资产迁移脚本 (`backend/src/main/resources/db/migration_league_assets.sql`)
+
+联盟资产功能新增 `league_asset_ledger` 表。首次上线前需要在目标数据库执行一次迁移脚本，脚本会创建联盟资产流水表，并把历史已上交/销毁的 P 币汇总为一条 `history_seed` 初始化流水。
+
+**测试库执行**：
+```bash
+mysql -u ltl_user -p ltl_league_test < backend/src/main/resources/db/migration_league_assets.sql
+```
+
+**生产库执行**：
+```bash
+mysql -u ltl_user -p ltl_league < backend/src/main/resources/db/migration_league_assets.sql
+```
+
+先在测试库验证后台 `资产监测` 页面数据无误，再执行生产库迁移。迁移脚本只新增/初始化联盟资产表，不会修改现有队伍、选手和赛果数据。
 
 ---
 
@@ -122,19 +185,11 @@ WantedBy=multi-user.target
 
 **服务管理**：
 ```bash
-# 启动服务
+# 生产服务
 systemctl start ltl-league-backend
-
-# 停止服务
 systemctl stop ltl-league-backend
-
-# 重启服务
 systemctl restart ltl-league-backend
-
-# 查看状态
 systemctl status ltl-league-backend
-
-# 查看日志
 journalctl -u ltl-league-backend -f
 ```
 
@@ -196,6 +251,8 @@ server {
 }
 ```
 
+测试环境不再配置服务器 Nginx。`scripts/deploy-frontend-test.sh` 会在本机启动静态服务，默认监听 `127.0.0.1:4173`。
+
 **Nginx 管理**：
 ```bash
 # 测试配置
@@ -215,7 +272,8 @@ systemctl restart nginx
 ### 5.1 数据库信息
 
 - **地址**：123.57.19.160:3306
-- **数据库**：ltl_league
+- **生产数据库**：ltl_league
+- **测试数据库**：ltl_league_test
 - **用户**：ltl_user
 - **字符集**：utf8mb4
 - **时区**：Asia/Shanghai
@@ -224,6 +282,16 @@ systemctl restart nginx
 
 **建表脚本**：`backend/src/main/resources/db/schema.sql`
 **初始数据**：`backend/src/main/resources/db/data.sql`
+
+测试库已独立维护，常规测试环境部署不需要同步生产库。如需刷新测试库数据，请手工执行并确认不会影响正在测试的内容：
+
+```bash
+mysql -h 123.57.19.160 -u ltl_user -p -e \
+  "DROP DATABASE IF EXISTS ltl_league_test; CREATE DATABASE ltl_league_test DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+mysqldump -h 123.57.19.160 -u ltl_user -p --single-transaction ltl_league \
+  | mysql -h 123.57.19.160 -u ltl_user -p ltl_league_test
+```
 
 ---
 
@@ -246,19 +314,30 @@ npm run serve
 node tools/static-server.mjs
 ```
 
-访问：http://localhost:8081
+访问：http://127.0.0.1:4173
+
+### 6.3 本地启动测试 profile
+
+```bash
+bash scripts/deploy-test.sh
+bash scripts/deploy-frontend-test.sh
+```
+
+访问：http://127.0.0.1:4173
+
+测试后端访问：http://127.0.0.1:8080/api/teams
 
 ---
 
-## 7. 生产环境变量
+## 7. 环境变量
 
 ### 7.1 后端配置
 
-**application-prod.yml**（自动生成）：
+**生产配置由部署脚本生成，测试配置使用 `backend/src/main/resources/application-test.yml` 并可通过环境变量覆盖**：
 ```yaml
 spring:
   datasource:
-    url: jdbc:mysql://123.57.19.160:3306/ltl_league?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://123.57.19.160:3306/<环境对应数据库>?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
     username: ltl_user
     password: a5201314
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -283,8 +362,12 @@ logging:
 ### 7.2 环境变量
 
 - `ltl.match.bo5-enabled`：是否启用BO5（默认false）
-- `ltl.upload.dir`：上传目录（默认/var/www/ltl-league/uploads）
-- `ltl.upload.url-prefix`：上传URL前缀（默认/uploads）
+- `ltl.upload.dir`：上传目录（生产默认 `/var/www/ltl-league/uploads`，本地测试默认 `uploads-test`）
+- `ltl.upload.url-prefix`：上传URL前缀（生产默认 `/uploads`，本地测试默认 `http://127.0.0.1:4173/uploads-test`）
+- `SERVER_HOST`：部署服务器，默认 `123.57.19.160`。
+- `DB_HOST` / `DB_PORT` / `DB_NAME`：本地测试后端连接的数据库地址、端口和库名。
+- `DB_USERNAME` / `DB_PASSWORD`：数据库账号密码。
+- `BACKEND_PORT` / `FRONTEND_PORT`：本地测试后端和前端端口，默认分别为 `8080` 和 `4173`。
 
 ---
 
@@ -312,6 +395,14 @@ logging:
 - [ ] 验证功能
 - [ ] 检查日志
 
+### 8.3 测试环境发布
+
+- [ ] 启动本地测试后端：`bash scripts/deploy-test.sh`
+- [ ] 启动本地测试前端：`bash scripts/deploy-frontend-test.sh`
+- [ ] 访问 `http://127.0.0.1:4173/`
+- [ ] 验证测试页面请求的是 `http://127.0.0.1:8080/api/...`
+- [ ] 确认测试服务日志：`tail -f .local-test/logs/backend.log`
+
 ---
 
 ## 9. 常见问题
@@ -321,11 +412,13 @@ logging:
 **检查服务状态**：
 ```bash
 systemctl status ltl-league-backend
+kill -0 "$(cat .local-test/backend.pid)"
 ```
 
 **查看日志**：
 ```bash
 journalctl -u ltl-league-backend -n 50
+tail -80 .local-test/logs/backend.log
 ```
 
 **常见原因**：
@@ -338,6 +431,7 @@ journalctl -u ltl-league-backend -n 50
 **检查静态文件**：
 ```bash
 ls -la /var/www/ltl-league/
+ls -la .
 ```
 
 **检查Nginx配置**：

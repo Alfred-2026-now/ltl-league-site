@@ -2,10 +2,14 @@ package com.ltl.league.admin.controller;
 
 import com.ltl.league.admin.dto.AdminPLedgerVO;
 import com.ltl.league.admin.dto.AdminValuationChangeVO;
+import com.ltl.league.admin.dto.AssetOverviewVO;
+import com.ltl.league.admin.dto.LeagueAssetAdjustRequest;
+import com.ltl.league.admin.dto.LeagueAssetLedgerVO;
 import com.ltl.league.admin.dto.ManualPLedgerRequest;
 import com.ltl.league.admin.dto.ManualValuationAdjustRequest;
 import com.ltl.league.admin.dto.DeductTeamPCoinsRequest;
 import com.ltl.league.admin.dto.SalaryRequest;
+import com.ltl.league.admin.service.AdminAssetService;
 import com.ltl.league.admin.service.AdminEconomyService;
 import com.ltl.league.common.Result;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,9 +27,11 @@ import java.util.List;
 public class AdminEconomyController {
 
     private final AdminEconomyService adminEconomyService;
+    private final AdminAssetService adminAssetService;
 
-    public AdminEconomyController(AdminEconomyService adminEconomyService) {
+    public AdminEconomyController(AdminEconomyService adminEconomyService, AdminAssetService adminAssetService) {
         this.adminEconomyService = adminEconomyService;
+        this.adminAssetService = adminAssetService;
     }
 
     @GetMapping("/p-ledger")
@@ -93,5 +99,20 @@ public class AdminEconomyController {
         String reason = payload != null ? payload.get("reason") : null;
         adminEconomyService.voidDeductAllTeamsSalary(reason);
         return Result.success();
+    }
+
+    @GetMapping("/assets/overview")
+    public Result<AssetOverviewVO> getAssetOverview(@RequestParam(required = false) Integer days) {
+        return Result.success(adminAssetService.getOverview(days));
+    }
+
+    @GetMapping("/league-assets/ledger")
+    public Result<List<LeagueAssetLedgerVO>> listLeagueAssetLedgers(@RequestParam(required = false) Integer limit) {
+        return Result.success(adminAssetService.listLeagueAssetLedgers(limit));
+    }
+
+    @PostMapping("/league-assets/manual-adjustment")
+    public Result<LeagueAssetLedgerVO> manualAdjustLeagueAsset(@RequestBody LeagueAssetAdjustRequest request) {
+        return Result.success(adminAssetService.manualAdjust(request));
     }
 }

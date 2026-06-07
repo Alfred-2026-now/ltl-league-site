@@ -3,7 +3,11 @@
  * 从后端获取数据
  */
 
-const API_BASE_URL = "http://123.57.19.160:8080/api";
+import { getApiBase } from "../config/api.js";
+import { buildRuleParameterMap } from "./leagueMetrics.js";
+import { applyRuleParametersToRules } from "./ruleParameters.js";
+
+const API_BASE_URL = getApiBase();
 
 /**
  * 通用请求方法
@@ -196,6 +200,10 @@ export async function getRules() {
   }));
 }
 
+export async function getRuleParameters() {
+  return request("/rule-parameters");
+}
+
 /**
  * 获取赛程
  */
@@ -210,7 +218,8 @@ export async function loadAllData() {
   try {
     const teams = await getTeams();
     const announcements = await getAnnouncements();
-    const rules = await getRules();
+    const ruleParameters = buildRuleParameterMap(await getRuleParameters());
+    const rules = applyRuleParametersToRules(await getRules(), ruleParameters);
     const matches = await getMatches();
 
     const playerCount = teams.reduce((sum, team) => sum + (team.players?.length || 0), 0);
@@ -219,6 +228,7 @@ export async function loadAllData() {
       teams,
       announcements,
       rules,
+      ruleParameters,
       schedule: matches,
       leagueStats: [
         { label: "战队数量", value: String(teams.length), description: teams.map(t => t.state).join("/") },
