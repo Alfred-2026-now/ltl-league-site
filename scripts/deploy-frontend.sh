@@ -8,8 +8,8 @@ set -e
 SERVER_HOST="123.57.19.160"
 SERVER_USER="root"
 DEPLOY_PATH="/var/www/ltl-league"
-LOCAL_DIR="/Users/a58/xinghe/ltl-league-site"
-SCRIPT_DIR="$(dirname "$0")"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LOCAL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 SSH_KEY="$SCRIPT_DIR/deploy-key.pem"
 
 echo "========================================="

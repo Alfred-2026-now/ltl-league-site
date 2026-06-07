@@ -20,7 +20,7 @@ async function initApp() {
     setupAccordion();
     // setupNav() 已在 public-nav.js 中处理，不需要再次调用
     setupTeamSearch(data.teams);
-    setupCalculators(data.teams);
+    setupCalculators(data.teams, data.ruleParameters);
     setupActiveNav();
   } catch (error) {
     console.error("应用初始化失败:", error);

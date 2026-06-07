@@ -1,17 +1,22 @@
 import { calcExchangeUnits, calcLoanFee, calcLuxuryTax, formatP, getTaxLine } from "../services/leagueMetrics.js";
+import { formatTaxLineFormula } from "../services/ruleParameters.js";
 
-export function setupCalculators(teams) {
+export function setupCalculators(teams, ruleParameters) {
   const taxLineDisplay = document.getElementById("taxLineDisplay");
   if (taxLineDisplay) {
-    taxLineDisplay.textContent = formatP(getTaxLine(teams));
+    taxLineDisplay.textContent = formatP(getTaxLine(teams, ruleParameters));
+  }
+  const taxLineFormula = document.getElementById("taxLineFormula");
+  if (taxLineFormula) {
+    taxLineFormula.textContent = formatTaxLineFormula(ruleParameters);
   }
 
-  setupLuxuryTaxCalculator(teams);
-  setupLoanCalculator();
+  setupLuxuryTaxCalculator(teams, ruleParameters);
+  setupLoanCalculator(ruleParameters);
   setupExchangeCalculator();
 }
 
-function setupLuxuryTaxCalculator(teams) {
+function setupLuxuryTaxCalculator(teams, ruleParameters) {
   const button = document.getElementById("calcLuxury");
   if (!button) return;
 
@@ -19,7 +24,7 @@ function setupLuxuryTaxCalculator(teams) {
     const lineValue = Number(document.getElementById("luxuryL").value || 0);
     const rosterSize = Number(document.getElementById("rosterN").value || 5);
     const format = document.getElementById("format").value;
-    const result = calcLuxuryTax(teams, lineValue, rosterSize, format);
+    const result = calcLuxuryTax(teams, lineValue, rosterSize, format, ruleParameters);
 
     document.getElementById("luxuryResult").innerHTML =
       `修正因子：×${result.factor.toFixed(2)}<br>` +
@@ -30,7 +35,7 @@ function setupLuxuryTaxCalculator(teams) {
   });
 }
 
-function setupLoanCalculator() {
+function setupLoanCalculator(ruleParameters) {
   const button = document.getElementById("calcLoan");
   if (!button) return;
 
@@ -38,7 +43,7 @@ function setupLoanCalculator() {
     const value = Number(document.getElementById("loanValue").value || 0);
     const format = document.getElementById("loanFormat").value;
     const type = document.getElementById("loanType").value;
-    const result = calcLoanFee(value, format, type);
+    const result = calcLoanFee(value, format, type, ruleParameters);
 
     document.getElementById("loanResult").innerHTML =
       `租借费：${formatP(result.fee)}<br>` +

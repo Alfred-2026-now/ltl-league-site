@@ -66,7 +66,7 @@ ltl-league-site/
 
 ```bash
 npm run serve
-# 访问 http://localhost:8081
+# 访问 http://127.0.0.1:4173
 ```
 
 ### 后端开发
@@ -82,7 +82,7 @@ mvn spring-boot:run
 **前端相关**：
 1. 修改页面结构 → 编辑对应的 `*.html` 文件
 2. 修改功能逻辑 → 编辑 `src/features/` 或 `src/admin/` 下文件
-3. 修改API调用 → 编辑 `src/services/api.js` 或 `src/admin/api.js`
+3. 修改 API 基础地址 → 编辑 `src/config/api.js`
 4. 修改样式 → 编辑 `src/styles/main.css`
 
 **后端相关**：
@@ -145,11 +145,15 @@ Git 分支、提交和合并规范见 [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.m
 ### 一键部署脚本
 
 ```bash
-# 部署后端
+# 部署生产后端
 bash scripts/deploy.sh
 
-# 部署前端
+# 部署生产前端
 bash scripts/deploy-frontend.sh
+
+# 启动本地测试后端与测试前端
+bash scripts/deploy-test.sh
+bash scripts/deploy-frontend-test.sh
 ```
 
 ### 访问地址
@@ -158,6 +162,7 @@ bash scripts/deploy-frontend.sh
 - **赛程页面**：http://123.57.19.160/schedule.html
 - **积分榜**：http://123.57.19.160/standings.html
 - **管理后台**：http://123.57.19.160/admin-matches.html
+- **本地测试环境**：http://127.0.0.1:4173
 
 ---
 

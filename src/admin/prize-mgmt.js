@@ -1,4 +1,5 @@
 import * as api from "./api.js";
+import { getApiBase } from "../config/api.js";
 
 let prizes = [];
 let exchanges = [];
@@ -255,7 +256,7 @@ async function handleImageUpload(file) {
     formData.append('file', file);
 
     // 上传到后端
-    const response = await fetch('http://123.57.19.160/api/prizes/upload', {
+    const response = await fetch(`${getApiBase()}/prizes/upload`, {
       method: 'POST',
       body: formData
     });

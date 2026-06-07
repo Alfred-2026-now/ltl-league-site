@@ -2,6 +2,7 @@ package com.ltl.league.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ltl.league.admin.dto.*;
+import com.ltl.league.admin.service.AdminAssetService;
 import com.ltl.league.admin.service.AdminPlayerDepositService;
 import com.ltl.league.admin.service.RuleParameterService;
 import com.ltl.league.entity.*;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -24,16 +26,22 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
     private final PlayerDepositLedgerMapper depositLedgerMapper;
     private final TeamMapper teamMapper;
     private final RuleParameterService ruleParameterService;
+    private final PLedgerMapper pLedgerMapper;
+    private final AdminAssetService adminAssetService;
 
     public AdminPlayerDepositServiceImpl(
             PlayerMapper playerMapper,
             PlayerDepositLedgerMapper depositLedgerMapper,
             TeamMapper teamMapper,
-            RuleParameterService ruleParameterService) {
+            RuleParameterService ruleParameterService,
+            PLedgerMapper pLedgerMapper,
+            AdminAssetService adminAssetService) {
         this.playerMapper = playerMapper;
         this.depositLedgerMapper = depositLedgerMapper;
         this.teamMapper = teamMapper;
         this.ruleParameterService = ruleParameterService;
+        this.pLedgerMapper = pLedgerMapper;
+        this.adminAssetService = adminAssetService;
     }
 
     @Override
@@ -168,6 +176,9 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
             throw new BusinessException(404, "选手不存在");
         }
 
+        Long originalTeamId = player.getTeamId();
+        Integer originalStatus = player.getStatus();
+
         if (request.getName() != null && !request.getName().isBlank()) {
             player.setName(request.getName().trim());
         }
@@ -207,6 +218,11 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         if (newStatus != 3 && newTeamId == null) {
             throw new BusinessException(400, "在职选手必须属于某个队伍");
         }
+
+        Integer finalValue = request.getValue() != null && request.getValue() >= 0 ? request.getValue() : player.getValue();
+
+        applyPlayerMoveLossIfNeeded(player, originalTeamId, originalStatus, newTeamId, newStatus, finalValue);
+
         player.setTeamId(newTeamId);
 
         playerMapper.updateById(player);
@@ -223,6 +239,10 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         Player player = playerMapper.selectById(playerId);
         if (player == null) {
             throw new BusinessException(404, "选手不存在");
+        }
+
+        if (player.getTeamId() != null && player.getStatus() != null && player.getStatus() == 1) {
+            applyPlayerReleaseLoss(player, player.getTeamId(), player.getValue(), "删除在职选手，视为解约");
         }
 
         playerMapper.deleteById(playerId);
@@ -469,5 +489,79 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
             return 100;
         }
         return Math.max(1, Math.min(limit, 500));
+    }
+
+    private void applyPlayerMoveLossIfNeeded(
+            Player player,
+            Long oldTeamId,
+            Integer oldStatus,
+            Long newTeamId,
+            Integer newStatus,
+            Integer playerValue) {
+        boolean wasActiveInTeam = oldTeamId != null && oldStatus != null && oldStatus == 1;
+        boolean willBeActiveInTeam = newTeamId != null && newStatus != null && newStatus == 1;
+
+        if (wasActiveInTeam && !willBeActiveInTeam) {
+            applyPlayerReleaseLoss(player, oldTeamId, playerValue, "解约选手 " + player.getName());
+            return;
+        }
+
+        if (willBeActiveInTeam && !Objects.equals(oldTeamId, newTeamId)) {
+            applyPlayerSignLoss(player, newTeamId, playerValue);
+        }
+    }
+
+    private void applyPlayerSignLoss(Player player, Long teamId, Integer playerValue) {
+        int value = playerValue != null ? playerValue : 0;
+        int loss = Math.toIntExact(Math.round(value * 0.4));
+        if (loss <= 0) {
+            return;
+        }
+        applyTeamLoss(teamId, loss, "player_sign_loss", "买入选手 " + player.getName() + "，身价 " + value + "P，40% 损耗上交联盟");
+    }
+
+    private void applyPlayerReleaseLoss(Player player, Long teamId, Integer playerValue, String action) {
+        int value = playerValue != null ? playerValue : 0;
+        if (value <= 0) {
+            return;
+        }
+        applyTeamLoss(teamId, value, "player_release_loss", action + "，身价 " + value + "P，100% 损耗上交联盟");
+    }
+
+    private void applyTeamLoss(Long teamId, Integer amount, String type, String reason) {
+        Team team = teamMapper.selectById(teamId);
+        if (team == null) {
+            throw new BusinessException(404, "队伍不存在");
+        }
+        int before = team.getPCoins() != null ? team.getPCoins() : 0;
+        int after = before - amount;
+
+        PLedger ledger = new PLedger();
+        ledger.setTeamId(teamId);
+        ledger.setMatchId(null);
+        ledger.setResultId(null);
+        ledger.setType(type);
+        ledger.setAmount(-amount);
+        ledger.setReason(reason);
+        ledger.setVersion(null);
+        ledger.setSource("player_admin");
+        ledger.setBalanceBefore(before);
+        ledger.setBalanceAfter(after);
+        ledger.setIsVoided(0);
+        pLedgerMapper.insert(ledger);
+
+        team.setPCoins(after);
+        teamMapper.updateById(team);
+
+        adminAssetService.recordIncome(
+                amount,
+                type,
+                reason,
+                "player_admin",
+                "p_ledger",
+                ledger.getId(),
+                null,
+                null,
+                "admin");
     }
 }

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>LTL 管理 - 资产监测</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="admin-matches.html"><span class="brand-mark">LTL</span><span class="brand-text">管理后台 · 资产监测</span></a>
+      <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+      <div class="nav-links" id="navLinks"></div>
+    </nav>
+  </header>
+
+  <main class="page-shell">
+    <section class="section">
+      <div class="section-heading row">
+        <div>
+          <p class="eyebrow">ADMIN · ASSETS</p>
+          <h1 class="page-title">资产监测</h1>
+          <p class="muted">监测队伍资产、联盟总资产、个人资产以及总资产的近期变化。</p>
+        </div>
+        <div style="display:flex;gap:.5rem;align-items:end;">
+          <label class="field" style="min-width:120px;"><span class="field-label">天数</span><input class="input" id="daysInput" type="number" value="14" min="1" max="60" /></label>
+          <button class="btn primary" id="refreshBtn" type="button">刷新</button>
+        </div>
+      </div>
+
+      <div id="summaryGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;"></div>
+
+      <div class="panel" style="padding:1rem;margin-top:1rem;">
+        <div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;margin-bottom:.75rem;">
+          <h3 style="margin:0;">近期资产余额趋势</h3>
+          <div id="chartLegend" class="muted" style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;font-size:.85rem;"></div>
+        </div>
+        <canvas id="changesChart" style="display:block;width:100%;height:280px;" aria-label="队伍、联盟、个人资产余额折线图" role="img"></canvas>
+      </div>
+
+      <div class="panel" style="padding:1rem;margin-top:1rem;">
+        <h3 style="margin:0 0 1rem 0;">调整联盟总资产</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;align-items:end;">
+          <label class="field"><span class="field-label">金额</span><input class="input" id="adjustAmount" type="number" placeholder="正数增加，负数扣除" /></label>
+          <label class="field"><span class="field-label">原因</span><input class="input" id="adjustReason" placeholder="如：福利发放、赞助注入" /></label>
+          <button class="btn primary" id="adjustBtn" type="button">提交</button>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:1rem;overflow:auto;">
+        <table class="admin-table" style="width:100%;border-collapse:collapse;">
+          <thead><tr><th style="text-align:left;padding:.75rem 1rem;">日期</th><th style="text-align:left;padding:.75rem 1rem;">队伍变化</th><th style="text-align:left;padding:.75rem 1rem;">联盟变化</th><th style="text-align:left;padding:.75rem 1rem;">个人变化</th><th style="text-align:left;padding:.75rem 1rem;">总变化</th></tr></thead>
+          <tbody id="changesBody"></tbody>
+        </table>
+      </div>
+
+      <div class="panel" style="margin-top:1rem;overflow:auto;">
+        <table class="admin-table" style="width:100%;border-collapse:collapse;">
+          <thead><tr><th style="text-align:left;padding:.75rem 1rem;">时间</th><th style="text-align:left;padding:.75rem 1rem;">类型</th><th style="text-align:left;padding:.75rem 1rem;">金额</th><th style="text-align:left;padding:.75rem 1rem;">余额</th><th style="text-align:left;padding:.75rem 1rem;">来源</th><th style="text-align:left;padding:.75rem 1rem;">原因</th></tr></thead>
+          <tbody id="ledgerBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="src/util/admin-auth.js"></script>
+  <script type="module" src="src/admin/assets.js"></script>
+  <script src="src/components/admin-nav.js"></script>
+</body>
+</html>
