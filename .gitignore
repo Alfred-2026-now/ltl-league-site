@@ -52,6 +52,7 @@ build/
 application-local.properties
 application-local.yml
 .local-test/
+.superpowers/
 uploads-test/
 
 ### Logs ###

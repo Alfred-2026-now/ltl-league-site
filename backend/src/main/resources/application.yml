@@ -28,6 +28,12 @@ mybatis-plus:
 ltl:
   league:
     current-season: s1
+  ai:
+    deepseek:
+      api-key: ${DEEPSEEK_API_KEY:}
+      base-url: https://api.deepseek.com
+      model: deepseek-v4-flash
+      timeout-ms: 60000
   match:
     bo5-enabled: false
   upload:

@@ -30,6 +30,17 @@ async function request(endpoint, options = {}) {
   }
 }
 
+async function authRequest(endpoint, options = {}) {
+  return request(endpoint, {
+    ...options,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    }
+  });
+}
+
 /**
  * 获取所有队伍（包含选手）
  */
@@ -202,6 +213,74 @@ export async function getRules() {
 
 export async function getRuleParameters() {
   return request("/rule-parameters");
+}
+
+export async function getTeamManagerContext() {
+  return authRequest("/ai/team-manager/context");
+}
+
+export async function simulateTeamManagerPlan(payload) {
+  return authRequest("/ai/team-manager/simulate", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function chatWithTeamManager(payload) {
+  return authRequest("/ai/team-manager/chat", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function streamChatWithTeamManager(payload, onDelta) {
+  const response = await fetch(`${API_BASE_URL}/ai/team-manager/chat/stream`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+  if (!response.body) {
+    const fallback = await response.text();
+    if (fallback) onDelta(fallback);
+    return;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split("\n\n");
+    buffer = events.pop() || "";
+    for (const eventText of events) {
+      handleStreamEvent(eventText, onDelta);
+    }
+  }
+  if (buffer.trim()) {
+    handleStreamEvent(buffer, onDelta);
+  }
+}
+
+function handleStreamEvent(eventText, onDelta) {
+  const lines = eventText.split("\n");
+  const event = lines.find(line => line.startsWith("event:"))?.slice(6).trim() || "message";
+  const dataLine = lines.find(line => line.startsWith("data:"));
+  const rawData = dataLine ? dataLine.slice(5).trim() : "\"\"";
+  const data = JSON.parse(rawData);
+  if (event === "error") {
+    throw new Error(data || "DeepSeek 流式调用失败");
+  }
+  if (event === "delta") {
+    onDelta(data);
+  }
 }
 
 /**

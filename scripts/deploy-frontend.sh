@@ -76,7 +76,7 @@ ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no ${SERVER_USER}@${SERVER_HOST} << '
 # 创建 Nginx 配置
 cat > /etc/nginx/sites-available/ltl-league << 'NGINX'
 server {
-    listen 80;
+    listen 80 default_server;
     server_name _;
 
     root /var/www/ltl-league;

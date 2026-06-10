@@ -9,6 +9,7 @@ DB_PORT="${DB_PORT:-3306}"
 DB_USERNAME="${DB_USERNAME:-ltl_user}"
 DB_PASSWORD="${DB_PASSWORD:-a5201314}"
 DB_NAME="${DB_NAME:-ltl_league_test}"
+DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY:-sk-6494c3c0cf9c485d8238fb65b778a613}"
 BACKEND_HOST="${BACKEND_HOST:-127.0.0.1}"
 BACKEND_PORT="${BACKEND_PORT:-8080}"
 FRONTEND_PORT="${FRONTEND_PORT:-4173}"
@@ -48,7 +49,14 @@ if [ -f "$PID_FILE" ]; then
     rm -f "$PID_FILE"
 fi
 
-if [ ! -f "$LOCAL_JAR" ] || [ "${FORCE_REBUILD:-0}" = "1" ]; then
+SOURCE_CHANGED=0
+if [ -f "$LOCAL_JAR" ]; then
+    if find backend/pom.xml backend/src/main backend/src/test -type f -newer "$LOCAL_JAR" -print -quit | grep -q .; then
+        SOURCE_CHANGED=1
+    fi
+fi
+
+if [ ! -f "$LOCAL_JAR" ] || [ "${FORCE_REBUILD:-0}" = "1" ] || [ "$SOURCE_CHANGED" = "1" ]; then
     echo "[1/3] 本地编译打包..."
     cd backend
     if [ -z "${JAVA_HOME:-}" ] && command -v /usr/libexec/java_home >/dev/null 2>&1; then
@@ -84,6 +92,8 @@ nohup "$JAVA_BIN" -jar "$LOCAL_JAR" \
     --spring.datasource.hikari.validation-timeout=5000 \
     --ltl.upload.dir="$UPLOAD_DIR" \
     --ltl.upload.url-prefix="$UPLOAD_URL_PREFIX" \
+    --ltl.ai.deepseek.api-key="$DEEPSEEK_API_KEY" \
+    --ltl.ai.deepseek.timeout-ms=60000 \
     > "${LOG_DIR}/backend.log" 2>&1 &
 
 BACKEND_PID="$!"
