@@ -1,8 +1,8 @@
-# Team Manager Agent Design
+# P哥推荐 Design
 
 ## Goal
 
-Add a full pre-match workbench to the existing calculator page. The workbench helps a logged-in team member simulate match outcomes, compare loan options, and ask an interactive "team manager" agent for advice.
+Add a full pre-match workbench below the existing calculators. The workbench helps an admin simulate match outcomes, compare loan options, and ask an interactive "P哥推荐" agent for advice.
 
 The first implementation targets decision support only. It does not create matches, publish match results, mutate team balances, or write official ledgers.
 
@@ -33,22 +33,22 @@ The `tools.html` page will evolve from two simple calculators into a three-colum
 
 ## Backend Architecture
 
-Add a new public authenticated AI module under `/api/ai/team-manager`.
+Add a new admin-only authenticated AI module under `/api/ai/team-manager`.
 
 Endpoints:
 
 - `GET /api/ai/team-manager/context`
-  - Requires login.
+  - Requires admin login.
   - Returns the current user's team, all teams, active players, rule parameters, active reward rules, and a compact rule knowledge summary.
 
 - `POST /api/ai/team-manager/simulate`
-  - Requires login.
+  - Requires admin login.
   - Accepts opponent, format, my lineup player IDs, optional opponent loan context, optional manual loan candidates, and strategy preference.
   - Returns deterministic simulation rows for each score scenario.
   - Returns loan recommendations when my lineup has fewer than 5 players.
 
 - `POST /api/ai/team-manager/chat`
-  - Requires login.
+  - Requires admin login.
   - Accepts the current workbench input, latest simulation result, and chat messages.
   - Rebuilds trusted backend context before calling DeepSeek.
   - Calls DeepSeek through a server-side API key and returns the assistant reply.
@@ -62,13 +62,13 @@ Use server-side configuration only:
 - `ltl.ai.deepseek.model`, default `deepseek-v4-flash`.
 - Optional timeout and token limit properties.
 
-The browser never receives the API key. The key must not be written into source code, YAML, docs, logs, or tests.
+The browser never receives the API key. For this project, deployment scripts are allowed to inject the key into backend runtime configuration by explicit owner request; source code, frontend assets, docs, logs, and tests must not contain the literal key.
 
 The chat service uses the OpenAI-compatible chat completions API shape:
 
 - `POST /chat/completions`
 - Bearer token authentication.
-- System message describes the agent as an LTL team manager.
+- System message describes the agent as LTL P哥推荐.
 - Context message contains rules, teams, players, current team, active simulation, and strict instructions to cite deterministic simulation numbers instead of inventing calculations.
 
 ## Deterministic Simulation
@@ -160,6 +160,6 @@ Frontend checks:
 
 ## Open Follow-Ups
 
-- Whether team managers should be allowed to include opponent players as emergency loan candidates.
+- Whether admins should be allowed to include opponent players as emergency loan candidates.
 - Whether recommendations should eventually use player position matching instead of pure economic strategy.
 - Whether chat transcripts should be persisted. The initial version keeps them in page memory only.

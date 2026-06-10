@@ -78,6 +78,14 @@ logging:
   level:
     com.ltl.league: INFO
     com.ltl.league.mapper: DEBUG
+
+ltl:
+  ai:
+    deepseek:
+      api-key: "sk-6494c3c0cf9c485d8238fb65b778a613"
+      base-url: https://api.deepseek.com
+      model: deepseek-v4-flash
+      timeout-ms: 60000
 YAML
 
 # 设置权限
