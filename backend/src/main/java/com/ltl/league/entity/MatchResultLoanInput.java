@@ -25,6 +25,8 @@ public class MatchResultLoanInput {
 
     private Long playerId;
 
+    private Long replacedPlayerId;
+
     private Integer playerValue;
 
     private String sourceType;

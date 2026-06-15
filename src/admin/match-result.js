@@ -234,23 +234,55 @@ function playerSelectOptions(selectedId = "") {
   `)].join("");
 }
 
+function activeTeamPlayers(teamId) {
+  return players.filter(p => String(p.teamId) === String(teamId) && p.status === 1 && !p.isLoan);
+}
+
+function replacedPlayerSelectOptions(teamId, selectedId = "") {
+  const teamPlayers = teamId ? activeTeamPlayers(teamId) : [];
+  if (!teamPlayers.length) {
+    return `<option value="">请先选择使用队伍</option>`;
+  }
+  return [`<option value="">选择被替换选手</option>`, ...teamPlayers.map(p => `
+    <option value="${p.id}" ${String(p.id) === String(selectedId) ? "selected" : ""}>${p.name} · ${p.value ?? 0}P</option>
+  `)].join("");
+}
+
 function numberOrNull(value) {
   return value !== "" && value != null ? Number(value) : null;
 }
 
 function calcTeamLineValue(teamId) {
-  return players.filter(p => String(p.teamId) === String(teamId) && p.status === 1 && !p.isLoan)
-    .reduce((sum, p) => sum + (p.value || 0), 0);
+  return activeTeamPlayers(teamId).reduce((sum, p) => sum + (p.value || 0), 0);
 }
 
 function calcTeamRosterSize(teamId) {
-  return players.filter(p => String(p.teamId) === String(teamId) && p.status === 1 && !p.isLoan).length;
+  return activeTeamPlayers(teamId).length;
+}
+
+function calculatedLineValueWithLoans(teamId) {
+  let total = calcTeamLineValue(teamId);
+  collectLoanInputs()
+    .filter(row => String(row.payingTeamId) === String(teamId) && row.playerId && row.replacedPlayerId)
+    .forEach(row => {
+      const loanPlayer = players.find(p => String(p.id) === String(row.playerId));
+      const replacedPlayer = players.find(p => String(p.id) === String(row.replacedPlayerId));
+      const loanValue = row.playerValue ?? loanPlayer?.value ?? 0;
+      total += loanValue - (replacedPlayer?.value || 0);
+    });
+  return Math.max(0, total);
+}
+
+function syncLineValuesFromLoans() {
+  if (!match || readOnly) return;
+  setVal(els.homeLineValue, calculatedLineValueWithLoans(match.homeTeamId));
+  setVal(els.awayLineValue, calculatedLineValueWithLoans(match.awayTeamId));
 }
 
 function autoFillTeamSettlement() {
   if (!match) return;
-  if (!els.homeLineValue?.value) setVal(els.homeLineValue, calcTeamLineValue(match.homeTeamId));
-  if (!els.awayLineValue?.value) setVal(els.awayLineValue, calcTeamLineValue(match.awayTeamId));
+  if (!els.homeLineValue?.value) setVal(els.homeLineValue, calculatedLineValueWithLoans(match.homeTeamId));
+  if (!els.awayLineValue?.value) setVal(els.awayLineValue, calculatedLineValueWithLoans(match.awayTeamId));
   if (!els.homeRosterSize?.value) setVal(els.homeRosterSize, calcTeamRosterSize(match.homeTeamId));
   if (!els.awayRosterSize?.value) setVal(els.awayRosterSize, calcTeamRosterSize(match.awayTeamId));
 }
@@ -275,9 +307,10 @@ function renderLoanInputs(rows = []) {
   }
   els.loanInputs.innerHTML = rows.map((row, index) => `
     <div class="panel" style="padding:.6rem;margin-top:.5rem;" data-loan-row>
-      <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.5rem;align-items:end;">
+      <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:.5rem;align-items:end;">
         <label class="field"><span class="field-label">使用队伍</span><select class="input loan-paying-team">${teamSelectOptions(row.payingTeamId, true)}</select></label>
         <label class="field"><span class="field-label">选手</span><select class="input loan-player">${playerSelectOptions(row.playerId)}</select></label>
+        <label class="field"><span class="field-label">替换选手</span><select class="input loan-replaced-player">${replacedPlayerSelectOptions(row.payingTeamId, row.replacedPlayerId)}</select></label>
         <label class="field"><span class="field-label">结算身价</span><input class="input loan-value" type="number" min="0" value="${row.playerValue ?? ""}" /></label>
         <label class="field"><span class="field-label">来源</span><select class="input loan-source-type">
           <option value="original_team" ${row.sourceType !== "free_agent" ? "selected" : ""}>原队伍</option>
@@ -315,11 +348,12 @@ function collectLoanInputs() {
   return Array.from(els.loanInputs.querySelectorAll("[data-loan-row]")).map(row => ({
     payingTeamId: numberOrNull(row.querySelector(".loan-paying-team")?.value),
     playerId: numberOrNull(row.querySelector(".loan-player")?.value),
+    replacedPlayerId: numberOrNull(row.querySelector(".loan-replaced-player")?.value),
     playerValue: numberOrNull(row.querySelector(".loan-value")?.value),
     sourceType: row.querySelector(".loan-source-type")?.value || "original_team",
     sourceTeamId: numberOrNull(row.querySelector(".loan-source-team")?.value),
     reason: row.querySelector(".loan-reason")?.value || null
-  })).filter(row => row.playerId || row.payingTeamId || row.playerValue);
+  })).filter(row => row.playerId || row.payingTeamId || row.replacedPlayerId || row.playerValue);
 }
 
 function collectValuationInputs() {
@@ -699,15 +733,45 @@ function wireEvents() {
     if (!e.target.closest(".remove-loan")) return;
     const index = Number(e.target.closest(".remove-loan").dataset.index);
     renderLoanInputs(collectLoanInputs().filter((_, i) => i !== index));
+    syncLineValuesFromLoans();
     schedulePreviewRefresh();
   });
   els.loanInputs?.addEventListener("change", e => {
+    const payingTeamSelect = e.target.closest(".loan-paying-team");
+    if (payingTeamSelect) {
+      const row = payingTeamSelect.closest("[data-loan-row]");
+      const replacedSelect = row?.querySelector(".loan-replaced-player");
+      if (replacedSelect) {
+        replacedSelect.innerHTML = replacedPlayerSelectOptions(payingTeamSelect.value, replacedSelect.value);
+      }
+      syncLineValuesFromLoans();
+      schedulePreviewRefresh();
+      return;
+    }
+
     const playerSelect = e.target.closest(".loan-player");
-    if (!playerSelect) { schedulePreviewRefresh(); return; }
-    const row = playerSelect.closest("[data-loan-row]");
-    const player = players.find(p => String(p.id) === String(playerSelect.value));
-    if (player && row?.querySelector(".loan-value") && !row.querySelector(".loan-value").value) {
-      row.querySelector(".loan-value").value = player.value ?? 0;
+    if (playerSelect) {
+      const row = playerSelect.closest("[data-loan-row]");
+      const player = players.find(p => String(p.id) === String(playerSelect.value));
+      if (player && row?.querySelector(".loan-value") && !row.querySelector(".loan-value").value) {
+        row.querySelector(".loan-value").value = player.value ?? 0;
+      }
+      syncLineValuesFromLoans();
+      schedulePreviewRefresh();
+      return;
+    }
+
+    if (e.target.closest(".loan-replaced-player")) {
+      syncLineValuesFromLoans();
+      schedulePreviewRefresh();
+      return;
+    }
+
+    schedulePreviewRefresh();
+  });
+  els.loanInputs?.addEventListener("input", e => {
+    if (e.target.closest(".loan-value")) {
+      syncLineValuesFromLoans();
     }
     schedulePreviewRefresh();
   });

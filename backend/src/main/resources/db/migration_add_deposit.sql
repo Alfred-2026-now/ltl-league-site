@@ -3,4 +3,4 @@
 
 USE ltl_league;
 
-ALTER TABLE players ADD COLUMN `deposit` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '选手P币存款' AFTER `status`;
+ALTER TABLE players ADD COLUMN `deposit` INT NOT NULL DEFAULT 0 COMMENT '选手P币存款' AFTER `status`;

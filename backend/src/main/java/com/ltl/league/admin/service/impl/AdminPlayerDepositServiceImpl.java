@@ -65,10 +65,6 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         Integer currentDeposit = player.getDeposit() != null ? player.getDeposit() : 0;
         Integer newDeposit = currentDeposit + request.getAmount();
 
-        if (newDeposit < 0) {
-            throw new BusinessException(400, "选手存款余额不足");
-        }
-
         // 创建流水记录
         PlayerDepositLedger ledger = new PlayerDepositLedger();
         ledger.setPlayerId(player.getId());
