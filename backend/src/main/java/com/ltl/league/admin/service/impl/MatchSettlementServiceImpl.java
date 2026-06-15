@@ -144,6 +144,7 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
             row.setMatchId(match.getId());
             row.setPayingTeamId(dto.getPayingTeamId());
             row.setPlayerId(dto.getPlayerId());
+            row.setReplacedPlayerId(dto.getReplacedPlayerId());
             row.setPlayerValue(dto.getPlayerValue());
             row.setSourceType(blankToDefault(dto.getSourceType(), "original_team"));
             row.setSourceTeamId(dto.getSourceTeamId());
@@ -185,6 +186,7 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
             LoanFeeInputDTO dto = new LoanFeeInputDTO();
             dto.setPayingTeamId(row.getPayingTeamId());
             dto.setPlayerId(row.getPlayerId());
+            dto.setReplacedPlayerId(row.getReplacedPlayerId());
             dto.setPlayerValue(row.getPlayerValue());
             dto.setSourceType(row.getSourceType());
             dto.setSourceTeamId(row.getSourceTeamId());

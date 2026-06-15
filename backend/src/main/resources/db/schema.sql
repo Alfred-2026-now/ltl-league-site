@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS `players` (
   `is_loan` TINYINT NOT NULL DEFAULT 0 COMMENT '是否租借状态',
   `loan_team_id` BIGINT UNSIGNED NULL COMMENT '租借队伍ID',
   `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态（1:在职 2:离队 3:自由人）',
+  `deposit` INT NOT NULL DEFAULT 0 COMMENT '选手P币存款',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除标记',
@@ -310,6 +311,7 @@ CREATE TABLE IF NOT EXISTS `match_result_loan_inputs` (
   `match_id` BIGINT UNSIGNED NOT NULL COMMENT '关联比赛ID',
   `paying_team_id` BIGINT UNSIGNED NOT NULL COMMENT '使用租借选手队伍ID',
   `player_id` BIGINT UNSIGNED NOT NULL COMMENT '租借选手ID',
+  `replaced_player_id` BIGINT UNSIGNED NULL COMMENT '被替换选手ID',
   `player_value` INT UNSIGNED NOT NULL COMMENT '结算身价',
   `source_type` VARCHAR(20) NOT NULL COMMENT '来源类型（original_team/free_agent）',
   `source_team_id` BIGINT UNSIGNED NULL COMMENT '原队伍ID',
@@ -321,9 +323,11 @@ CREATE TABLE IF NOT EXISTS `match_result_loan_inputs` (
   KEY `idx_result_id` (`result_id`),
   KEY `idx_match_id` (`match_id`),
   KEY `idx_player_id` (`player_id`),
+  KEY `idx_replaced_player_id` (`replaced_player_id`),
   CONSTRAINT `fk_loan_input_result` FOREIGN KEY (`result_id`) REFERENCES `match_results` (`id`),
   CONSTRAINT `fk_loan_input_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`),
-  CONSTRAINT `fk_loan_input_player` FOREIGN KEY (`player_id`) REFERENCES `players` (`id`)
+  CONSTRAINT `fk_loan_input_player` FOREIGN KEY (`player_id`) REFERENCES `players` (`id`),
+  CONSTRAINT `fk_loan_input_replaced_player` FOREIGN KEY (`replaced_player_id`) REFERENCES `players` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='赛果租借费输入表';
 
 -- 7.3 赛果身价调整输入表

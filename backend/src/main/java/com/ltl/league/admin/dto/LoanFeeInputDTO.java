@@ -6,6 +6,7 @@ import lombok.Data;
 public class LoanFeeInputDTO {
     private Long payingTeamId;
     private Long playerId;
+    private Long replacedPlayerId;
     private Integer playerValue;
     private String sourceType;
     private Long sourceTeamId;

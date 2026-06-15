@@ -4,7 +4,7 @@
 USE ltl_league;
 
 -- 1. 添加选手存款字段
-ALTER TABLE players ADD COLUMN `deposit` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '选手P币存款' AFTER `status`;
+ALTER TABLE players ADD COLUMN `deposit` INT NOT NULL DEFAULT 0 COMMENT '选手P币存款' AFTER `status`;
 
 -- 2. 修改team_id字段可为NULL（支持自由人选手）
 ALTER TABLE players MODIFY COLUMN `team_id` BIGINT UNSIGNED NULL COMMENT '所属队伍ID';
