@@ -97,6 +97,7 @@ function bindEls() {
   els.rankingTitle = document.getElementById("rankingTitle");
   els.valueHeader = document.getElementById("valueHeader");
   els.depositHeader = document.getElementById("depositHeader");
+  els.reviewExtraHeader = document.getElementById("reviewExtraHeader");
   els.rankingBody = document.getElementById("rankingBody");
   els.rankingCards = document.getElementById("rankingCards");
   els.reviewDetail = document.getElementById("reviewDetail");
@@ -164,6 +165,7 @@ function renderRankings() {
   els.depositHeader.textContent = currentMode === "value" ? "积分(P)" : "积分(P)";
   els.valueHeader.style.display = currentMode === "value" ? "" : "none";
   els.depositHeader.style.display = currentMode === "deposit" ? "" : "none";
+  els.reviewExtraHeader.style.display = "none";
 
   els.rankingBody.innerHTML = rankedPlayers.map((player, index) => {
     const rank = index + 1;
@@ -204,16 +206,18 @@ function renderRankings() {
 
 function renderReviewRankings() {
   els.rankingTitle.textContent = "选手评价";
-  els.valueHeader.textContent = "点评数";
-  els.depositHeader.textContent = "总人气";
+  els.valueHeader.textContent = "身价(P)";
+  els.depositHeader.textContent = "点评数";
+  els.reviewExtraHeader.textContent = "总人气";
   els.valueHeader.style.display = "";
   els.depositHeader.style.display = "";
+  els.reviewExtraHeader.style.display = "";
   [...els.reviewSortControls.querySelectorAll("[data-review-sort]")].forEach(button => {
     button.classList.toggle("primary", button.dataset.reviewSort === reviewSort);
   });
 
   if (!reviewPlayers.length) {
-    els.rankingBody.innerHTML = `<tr><td colspan="5" style="padding:1rem;" class="muted">暂无选手评价数据。</td></tr>`;
+    els.rankingBody.innerHTML = `<tr><td colspan="6" style="padding:1rem;" class="muted">暂无选手评价数据。</td></tr>`;
     els.rankingCards.innerHTML = "";
     els.reviewDetail.innerHTML = "";
     return;
@@ -228,6 +232,7 @@ function renderReviewRankings() {
         <td style="padding:.75rem 1rem;font-weight:bold;${rankStyle(rank)}">${rankDisplay(rank)}</td>
         <td style="padding:.75rem 1rem;color:#f3f8ff;">${escapeHtml(player.playerName || "-")}</td>
         <td style="padding:.75rem 1rem;color:#a8b6d6;">${escapeHtml(player.teamName ? `${player.teamState} · ${player.teamName}` : "自由人")}</td>
+        <td style="padding:.75rem 1rem;color:#7cffb2;font-weight:700;">${player.value || 0}P</td>
         <td style="padding:.75rem 1rem;color:#7cffb2;font-weight:700;">${player.reviewCount || 0}</td>
         <td style="padding:.75rem 1rem;color:#ffd700;font-weight:700;">
           <div class="review-player-actions">
@@ -238,7 +243,7 @@ function renderReviewRankings() {
       </tr>
       ${selectedReviewPlayerId === player.playerId && reviewDetail ? `
         <tr class="review-inline-row">
-          <td colspan="5">${renderReviewDetailContent()}</td>
+          <td colspan="6">${renderReviewDetailContent()}</td>
         </tr>
       ` : ""}
     `;
@@ -253,6 +258,7 @@ function renderReviewRankings() {
       </span>
       <span class="ranking-card-metric">点评<strong>${player.reviewCount || 0}</strong></span>
       <span class="ranking-card-action">
+        <span>身价 ${player.value || 0}P</span>
         <span>总人气 ${formatNumber(player.totalPopularity ?? player.topPopularity)}</span>
         <button class="btn review-write-btn" type="button" data-open-review-form="${player.playerId}">点评</button>
       </span>
