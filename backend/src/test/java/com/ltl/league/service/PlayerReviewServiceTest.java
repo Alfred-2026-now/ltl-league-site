@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -92,14 +93,16 @@ class PlayerReviewServiceTest {
     }
 
     @Test
-    void tipReviewDeductsTipperDepositWritesLedgerAndDoesNotCreditAuthor() {
+    void tipReviewDeductsTipperDepositAndCreditsHalfToAuthor() {
         PlayerReview review = review(10L, 2L, 99L);
         review.setRatingCount(2);
         review.setRatingSum(8);
         review.setTipTotal(0);
         Player tipper = player(1L, "打赏人", 120);
+        Player author = player(99L, "点评作者", 30);
         when(reviewMapper.selectById(10L)).thenReturn(review);
         when(playerMapper.selectByIdForUpdate(1L)).thenReturn(tipper);
+        when(playerMapper.selectByIdForUpdate(99L)).thenReturn(author);
 
         PlayerReviewDtos.TipRequest request = new PlayerReviewDtos.TipRequest();
         request.setAmount(50);
@@ -107,15 +110,22 @@ class PlayerReviewServiceTest {
         service.tipReview(1L, 10L, request);
 
         assertEquals(70, tipper.getDeposit());
+        assertEquals(55, author.getDeposit());
         verify(playerMapper).updateById(tipper);
-        verify(playerMapper, never()).selectByIdForUpdate(99L);
+        verify(playerMapper).updateById(author);
+        verify(playerMapper, never()).selectByIdForUpdate(2L);
 
         ArgumentCaptor<PlayerDepositLedger> ledgerCaptor = ArgumentCaptor.forClass(PlayerDepositLedger.class);
-        verify(ledgerMapper).insert(ledgerCaptor.capture());
-        assertEquals(1L, ledgerCaptor.getValue().getPlayerId());
-        assertEquals(-50, ledgerCaptor.getValue().getAmount());
-        assertEquals("review_tip", ledgerCaptor.getValue().getType());
-        assertEquals("player_review", ledgerCaptor.getValue().getSource());
+        verify(ledgerMapper, times(2)).insert(ledgerCaptor.capture());
+        List<PlayerDepositLedger> ledgers = ledgerCaptor.getAllValues();
+        assertEquals(1L, ledgers.get(0).getPlayerId());
+        assertEquals(-50, ledgers.get(0).getAmount());
+        assertEquals("review_tip", ledgers.get(0).getType());
+        assertEquals("player_review", ledgers.get(0).getSource());
+        assertEquals(99L, ledgers.get(1).getPlayerId());
+        assertEquals(25, ledgers.get(1).getAmount());
+        assertEquals("review_tip_reward", ledgers.get(1).getType());
+        assertEquals("player_review", ledgers.get(1).getSource());
 
         ArgumentCaptor<PlayerReviewTip> tipCaptor = ArgumentCaptor.forClass(PlayerReviewTip.class);
         verify(tipMapper).insert(tipCaptor.capture());

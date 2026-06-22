@@ -188,6 +188,12 @@ public class PlayerReviewServiceImpl {
             throw new BusinessException(400, "选手积分不足，无法打赏");
         }
         int after = before - amount;
+        Player author = Objects.equals(review.getAuthorPlayerId(), actorPlayerId)
+                ? tipper
+                : playerMapper.selectByIdForUpdate(review.getAuthorPlayerId());
+        if (author == null || safeInt(author.getDeleted()) != 0) {
+            throw new BusinessException(404, "点评作者不存在");
+        }
 
         PlayerDepositLedger ledger = new PlayerDepositLedger();
         ledger.setPlayerId(actorPlayerId);
@@ -204,6 +210,25 @@ public class PlayerReviewServiceImpl {
 
         tipper.setDeposit(after);
         playerMapper.updateById(tipper);
+
+        int reward = amount / 2;
+        int authorBefore = safeInt(author.getDeposit());
+        int authorAfter = authorBefore + reward;
+        PlayerDepositLedger rewardLedger = new PlayerDepositLedger();
+        rewardLedger.setPlayerId(author.getId());
+        rewardLedger.setType("review_tip_reward");
+        rewardLedger.setAmount(reward);
+        rewardLedger.setReason("点评打赏分成：reviewId=" + reviewId);
+        rewardLedger.setBalanceBefore(authorBefore);
+        rewardLedger.setBalanceAfter(authorAfter);
+        rewardLedger.setSource("player_review");
+        rewardLedger.setOperator(tipper.getName());
+        rewardLedger.setIsVoided(0);
+        rewardLedger.setDeleted(0);
+        ledgerMapper.insert(rewardLedger);
+
+        author.setDeposit(authorAfter);
+        playerMapper.updateById(author);
 
         PlayerReviewTip tip = new PlayerReviewTip();
         tip.setReviewId(reviewId);
