@@ -517,7 +517,7 @@ function bindEvents() {
         await refreshSelectedReviewPlayer();
       } else if (tipButton) {
         const amount = Number(tipButton.dataset.tipAmount);
-        if (!window.confirm(`确认打赏 ${amount}P？打赏会扣除你的选手积分，会增加该点评的人气值。`)) {
+        if (!window.confirm(`确认打赏 ${amount}P？其中一半会转给点评作者，并增加该点评的人气值。`)) {
           return;
         }
         await tipReview(Number(tipButton.dataset.tipReview), amount);
