@@ -238,8 +238,10 @@ function activeTeamPlayers(teamId) {
   return players.filter(p => String(p.teamId) === String(teamId) && p.status === 1 && !p.isLoan);
 }
 
-function replacedPlayerSelectOptions(teamId, selectedId = "") {
-  const teamPlayers = teamId ? activeTeamPlayers(teamId) : [];
+function replacedPlayerSelectOptions(teamId, selectedId = "", excludedPlayerId = "") {
+  const teamPlayers = teamId
+    ? activeTeamPlayers(teamId).filter(p => String(p.id) !== String(excludedPlayerId || ""))
+    : [];
   if (!teamPlayers.length) {
     return `<option value="">请先选择使用队伍</option>`;
   }
@@ -258,6 +260,66 @@ function calcTeamLineValue(teamId) {
 
 function calcTeamRosterSize(teamId) {
   return activeTeamPlayers(teamId).length;
+}
+
+function matchTeamIds() {
+  if (!match) return [];
+  return [match.homeTeamId, match.awayTeamId].filter(id => id != null).map(id => String(id));
+}
+
+function inferPayingTeamIdForLoanPlayer(player) {
+  if (!player || player.teamId == null || !match) return null;
+  const ids = matchTeamIds();
+  const playerTeamId = String(player.teamId);
+  if (!ids.includes(playerTeamId)) return null;
+  return ids.find(id => id !== playerTeamId) || null;
+}
+
+function refreshReplacedPlayerOptions(row) {
+  const payingTeamId = row?.querySelector(".loan-paying-team")?.value || "";
+  const loanPlayerId = row?.querySelector(".loan-player")?.value || "";
+  const replacedSelect = row?.querySelector(".loan-replaced-player");
+  if (!replacedSelect) return;
+  const previousValue = replacedSelect.value;
+  replacedSelect.innerHTML = replacedPlayerSelectOptions(payingTeamId, previousValue, loanPlayerId);
+  const stillAvailable = Array.from(replacedSelect.options).some(option => option.value === previousValue);
+  if (!stillAvailable) {
+    replacedSelect.value = "";
+  }
+}
+
+function syncLoanPlayerFields(row) {
+  const playerSelect = row?.querySelector(".loan-player");
+  if (!playerSelect) return;
+  const player = players.find(p => String(p.id) === String(playerSelect.value));
+  if (!player) {
+    refreshReplacedPlayerOptions(row);
+    return;
+  }
+
+  const valueInput = row.querySelector(".loan-value");
+  if (valueInput && !valueInput.value) {
+    valueInput.value = player.value ?? 0;
+  }
+
+  const sourceTypeSelect = row.querySelector(".loan-source-type");
+  const sourceTeamSelect = row.querySelector(".loan-source-team");
+  if (sourceTypeSelect) {
+    sourceTypeSelect.value = player.teamId == null ? "free_agent" : "original_team";
+  }
+  if (sourceTeamSelect) {
+    sourceTeamSelect.value = player.teamId == null ? "" : String(player.teamId);
+  }
+
+  const payingTeamSelect = row.querySelector(".loan-paying-team");
+  if (payingTeamSelect && !payingTeamSelect.value) {
+    const inferredPayingTeamId = inferPayingTeamIdForLoanPlayer(player);
+    if (inferredPayingTeamId) {
+      payingTeamSelect.value = inferredPayingTeamId;
+    }
+  }
+
+  refreshReplacedPlayerOptions(row);
 }
 
 function calculatedLineValueWithLoans(teamId) {
@@ -310,7 +372,7 @@ function renderLoanInputs(rows = []) {
       <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:.5rem;align-items:end;">
         <label class="field"><span class="field-label">使用队伍</span><select class="input loan-paying-team">${teamSelectOptions(row.payingTeamId, true)}</select></label>
         <label class="field"><span class="field-label">选手</span><select class="input loan-player">${playerSelectOptions(row.playerId)}</select></label>
-        <label class="field"><span class="field-label">替换选手</span><select class="input loan-replaced-player">${replacedPlayerSelectOptions(row.payingTeamId, row.replacedPlayerId)}</select></label>
+        <label class="field"><span class="field-label">替换选手</span><select class="input loan-replaced-player">${replacedPlayerSelectOptions(row.payingTeamId, row.replacedPlayerId, row.playerId)}</select></label>
         <label class="field"><span class="field-label">结算身价</span><input class="input loan-value" type="number" min="0" value="${row.playerValue ?? ""}" /></label>
         <label class="field"><span class="field-label">来源</span><select class="input loan-source-type">
           <option value="original_team" ${row.sourceType !== "free_agent" ? "selected" : ""}>原队伍</option>
@@ -740,10 +802,7 @@ function wireEvents() {
     const payingTeamSelect = e.target.closest(".loan-paying-team");
     if (payingTeamSelect) {
       const row = payingTeamSelect.closest("[data-loan-row]");
-      const replacedSelect = row?.querySelector(".loan-replaced-player");
-      if (replacedSelect) {
-        replacedSelect.innerHTML = replacedPlayerSelectOptions(payingTeamSelect.value, replacedSelect.value);
-      }
+      refreshReplacedPlayerOptions(row);
       syncLineValuesFromLoans();
       schedulePreviewRefresh();
       return;
@@ -752,10 +811,7 @@ function wireEvents() {
     const playerSelect = e.target.closest(".loan-player");
     if (playerSelect) {
       const row = playerSelect.closest("[data-loan-row]");
-      const player = players.find(p => String(p.id) === String(playerSelect.value));
-      if (player && row?.querySelector(".loan-value") && !row.querySelector(".loan-value").value) {
-        row.querySelector(".loan-value").value = player.value ?? 0;
-      }
+      syncLoanPlayerFields(row);
       syncLineValuesFromLoans();
       schedulePreviewRefresh();
       return;
