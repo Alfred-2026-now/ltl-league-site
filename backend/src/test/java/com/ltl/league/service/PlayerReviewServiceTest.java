@@ -98,19 +98,19 @@ class PlayerReviewServiceTest {
         review.setRatingCount(2);
         review.setRatingSum(8);
         review.setTipTotal(0);
-        Player tipper = player(1L, "打赏人", 120);
+        Player tipper = player(1L, "打赏人", 1200);
         Player author = player(99L, "点评作者", 30);
         when(reviewMapper.selectById(10L)).thenReturn(review);
         when(playerMapper.selectByIdForUpdate(1L)).thenReturn(tipper);
         when(playerMapper.selectByIdForUpdate(99L)).thenReturn(author);
 
         PlayerReviewDtos.TipRequest request = new PlayerReviewDtos.TipRequest();
-        request.setAmount(50);
+        request.setAmount(500);
 
         service.tipReview(1L, 10L, request);
 
-        assertEquals(70, tipper.getDeposit());
-        assertEquals(55, author.getDeposit());
+        assertEquals(700, tipper.getDeposit());
+        assertEquals(280, author.getDeposit());
         verify(playerMapper).updateById(tipper);
         verify(playerMapper).updateById(author);
         verify(playerMapper, never()).selectByIdForUpdate(2L);
@@ -119,11 +119,11 @@ class PlayerReviewServiceTest {
         verify(ledgerMapper, times(2)).insert(ledgerCaptor.capture());
         List<PlayerDepositLedger> ledgers = ledgerCaptor.getAllValues();
         assertEquals(1L, ledgers.get(0).getPlayerId());
-        assertEquals(-50, ledgers.get(0).getAmount());
+        assertEquals(-500, ledgers.get(0).getAmount());
         assertEquals("review_tip", ledgers.get(0).getType());
         assertEquals("player_review", ledgers.get(0).getSource());
         assertEquals(99L, ledgers.get(1).getPlayerId());
-        assertEquals(25, ledgers.get(1).getAmount());
+        assertEquals(250, ledgers.get(1).getAmount());
         assertEquals("review_tip_reward", ledgers.get(1).getType());
         assertEquals("player_review", ledgers.get(1).getSource());
 
@@ -131,10 +131,10 @@ class PlayerReviewServiceTest {
         verify(tipMapper).insert(tipCaptor.capture());
         assertEquals(10L, tipCaptor.getValue().getReviewId());
         assertEquals(1L, tipCaptor.getValue().getTipperPlayerId());
-        assertEquals(50, tipCaptor.getValue().getAmount());
+        assertEquals(500, tipCaptor.getValue().getAmount());
 
-        assertEquals(50, review.getTipTotal());
-        assertEquals(95.0, review.getPopularityScore());
+        assertEquals(500, review.getTipTotal());
+        assertEquals(140.0, review.getPopularityScore());
     }
 
     @Test
