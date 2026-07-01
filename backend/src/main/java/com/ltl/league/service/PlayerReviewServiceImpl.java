@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 public class PlayerReviewServiceImpl {
 
     private static final Set<String> ALLOWED_POSITIONS = Set.of("TOP", "JUG", "MID", "BOT", "SUP");
-    private static final Set<Integer> ALLOWED_TIP_AMOUNTS = Set.of(10, 50, 100);
+    private static final Set<Integer> ALLOWED_TIP_AMOUNTS = Set.of(10, 50, 100, 200, 500);
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final PlayerMapper playerMapper;
@@ -342,7 +342,7 @@ public class PlayerReviewServiceImpl {
 
     private int normalizeTipAmount(PlayerReviewDtos.TipRequest request) {
         if (request == null || request.getAmount() == null || !ALLOWED_TIP_AMOUNTS.contains(request.getAmount())) {
-            throw new BusinessException(400, "打赏金额必须为10P、50P或100P");
+            throw new BusinessException(400, "打赏金额必须为10P、50P、100P、200P或500P");
         }
         return request.getAmount();
     }

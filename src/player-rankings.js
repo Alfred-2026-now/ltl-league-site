@@ -351,7 +351,7 @@ function renderReviewItem(review) {
           `).join("")}
         </div>
         <div class="review-tip-actions">
-          ${[10, 50, 100].map(amount => `<button class="btn" type="button" data-tip-review="${review.id}" data-tip-amount="${amount}">${amount}P</button>`).join("")}
+          ${[10, 50, 100, 200, 500].map(amount => `<button class="btn" type="button" data-tip-review="${review.id}" data-tip-amount="${amount}">${amount}P</button>`).join("")}
         </div>
         ${reviewDetail.admin ? `
           <div class="review-admin-actions">
