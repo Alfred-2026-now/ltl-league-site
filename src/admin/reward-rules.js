@@ -122,7 +122,7 @@ function renderParameterRow(param) {
           <span>${param.isActive ? "启用" : "停用"}</span>
         </label>
       </td>
-      <td><button class="btn ghost save-param-btn" type="button">保存</button></td>
+      <td class="action-cell"><button class="btn ghost save-param-btn" type="button">保存</button></td>
     </tr>
   `;
 }
