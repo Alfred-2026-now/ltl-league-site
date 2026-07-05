@@ -141,6 +141,9 @@ main {
 .page-shell {
   padding-top: 54px;
 }
+.rule-param-page {
+  max-width: min(1480px, calc(100vw - 44px));
+}
 .page-shell .section {
   margin-top: 0;
 }
@@ -1462,7 +1465,7 @@ code {
 }
 .rule-param-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
   gap: 18px;
   align-items: start;
 }
@@ -1504,11 +1507,16 @@ code {
   margin-bottom: 16px;
 }
 .rule-table-wrap {
+  max-width: 100%;
   overflow: auto;
 }
 .rule-table-wrap .admin-table {
   width: 100%;
+  min-width: 760px;
   border-collapse: collapse;
+}
+#parameterGroups .rule-table-wrap .admin-table {
+  min-width: 940px;
 }
 .rule-table-wrap .admin-table th,
 .rule-table-wrap .admin-table td {
@@ -1521,6 +1529,17 @@ code {
   color: var(--muted);
   font-size: 12px;
   text-transform: uppercase;
+}
+.rule-table-wrap .admin-table th:last-child,
+.rule-table-wrap .admin-table td.action-cell {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: rgba(14, 18, 32, 0.96);
+  box-shadow: -10px 0 16px rgba(0, 0, 0, 0.24);
+}
+.rule-table-wrap .admin-table th:last-child {
+  z-index: 2;
 }
 .empty-cell,
 .loading-panel {
@@ -2094,6 +2113,16 @@ code {
   text-align: center;
   padding: 26px;
   background: rgba(0, 0, 0, 0.2);
+}
+@media (max-width: 1200px) {
+  .rule-param-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .rule-history-panel {
+    position: static;
+    max-height: none;
+  }
 }
 @media (max-width: 900px) {
   .nav-toggle {
