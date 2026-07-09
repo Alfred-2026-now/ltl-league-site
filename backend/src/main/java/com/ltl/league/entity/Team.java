@@ -14,6 +14,9 @@ public class Team {
 
     private String state;
 
+    /** 赛季标识（如 s1/s2），与 matches.season 对齐，用于按赛季隔离战队 */
+    private String season;
+
     private String name;
 
     private Integer pCoins;

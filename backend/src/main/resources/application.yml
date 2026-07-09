@@ -27,7 +27,7 @@ mybatis-plus:
 
 ltl:
   league:
-    current-season: s1
+    current-season: s2
   ai:
     deepseek:
       api-key: ${DEEPSEEK_API_KEY:}

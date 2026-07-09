@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.ltl.league.entity.Team;
 import com.ltl.league.mapper.TeamMapper;
 import com.ltl.league.service.TeamService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -12,15 +13,24 @@ import java.util.List;
 @Service
 public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements TeamService {
 
+    @Value("${ltl.league.current-season:s1}")
+    private String currentSeason;
+
     @Override
     public List<Team> getAllTeams() {
         return lambdaQuery().list();
     }
 
     @Override
+    public List<Team> getCurrentSeasonTeams() {
+        return lambdaQuery().eq(Team::getSeason, currentSeason).list();
+    }
+
+    @Override
     public Team getByState(String state) {
         return lambdaQuery()
                 .eq(Team::getState, state)
+                .eq(Team::getSeason, currentSeason)
                 .one();
     }
 }

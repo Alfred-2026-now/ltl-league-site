@@ -9,6 +9,7 @@ USE ltl_league;
 CREATE TABLE IF NOT EXISTS `teams` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '队伍ID',
   `state` VARCHAR(20) NOT NULL COMMENT '国家简称（秦/楚/蜀/吴/越/燕）',
+  `season` VARCHAR(20) NOT NULL DEFAULT 's1' COMMENT '赛季标识（如 s1/s2），与 matches.season 对齐',
   `name` VARCHAR(50) NOT NULL COMMENT '队伍名称',
   `p_coins` INT NOT NULL DEFAULT 0 COMMENT '队伍P币数量',
   `points` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '积分',
@@ -18,7 +19,7 @@ CREATE TABLE IF NOT EXISTS `teams` (
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除标记',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_state` (`state`),
+  UNIQUE KEY `uk_state_season` (`state`, `season`, `deleted`),
   KEY `idx_rank` (`rank`),
   KEY `idx_points` (`points`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='队伍表';
@@ -26,7 +27,7 @@ CREATE TABLE IF NOT EXISTS `teams` (
 -- 2. 选手表
 CREATE TABLE IF NOT EXISTS `players` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '选手ID',
-  `team_id` BIGINT UNSIGNED NOT NULL COMMENT '所属队伍ID',
+  `team_id` BIGINT UNSIGNED NULL COMMENT '所属队伍ID（NULL表示自由人）',
   `name` VARCHAR(50) NOT NULL COMMENT '选手名称',
   `value` INT UNSIGNED NOT NULL DEFAULT 2000 COMMENT '选手身价',
   `position` VARCHAR(10) NULL COMMENT '主力位置（TOP/JUG/MID/BOT/SUP）',
