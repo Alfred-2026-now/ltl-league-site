@@ -16,7 +16,8 @@ async function request(endpoint, options = {}) {
 }
 
 export async function getTeams() {
-  return request("/teams");
+  // admin 场景需全量战队（含历史赛季）用于 id→名字映射
+  return request("/teams?season=all");
 }
 
 export async function getPlayers() {

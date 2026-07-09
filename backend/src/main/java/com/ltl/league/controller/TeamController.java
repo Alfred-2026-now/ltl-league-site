@@ -18,8 +18,13 @@ public class TeamController {
     }
 
     @GetMapping
-    public Result<List<Team>> getAllTeams() {
-        return Result.success(teamService.getAllTeams());
+    public Result<List<Team>> getAllTeams(@RequestParam(value = "season", required = false) String season) {
+        // season=all 返回全部赛季战队（admin 历史 id→名字映射场景）
+        // 不传或其他值返回当前赛季战队（公开战队列表）
+        if ("all".equalsIgnoreCase(season)) {
+            return Result.success(teamService.getAllTeams());
+        }
+        return Result.success(teamService.getCurrentSeasonTeams());
     }
 
     @GetMapping("/{state}")
