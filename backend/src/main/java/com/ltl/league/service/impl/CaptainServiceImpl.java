@@ -15,6 +15,7 @@ import com.ltl.league.mapper.PlayerDepositLedgerMapper;
 import com.ltl.league.mapper.PlayerMapper;
 import com.ltl.league.mapper.TeamMapper;
 import com.ltl.league.service.CaptainService;
+import com.ltl.league.util.ImageCompressUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -208,20 +209,20 @@ public class CaptainServiceImpl implements CaptainService {
         if (team == null) {
             throw new BusinessException(404, "所属队伍不存在");
         }
-        String original = file.getOriginalFilename();
-        String ext = original != null && original.contains(".")
-                ? original.substring(original.lastIndexOf("."))
-                : ".png";
-        String filename = "team_" + team.getId() + "_" + UUID.randomUUID() + ext;
+        String filename = "team_" + team.getId() + "_" + UUID.randomUUID() + ".jpg";
+        String finalName;
         try {
             Path dir = Path.of(uploadBaseDir, "teams");
             Files.createDirectories(dir);
-            file.transferTo(dir.resolve(filename).toFile());
+            Path target = dir.resolve(filename);
+            file.transferTo(target.toFile());
+            Path finalFile = ImageCompressUtil.compressUploadedFile(target);
+            finalName = finalFile.getFileName().toString();
         } catch (IOException e) {
             log.error("队伍图标上传失败", e);
             throw new BusinessException(500, "文件保存失败");
         }
-        String url = uploadUrlPrefix + "/teams/" + filename;
+        String url = uploadUrlPrefix + "/teams/" + finalName;
         team.setLogoUrl(url);
         teamMapper.updateById(team);
         return url;

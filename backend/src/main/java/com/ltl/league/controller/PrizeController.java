@@ -5,11 +5,11 @@ import com.ltl.league.dto.CreatePrizeRequest;
 import com.ltl.league.dto.PrizeVO;
 import com.ltl.league.dto.UpdatePrizeRequest;
 import com.ltl.league.service.PrizeService;
+import com.ltl.league.util.ImageCompressUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -72,12 +72,7 @@ public class PrizeController {
             return Result.error("请选择文件");
         }
 
-        String originalFilename = file.getOriginalFilename();
-        String ext = originalFilename != null && originalFilename.contains(".")
-                ? originalFilename.substring(originalFilename.lastIndexOf("."))
-                : ".jpg";
-
-        String filename = UUID.randomUUID().toString() + ext;
+        String filename = UUID.randomUUID().toString() + ".jpg";
 
         try {
             Path dir = Paths.get(uploadDir);
@@ -85,8 +80,10 @@ public class PrizeController {
 
             Path target = dir.resolve(filename);
             file.transferTo(target.toFile());
+            Path finalFile = ImageCompressUtil.compressUploadedFile(target);
+            String finalName = finalFile.getFileName().toString();
 
-            String url = uploadUrlPrefix + "/" + filename;
+            String url = uploadUrlPrefix + "/" + finalName;
 
             Map<String, String> result = new HashMap<>();
             result.put("url", url);

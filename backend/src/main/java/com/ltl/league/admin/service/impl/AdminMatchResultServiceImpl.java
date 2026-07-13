@@ -11,6 +11,7 @@ import com.ltl.league.entity.*;
 import com.ltl.league.exception.BusinessException;
 import com.ltl.league.mapper.*;
 import com.ltl.league.service.TeamService;
+import com.ltl.league.util.ImageCompressUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -278,18 +279,20 @@ public class AdminMatchResultServiceImpl implements AdminMatchResultService {
             throw new BusinessException(400, "请先填写并保存第 " + gameIndex + " 局小局信息后再上传截图");
         }
 
-        String ext = guessExt(file.getOriginalFilename());
-        String filename = UUID.randomUUID() + ext;
+        String filename = UUID.randomUUID() + ".jpg";
         Path dir = Path.of(uploadDir, String.valueOf(matchId), String.valueOf(resultId), "game-" + gameIndex);
+        Path finalFile;
         try {
             Files.createDirectories(dir);
             Path target = dir.resolve(filename);
             file.transferTo(target.toFile());
+            finalFile = ImageCompressUtil.compressUploadedFile(target);
         } catch (IOException e) {
             throw new BusinessException(500, "文件保存失败: " + e.getMessage());
         }
 
-        String url = uploadUrlPrefix + "/" + matchId + "/" + resultId + "/game-" + gameIndex + "/" + filename;
+        String finalName = finalFile.getFileName().toString();
+        String url = uploadUrlPrefix + "/" + matchId + "/" + resultId + "/game-" + gameIndex + "/" + finalName;
         Attachment att = new Attachment();
         att.setMatchId(matchId);
         att.setResultId(resultId);
@@ -297,7 +300,7 @@ public class AdminMatchResultServiceImpl implements AdminMatchResultService {
         att.setType("score_screenshot");
         att.setLabel("第" + gameIndex + "局战绩截图");
         att.setUrl(url);
-        att.setFilePath(dir.resolve(filename).toString());
+        att.setFilePath(finalFile.toString());
         att.setIsVoided(0);
         attachmentMapper.insert(att);
 

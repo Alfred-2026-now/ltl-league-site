@@ -1,5 +1,15 @@
 import { formatP, getTeamTotal } from "../services/leagueMetrics.js";
 
+/** 有 logoUrl 时覆盖 CSS 默认 --team-logo；无则沿用 data-state 静态图 */
+function applyTeamLogos(grid, teams) {
+  const cards = grid.querySelectorAll(".team-card");
+  cards.forEach((card, index) => {
+    const logoUrl = teams[index]?.logoUrl;
+    if (!logoUrl) return;
+    card.style.setProperty("--team-logo", `url("${String(logoUrl).replace(/"/g, "%22")}")`);
+  });
+}
+
 export function renderTeams(teams, filter = "") {
   const grid = document.getElementById("teamGrid");
   if (!grid) return;
@@ -28,6 +38,8 @@ export function renderTeams(teams, filter = "") {
       </ul>
     </article>
   `).join("");
+
+  applyTeamLogos(grid, visibleTeams);
 }
 
 export function setupTeamSearch(teams) {
