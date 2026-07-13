@@ -61,6 +61,7 @@ export async function getTeams() {
       points: item.points,
       rank: item.rank,
       logoUrl: item.logoUrl,
+      description: item.description || "",
       players: teamPlayers
     };
   });

@@ -762,7 +762,7 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 .team-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 18px;
 }
 .team-card {
@@ -897,6 +897,22 @@ input[type="number"]::-webkit-outer-spin-button {
 .team-top .eyebrow {
   margin-top: 8px;
   text-shadow: 0 0 16px rgba(121, 231, 255, 0.28);
+}
+
+.team-desc {
+  margin: 4px 0 14px;
+  color: rgba(214, 228, 255, 0.78);
+  font-size: 0.95rem;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 4.95em;
+  overflow: hidden;
+}
+
+.team-desc.is-empty {
+  color: rgba(214, 228, 255, 0.42);
+  font-style: italic;
 }
 
 .rank-pill {

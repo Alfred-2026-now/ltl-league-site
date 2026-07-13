@@ -1,5 +1,13 @@
 import { formatP, getTeamTotal } from "../services/leagueMetrics.js";
 
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 /** 有 logoUrl 时覆盖 CSS 默认 --team-logo；无则沿用 data-state 静态图 */
 function applyTeamLogos(grid, teams) {
   const cards = grid.querySelectorAll(".team-card");
@@ -10,13 +18,21 @@ function applyTeamLogos(grid, teams) {
   });
 }
 
+function renderDescription(description) {
+  const text = (description || "").trim();
+  if (!text) {
+    return `<p class="team-desc is-empty">暂无队伍简介</p>`;
+  }
+  return `<p class="team-desc">${escapeHtml(text)}</p>`;
+}
+
 export function renderTeams(teams, filter = "") {
   const grid = document.getElementById("teamGrid");
   if (!grid) return;
 
   const query = filter.trim().toLowerCase();
   const visibleTeams = teams.filter(team => {
-    const searchable = `${team.name} ${team.state} ${team.players.map(player => player[0]).join(" ")}`;
+    const searchable = `${team.name} ${team.state} ${team.description || ""} ${team.players.map(player => player[0]).join(" ")}`;
     return searchable.toLowerCase().includes(query);
   });
 
@@ -24,17 +40,18 @@ export function renderTeams(teams, filter = "") {
     <article class="team-card" data-state="${team.state}">
       <div class="team-top">
         <div>
-          <div class="team-name">${team.name}</div>
-          <p class="eyebrow">LTL TEAM</p>
+          <div class="team-name">${escapeHtml(team.name)}</div>
+          <p class="eyebrow">LTL TEAM · ${escapeHtml(team.state)}</p>
         </div>
       </div>
+      ${renderDescription(team.description)}
       <div class="team-meta">
         <div><span>在职总身价</span><strong>${formatP(getTeamTotal(team))}</strong></div>
         <div><span>队伍P币</span><strong>${formatP(team.p)}</strong></div>
         <div><span>在职人数</span><strong>${team.players.length}人</strong></div>
       </div>
       <ul class="roster">
-        ${team.players.map(player => `<li><span>${player[0]}</span><small>身价 ${formatP(player[1])} | 积分 ${formatP(player[2] || 0)}</small></li>`).join("")}
+        ${team.players.map(player => `<li><span>${escapeHtml(player[0])}</span><small>身价 ${formatP(player[1])} | 积分 ${formatP(player[2] || 0)}</small></li>`).join("")}
       </ul>
     </article>
   `).join("");
