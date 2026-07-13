@@ -8,6 +8,7 @@ import com.ltl.league.entity.*;
 import com.ltl.league.mapper.*;
 import com.ltl.league.service.MatchService;
 import com.ltl.league.service.TeamService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -17,6 +18,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements MatchService {
+
+    @Value("${ltl.league.current-season:s1}")
+    private String currentSeason;
 
     private final GameMapper gameMapper;
     private final MatchResultMapper matchResultMapper;
@@ -49,6 +53,7 @@ public class MatchServiceImpl extends ServiceImpl<MatchMapper, Match> implements
     @Override
     public List<Match> getAllMatches() {
         return lambdaQuery()
+                .eq(Match::getSeason, currentSeason)
                 .eq(Match::getSchedulePublished, 1)
                 .orderByAsc(Match::getMatchDate)
                 .list();
