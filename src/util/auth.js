@@ -103,9 +103,9 @@ export const authApi = {
     }
   },
 
-  // 检查是否为管理员
+  // 检查是否为管理员（位掩码：role 含管理员位 1 即可，兼容管理员+队长 role=3）
   isAdmin(user) {
-    return user && user.role === 1;
+    return user && (user.role & 1) !== 0;
   }
 };
 

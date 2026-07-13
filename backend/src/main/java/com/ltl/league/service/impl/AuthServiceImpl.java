@@ -23,6 +23,7 @@ public class AuthServiceImpl implements AuthService {
 
     private static final Integer ROLE_USER = 0;
     private static final Integer ROLE_ADMIN = 1;
+    private static final Integer ROLE_CAPTAIN = 2;
 
     private static final String[] DEFAULT_ADMINS = {"天下人", "陶吉吉", "大橙子"};
 
@@ -55,7 +56,7 @@ public class AuthServiceImpl implements AuthService {
                 .playerId(player.getId())
                 .playerName(player.getName())
                 .role(role)
-                .roleName(role == ROLE_ADMIN ? "管理员" : "普通用户")
+                .roleName(roleNameOf(role))
                 .build();
     }
 
@@ -77,7 +78,7 @@ public class AuthServiceImpl implements AuthService {
                 .playerId(player.getId())
                 .playerName(player.getName())
                 .role(role)
-                .roleName(role == ROLE_ADMIN ? "管理员" : "普通用户")
+                .roleName(roleNameOf(role))
                 .build();
     }
 
@@ -85,6 +86,27 @@ public class AuthServiceImpl implements AuthService {
     public void logout() {
         // Cookie-based 登录，登出操作由前端删除 Cookie 处理
         log.info("用户登出");
+    }
+
+    /**
+     * 角色名映射（支持位掩码：1=管理员，2=队长，3=管理员+队长）
+     */
+    private String roleNameOf(Integer role) {
+        if (role == null || role == 0) {
+            return "普通用户";
+        }
+        boolean isAdmin = (role & ROLE_ADMIN) != 0;
+        boolean isCaptain = (role & ROLE_CAPTAIN) != 0;
+        if (isAdmin && isCaptain) {
+            return "管理员/队长";
+        }
+        if (isAdmin) {
+            return "管理员";
+        }
+        if (isCaptain) {
+            return "队长";
+        }
+        return "普通用户";
     }
 
     /**

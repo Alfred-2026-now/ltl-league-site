@@ -24,6 +24,11 @@ async function getTeams() {
   return request("/teams?season=all");
 }
 
+async function getCurrentTeams() {
+  // 当前赛季战队，用于编辑/筛选下拉
+  return request("/teams");
+}
+
 async function createPlayer(payload) {
   return request("/admin/players", {
     method: "POST",
@@ -48,6 +53,7 @@ async function deletePlayer(playerId) {
 
 let players = [];
 let teams = [];
+let currentTeams = [];
 let currentEditingPlayer = null;
 const els = {};
 
@@ -66,6 +72,8 @@ function bindEls() {
   els.formPuuid = document.getElementById("formPuuid");
   els.formTeam = document.getElementById("formTeam");
   els.formStatus = document.getElementById("formStatus");
+  els.formRoleAdmin = document.getElementById("formRoleAdmin");
+  els.formRoleCaptain = document.getElementById("formRoleCaptain");
   els.formIsSubstitute = document.getElementById("formIsSubstitute");
   els.formPlayerId = document.getElementById("formPlayerId");
 
@@ -76,11 +84,11 @@ function bindEls() {
 }
 
 function renderTeamOptions() {
-  return `<option value="">自由人</option>${teams.map(t => `<option value="${t.id}">${t.state} · ${t.name}</option>`).join("")}`;
+  return `<option value="">自由人</option>${currentTeams.map(t => `<option value="${t.id}">${t.state} · ${t.name}</option>`).join("")}`;
 }
 
 function renderFilterTeamOptions() {
-  return `<option value="">全部</option>${teams.map(t => `<option value="${t.id}">${t.state} · ${t.name}</option>`).join("")}`;
+  return `<option value="">全部</option>${currentTeams.map(t => `<option value="${t.id}">${t.state} · ${t.name}</option>`).join("")}`;
 }
 
 function getStatusText(status) {
@@ -151,6 +159,8 @@ function openCreateDialog() {
   els.formTeam.innerHTML = renderTeamOptions();
   els.formTeam.value = "";
   els.formStatus.value = "1";
+  els.formRoleAdmin.checked = false;
+  els.formRoleCaptain.checked = false;
   els.formIsSubstitute.checked = false;
   els.formPlayerId.value = "";
   els.formTeam.disabled = false;
@@ -169,6 +179,9 @@ function openEditDialog(player) {
   els.formTeam.innerHTML = renderTeamOptions();
   els.formTeam.value = player.teamId ? String(player.teamId) : "";
   els.formStatus.value = String(player.status || 1);
+  const role = player.role ?? 0;
+  els.formRoleAdmin.checked = (role & 1) !== 0;
+  els.formRoleCaptain.checked = (role & 2) !== 0;
   els.formIsSubstitute.checked = player.isSubstitute === 1;
   els.formPlayerId.value = player.id;
   els.deletePlayerBtn.style.display = "";
@@ -200,7 +213,8 @@ async function savePlayer() {
       gameAccount: els.formGameAccount.value || null,
       puuid: els.formPuuid.value || null,
       isSubstitute: els.formIsSubstitute.checked ? 1 : 0,
-      status: status
+      status: status,
+      role: (els.formRoleAdmin.checked ? 1 : 0) | (els.formRoleCaptain.checked ? 2 : 0)
     };
 
     if (currentEditingPlayer) {
@@ -262,6 +276,7 @@ async function init() {
   bindEls();
   try {
     teams = await getTeams();
+    currentTeams = await getCurrentTeams();
     players = await getPlayers();
     els.filterTeam.innerHTML = renderFilterTeamOptions();
     renderRows();

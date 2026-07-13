@@ -37,6 +37,7 @@ public class PlayerTransferServiceImpl implements PlayerTransferService {
     private static final String RECIPIENT_PLAYER = "PLAYER";
     private static final String RECIPIENT_TEAM = "TEAM";
     private static final String STATUS_COMPLETED = "completed";
+    private static final Integer ROLE_CAPTAIN = 2;
 
     private final PlayerMapper playerMapper;
     private final TeamMapper teamMapper;
@@ -90,7 +91,7 @@ public class PlayerTransferServiceImpl implements PlayerTransferService {
                 fillRecipientTeam(vo, team);
             }
 
-            Integer fee = calculateFee(recipientType, amount);
+            Integer fee = calculateFee(recipientType, amount, donor.getRole());
             Integer totalCost = amount + fee;
             vo.setFeeAmount(fee);
             vo.setTotalCost(totalCost);
@@ -158,7 +159,7 @@ public class PlayerTransferServiceImpl implements PlayerTransferService {
         validateTransferPlayers(donor, recipient);
         ensurePersonalTransferCooldown(donor.getId());
 
-        Integer fee = calculateFee(RECIPIENT_PLAYER, amount);
+        Integer fee = calculateFee(RECIPIENT_PLAYER, amount, donor.getRole());
         Integer totalCost = amount + fee;
         Integer donorBalance = donor.getDeposit() != null ? donor.getDeposit() : 0;
         if (donorBalance < totalCost) {
@@ -198,7 +199,7 @@ public class PlayerTransferServiceImpl implements PlayerTransferService {
             throw new BusinessException(404, "赠与战队不存在");
         }
 
-        Integer fee = calculateFee(RECIPIENT_TEAM, amount);
+        Integer fee = calculateFee(RECIPIENT_TEAM, amount, donor.getRole());
         Integer totalCost = amount + fee;
         Integer donorBalance = donor.getDeposit() != null ? donor.getDeposit() : 0;
         if (donorBalance < totalCost) {
@@ -275,8 +276,12 @@ public class PlayerTransferServiceImpl implements PlayerTransferService {
         return recipientType;
     }
 
-    private Integer calculateFee(String recipientType, Integer amount) {
+    private Integer calculateFee(String recipientType, Integer amount, Integer donorRole) {
         if (RECIPIENT_TEAM.equals(recipientType)) {
+            // 队长与队伍账户之间无税率流通（位掩码兼容管理员+队长）
+            if (donorRole != null && (donorRole & ROLE_CAPTAIN) != 0) {
+                return 0;
+            }
             return Math.toIntExact(Math.round(amount * ruleParameterService.getDecimal("transfer.team_fee_rate")));
         }
         int tierWidth = ruleParameterService.getInt("transfer.player_tier_width");

@@ -28,6 +28,9 @@ public class Team {
 
     private String logoUrl;
 
+    /** 队伍简介 */
+    private String description;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 

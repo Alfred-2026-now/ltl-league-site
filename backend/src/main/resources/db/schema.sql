@@ -15,11 +15,11 @@ CREATE TABLE IF NOT EXISTS `teams` (
   `points` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '积分',
   `rank` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '排名',
   `logo_url` VARCHAR(255) NULL COMMENT '队徽图片URL',
+  `description` VARCHAR(500) NULL COMMENT '队伍简介',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除标记',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_state_season` (`state`, `season`, `deleted`),
   KEY `idx_rank` (`rank`),
   KEY `idx_points` (`points`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='队伍表';

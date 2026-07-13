@@ -193,6 +193,10 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         if (request.getIsSubstitute() != null) {
             player.setIsSubstitute(request.getIsSubstitute());
         }
+        if (request.getRole() != null) {
+            // 角色：0=普通用户 1=管理员 2=队长
+            player.setRole(request.getRole());
+        }
         if (request.getStatus() != null) {
             // 状态变更时的逻辑验证
             if (request.getStatus() == 3 && request.getTeamId() != null) {
@@ -508,6 +512,10 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
     }
 
     private void applyPlayerSignLoss(Player player, Long teamId, Integer playerValue) {
+        // 队长入队不计买入损耗（位掩码 role 含队长位 2 即豁免，兼容管理员+队长 role=3）
+        if (player.getRole() != null && (player.getRole() & 2) != 0) {
+            return;
+        }
         int value = playerValue != null ? playerValue : 0;
         int loss = Math.toIntExact(Math.round(value * 0.4));
         if (loss <= 0) {

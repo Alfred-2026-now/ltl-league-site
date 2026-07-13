@@ -38,9 +38,12 @@
 
     let navItems = [...baseNavItems];
 
-    // 如果是管理员，添加管理入口
-    if (currentUser && currentUser.role === 1) {
+    // 按角色添加专属入口（位掩码：1=管理员，2=队长，3=两者，两个 tab 独立显示）
+    if (currentUser && (currentUser.role & 1)) {
       navItems.push({ href: "admin-matches.html", text: "管理后台", highlight: true });
+    }
+    if (currentUser && (currentUser.role & 2)) {
+      navItems.push({ href: "captain.html", text: "队长管理", highlight: true });
     }
 
     const navLinksContainer = document.getElementById('navLinks');

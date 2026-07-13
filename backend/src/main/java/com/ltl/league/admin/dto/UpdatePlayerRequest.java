@@ -12,4 +12,5 @@ public class UpdatePlayerRequest {
     private String puuid;
     private Integer isSubstitute;
     private Integer status;
+    private Integer role;
 }
