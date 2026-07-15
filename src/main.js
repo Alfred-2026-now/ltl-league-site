@@ -4,7 +4,7 @@ import { renderSchedule } from "./features/matches.js";
 import { setupAccordion, setupActiveNav, setupNav } from "./features/navigation.js";
 import { renderStandings } from "./features/standings.js";
 import { setupTeamManagerAgent } from "./features/teamManagerAgent.js";
-import { renderTeams, setupTeamSearch } from "./features/teams.js";
+import { renderTeams, renderHomeTeams, setupTeamSearch } from "./features/teams.js";
 import { loadAllData } from "./services/api.js";
 
 async function initApp() {
@@ -17,6 +17,7 @@ async function initApp() {
     renderAnnouncements(data.announcements);
     renderStandings(data.teams);
     renderTeams(data.teams);
+    renderHomeTeams(data.teams);
     renderRules(data.rules);
     renderSchedule(data.schedule, data.teams);
 

@@ -65,3 +65,45 @@ export function setupTeamSearch(teams) {
 
   search.addEventListener("input", event => renderTeams(teams, event.target.value));
 }
+
+const HOME_STATE_SLUG = {
+  秦: "qin",
+  楚: "chu",
+  蜀: "shu",
+  吴: "wu",
+  越: "yue",
+  燕: "yan"
+};
+
+/** 首页参赛战队卡片：队徽 + 名称 + 简介，一行两个 */
+export function renderHomeTeams(teams) {
+  const grid = document.getElementById("homeTeamGrid");
+  if (!grid) return;
+
+  const subtitle = document.querySelector(".home-teams-subtitle");
+  if (subtitle) {
+    subtitle.textContent = `${teams.length}支顶级战队集结，开启第二赛季的巅峰对决`;
+  }
+
+  grid.innerHTML = teams.map((team, i) => {
+    const logoUrl = team.logoUrl || `/assets/thumbs/${HOME_STATE_SLUG[team.state] || "qin"}-160.png`;
+    const desc = (team.description || "").trim();
+    const playerCount = team.players?.length || 0;
+    return `
+      <a class="home-team-card" data-state="${escapeHtml(team.state)}" href="teams.html" style="animation-delay:${i * 0.08}s">
+        <div class="home-team-logo">
+          <img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(team.name)}" loading="lazy" />
+        </div>
+        <div class="home-team-info">
+          <div class="home-team-name">${escapeHtml(team.name)}</div>
+          <div class="home-team-tag">LTL · ${escapeHtml(team.state)}</div>
+          ${desc ? `<p class="home-team-desc">${escapeHtml(desc)}</p>` : ""}
+          <div class="home-team-stats">
+            <span>在职 <strong>${playerCount}人</strong></span>
+            <span>P币 <strong>${formatP(team.p)}</strong></span>
+          </div>
+        </div>
+      </a>
+    `;
+  }).join("");
+}

@@ -3,13 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LTL联赛规则中心</title>
+  <title>LTL联赛 · 新章启幕，峡谷再战</title>
   <link rel="stylesheet" href="src/styles/main.css" />
 </head>
-<body>
+<body class="home-page">
   <header class="site-header">
     <nav class="nav">
-      <a class="brand" href="index.html"><span class="brand-mark">LTL</span><span class="brand-text">联赛规则中心</span></a>
       <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
       <div class="nav-links" id="navLinks">
         <a href="announcements.html">公告</a>
@@ -26,28 +25,23 @@
   </header>
 
   <main id="home">
-    <section class="hero">
-      <div class="hero-copy">
-        <p class="eyebrow">LTL LEAGUE / RULE CENTER</p>
-        <h1>LTL联赛规则中心</h1>
-        <p class="hero-desc">集中展示群内联赛赛制、P币、身价、租借、转会、奢侈税与多人名单规则。后续只需要更新结构化数据，大家就能快速查阅最新规则。</p>
-        <div class="hero-actions">
-          <a class="btn primary" href="rules.html">查看规则</a>
-          <a class="btn ghost" href="tools.html">使用计算器</a>
-        </div>
-      </div>
-      <div class="hero-card">
-        <div class="trophy">🏆</div>
-        <h2>当前工资帽参考线</h2>
-        <div class="hero-number" id="taxLineDisplay">-</div>
-        <p id="taxLineFormula">工资帽线=所有在战队选手平均身价×5×92%</p>
-      </div>
+    <section class="home-hero">
+      <img class="hero-banner" src="assets/hero-bg.webp" alt="LTL联赛S2正式开幕 — 新章启幕，峡谷再战" />
     </section>
 
-    <section class="stats-grid" id="statsGrid"></section>
+    <section class="home-teams" id="homeTeams">
+      <div class="home-teams-header">
+        <div class="home-teams-line"></div>
+        <p class="home-teams-eyebrow">SEASON 2 · TEAMS</p>
+        <h2 class="home-teams-title">参赛战队</h2>
+        <p class="home-teams-subtitle">六支顶级战队集结，开启第二赛季的巅峰对决</p>
+        <div class="home-teams-line"></div>
+      </div>
+      <div class="home-team-grid" id="homeTeamGrid"></div>
+    </section>
   </main>
 
-  <footer class="footer"><p>LTL联赛规则中心｜建议每次规则更新后同步修改结构化数据。</p></footer>
+  <footer class="footer"><p>LTL联赛｜新章启幕，峡谷再战</p></footer>
   <script type="module" src="src/main.js"></script>
   <script src="src/components/public-nav.js"></script>
 </body>

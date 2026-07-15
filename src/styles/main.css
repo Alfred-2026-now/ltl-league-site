@@ -2161,6 +2161,19 @@ code {
   .nav-links.show {
     display: flex;
   }
+  body.home-page .nav-links.show {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  body.home-page .nav-center {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  body.home-page .nav-right {
+    position: static;
+    transform: none;
+    margin-top: 8px;
+  }
   .nav-links a {
     padding: 12px 14px;
     border-radius: 8px;
@@ -2442,5 +2455,292 @@ code {
 
   .review-actions select {
     width: 100%;
+  }
+}
+
+/* ===================== 首页 ===================== */
+
+/* 透明头部叠在英雄图上 */
+body.home-page .site-header {
+  position: absolute;
+  background: transparent;
+  border-bottom: none;
+  backdrop-filter: none;
+  width: 100%;
+  z-index: 20;
+}
+body.home-page .nav {
+  padding: 10px 22px;
+  max-width: none;
+}
+body.home-page .nav-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex: 1 1 auto;
+}
+body.home-page .nav-center {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+body.home-page .nav-right {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.nav-inline-logo {
+  height: 40px;
+  width: auto;
+  margin-right: 8px;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
+}
+
+/* LOGO 图片（已去黑底，透明背景） */
+.brand-logo {
+  height: 44px;
+  width: auto;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
+  transition: filter 0.3s;
+}
+.brand-logo:hover {
+  filter: drop-shadow(0 0 14px rgba(255, 207, 108, 0.4));
+}
+
+/* 首页 main 不限宽、去 padding */
+body.home-page main {
+  max-width: none;
+  padding: 0;
+}
+
+/* 英雄横幅 */
+.home-hero {
+  position: relative;
+  max-width: 1600px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+.hero-banner {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1600 / 686;
+  object-fit: cover;
+  object-position: center;
+}
+
+/* ---- 参赛战队区域 ---- */
+.home-teams {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 36px 22px 100px;
+  text-align: center;
+  position: relative;
+}
+.home-teams-header {
+  margin-bottom: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.home-teams-line {
+  width: 1px;
+  height: 28px;
+  background: linear-gradient(to bottom, transparent, rgba(255, 207, 108, 0.5), transparent);
+}
+.home-teams-eyebrow {
+  color: rgba(255, 207, 108, 0.7);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  font-weight: 600;
+  font-size: 12px;
+  margin: 0;
+}
+.home-teams-title {
+  font-size: clamp(34px, 4.5vw, 48px);
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  margin: 0;
+  color: #fff;
+  background: linear-gradient(180deg, #fff 0%, #ffe9b8 50%, #ffcf6c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 12px rgba(255, 207, 108, 0.15));
+}
+.home-teams-subtitle {
+  color: rgba(168, 182, 214, 0.8);
+  font-size: 15px;
+  margin: 4px 0 0;
+  line-height: 1.7;
+  letter-spacing: 0.05em;
+}
+
+/* ---- 首页战队卡片网格 — 一行两个 ---- */
+.home-team-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  text-align: left;
+}
+
+/* 首页战队卡片 */
+.home-team-card {
+  --hc-glow: rgba(255, 207, 108, 0.5);
+  --hc-line: rgba(255, 207, 108, 0.18);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border-radius: 14px;
+  padding: 22px 26px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(135deg, rgba(18, 24, 48, 0.92), rgba(8, 12, 28, 0.92));
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  text-decoration: none;
+  color: inherit;
+}
+/* 金色顶线装饰 */
+.home-team-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 207, 108, 0.3) 30%, rgba(255, 207, 108, 0.3) 70%, transparent);
+}
+.home-team-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 207, 108, 0.25);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 207, 108, 0.08);
+}
+.home-team-card[data-state="秦"] { --hc-glow: rgba(105, 190, 255, 0.5); }
+.home-team-card[data-state="楚"] { --hc-glow: rgba(184, 116, 255, 0.5); }
+.home-team-card[data-state="蜀"] { --hc-glow: rgba(92, 255, 173, 0.5); }
+.home-team-card[data-state="吴"] { --hc-glow: rgba(255, 207, 108, 0.5); }
+.home-team-card[data-state="越"] { --hc-glow: rgba(255, 112, 172, 0.5); }
+.home-team-card[data-state="燕"] { --hc-glow: rgba(255, 135, 84, 0.5); }
+
+/* 队徽光晕 */
+.home-team-logo {
+  flex: 0 0 auto;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+.home-team-logo::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--hc-glow) 0%, transparent 70%);
+  filter: blur(10px);
+  opacity: 0.7;
+  transition: opacity 0.3s;
+}
+.home-team-card:hover .home-team-logo::before {
+  opacity: 1;
+}
+.home-team-logo img {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 6px var(--hc-glow));
+  z-index: 1;
+}
+
+/* 队伍信息 */
+.home-team-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.home-team-name {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  color: #fff;
+}
+.home-team-tag {
+  color: rgba(255, 207, 108, 0.6);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+.home-team-desc {
+  color: rgba(168, 182, 214, 0.55);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 6px 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.home-team-stats {
+  display: flex;
+  gap: 14px;
+  margin-top: 8px;
+}
+.home-team-stats span {
+  color: rgba(168, 182, 214, 0.5);
+  font-size: 12px;
+}
+.home-team-stats strong {
+  color: rgba(255, 207, 108, 0.85);
+  font-weight: 700;
+}
+
+/* 进入动画 */
+.home-team-card {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: homeCardIn 0.6s ease forwards;
+}
+@keyframes homeCardIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 响应式 */
+@media (max-width: 900px) {
+  .home-teams {
+    padding: 52px 18px 72px;
+  }
+  .home-team-card {
+    padding: 16px 20px;
+    gap: 14px;
+  }
+  .home-team-logo {
+    width: 60px;
+    height: 60px;
+  }
+  .home-team-logo img {
+    width: 48px;
+    height: 48px;
+  }
+  .home-team-name {
+    font-size: 20px;
+  }
+}
+@media (max-width: 520px) {
+  .home-team-grid {
+    grid-template-columns: 1fr;
   }
 }

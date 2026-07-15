@@ -20,8 +20,7 @@ export const PUBLIC_NAV = [
   { href: "tools.html", text: "计算器" },
   { href: "schedule.html", text: "赛程" },
   { href: "match-history.html", text: "战绩" },
-  { href: "prize-exchange.html", text: "积分兑换" },
-  { href: "point-transfer.html", text: "积分转赠" }
+  { href: "prize-exchange.html", text: "积分兑换" }
 ];
 
 // 渲染导航HTML的函数
