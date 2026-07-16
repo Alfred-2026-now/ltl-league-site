@@ -11,6 +11,7 @@ public final class RuleParameterCatalog {
     public static final String GROUP_LOAN_FEE = "loan_fee";
     public static final String GROUP_PLAYER_TRANSFER = "player_transfer";
     public static final String GROUP_SALARY = "salary";
+    public static final String GROUP_DAILY_FEE = "daily_fee";
 
     private static final Map<String, Spec> SPECS = buildSpecs();
 
@@ -112,7 +113,15 @@ public final class RuleParameterCatalog {
         add(specs, "salary.max_rate", GROUP_SALARY, "工资发放", "工资比例最大值", "100", "int", "%",
                 "后台工资发放允许输入的最高比例。", order++);
         add(specs, "salary.default_rate", GROUP_SALARY, "工资发放", "默认工资比例", "10", "int", "%",
-                "后台工资发放输入框默认值；工资 = 选手身价 × 比例。", order);
+                "后台工资发放输入框默认值；工资 = 选手身价 × 比例。", order++);
+
+        order = 600;
+        add(specs, "daily_fee.enabled", GROUP_DAILY_FEE, "每日维护费", "功能开关", "0", "int", "",
+                "设为 1 开启每日自动扣款，设为 0 关闭。默认关闭。", order++);
+        add(specs, "daily_fee.amount", GROUP_DAILY_FEE, "每日维护费", "每日扣款金额", "50", "int", "P",
+                "每位选手每日自动扣除的积分；开启后生效。", order++);
+        add(specs, "daily_fee.min_balance", GROUP_DAILY_FEE, "每日维护费", "扣款门槛", "1000", "int", "P",
+                "选手当前积分低于本值时不扣款；等于或高于本值时按金额扣除。", order);
 
         return specs;
     }

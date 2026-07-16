@@ -86,7 +86,8 @@ function typeText(type) {
     player_sign_loss: "买入损耗",
     player_release_loss: "解约损耗",
     team_loss_reversal: "队伍扣款回滚",
-    match_result_reversal: "赛果回滚"
+    match_result_reversal: "赛果回滚",
+    daily_maintenance_fee: "每日维护费"
   };
   return map[type] || type;
 }

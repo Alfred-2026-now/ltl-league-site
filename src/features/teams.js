@@ -26,6 +26,38 @@ function renderDescription(description) {
   return `<p class="team-desc">${escapeHtml(text)}</p>`;
 }
 
+function isCaptain(player) {
+  return ((player[3] || 0) & 2) !== 0;
+}
+
+function renderRosterItem(player, captain) {
+  const badge = captain ? `<em class="roster-badge">队长</em>` : "";
+  return `<li class="${captain ? "is-captain" : ""}"><span>${escapeHtml(player[0])}${badge}</span><small>身价 ${formatP(player[1])} | 积分 ${formatP(player[2] || 0)}</small></li>`;
+}
+
+function renderRoster(players) {
+  const captains = players.filter(isCaptain);
+  const members = players.filter(player => !isCaptain(player));
+  const sections = [];
+  if (captains.length) {
+    sections.push(`
+      <div class="roster-section">
+        <p class="roster-label">队长</p>
+        <ul class="roster">${captains.map(player => renderRosterItem(player, true)).join("")}</ul>
+      </div>
+    `);
+  }
+  sections.push(`
+    <div class="roster-section">
+      <p class="roster-label">队员</p>
+      <ul class="roster">${members.length
+        ? members.map(player => renderRosterItem(player, false)).join("")
+        : `<li class="is-empty"><span>暂无普通队员</span></li>`}</ul>
+    </div>
+  `);
+  return sections.join("");
+}
+
 export function renderTeams(teams, filter = "") {
   const grid = document.getElementById("teamGrid");
   if (!grid) return;
@@ -50,9 +82,9 @@ export function renderTeams(teams, filter = "") {
         <div><span>队伍P币</span><strong>${formatP(team.p)}</strong></div>
         <div><span>在职人数</span><strong>${team.players.length}人</strong></div>
       </div>
-      <ul class="roster">
-        ${team.players.map(player => `<li><span>${escapeHtml(player[0])}</span><small>身价 ${formatP(player[1])} | 积分 ${formatP(player[2] || 0)}</small></li>`).join("")}
-      </ul>
+      <div class="roster-groups">
+        ${renderRoster(team.players)}
+      </div>
     </article>
   `).join("");
 

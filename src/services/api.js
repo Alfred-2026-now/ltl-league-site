@@ -51,7 +51,12 @@ export async function getTeams() {
   return data.map(item => {
     const teamPlayers = allPlayers
       .filter(p => p.teamId === item.id)
-      .map(p => [p.name, p.value, p.deposit || 0]);
+      .map(p => [p.name, p.value, p.deposit || 0, p.role || 0])
+      .sort((a, b) => {
+        const aCaptain = (a[3] & 2) !== 0 ? 0 : 1;
+        const bCaptain = (b[3] & 2) !== 0 ? 0 : 1;
+        return aCaptain - bCaptain;
+      });
 
     return {
       id: item.id,

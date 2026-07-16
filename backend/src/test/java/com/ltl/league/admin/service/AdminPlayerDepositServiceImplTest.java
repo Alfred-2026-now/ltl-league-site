@@ -1,10 +1,10 @@
 package com.ltl.league.admin.service;
 
 import com.ltl.league.admin.dto.AdjustPlayerDepositRequest;
+import com.ltl.league.admin.dto.UpdatePlayerRequest;
 import com.ltl.league.admin.service.impl.AdminPlayerDepositServiceImpl;
 import com.ltl.league.entity.Player;
 import com.ltl.league.entity.PlayerDepositLedger;
-import com.ltl.league.mapper.PLedgerMapper;
 import com.ltl.league.mapper.PlayerDepositLedgerMapper;
 import com.ltl.league.mapper.PlayerMapper;
 import com.ltl.league.mapper.TeamMapper;
@@ -15,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,21 +34,13 @@ class AdminPlayerDepositServiceImplTest {
     @Mock
     private RuleParameterService ruleParameterService;
 
-    @Mock
-    private PLedgerMapper pLedgerMapper;
-
-    @Mock
-    private AdminAssetService adminAssetService;
-
     @Test
     void adjustPlayerDepositAllowsAdminBalanceToBecomeNegative() {
         AdminPlayerDepositServiceImpl service = new AdminPlayerDepositServiceImpl(
                 playerMapper,
                 depositLedgerMapper,
                 teamMapper,
-                ruleParameterService,
-                pLedgerMapper,
-                adminAssetService);
+                ruleParameterService);
 
         Player player = new Player();
         player.setId(7L);
@@ -72,5 +65,33 @@ class AdminPlayerDepositServiceImplTest {
         ArgumentCaptor<Player> playerCaptor = ArgumentCaptor.forClass(Player.class);
         verify(playerMapper).updateById(playerCaptor.capture());
         assertEquals(-70, playerCaptor.getValue().getDeposit());
+    }
+
+    @Test
+    void updatePlayerDoesNotAutoDeductTeamOnTransfer() {
+        AdminPlayerDepositServiceImpl service = new AdminPlayerDepositServiceImpl(
+                playerMapper,
+                depositLedgerMapper,
+                teamMapper,
+                ruleParameterService);
+
+        Player player = new Player();
+        player.setId(9L);
+        player.setName("测试选手");
+        player.setTeamId(1L);
+        player.setStatus(1);
+        player.setValue(2000);
+        when(playerMapper.selectById(9L)).thenReturn(player);
+
+        UpdatePlayerRequest request = new UpdatePlayerRequest();
+        request.setTeamId(2L);
+        request.setStatus(1);
+
+        service.updatePlayer(9L, request);
+
+        verify(playerMapper).updateById(player);
+        assertEquals(2L, player.getTeamId());
+        verify(teamMapper, never()).selectById(org.mockito.ArgumentMatchers.any());
+        verify(teamMapper, never()).updateById(org.mockito.ArgumentMatchers.any());
     }
 }

@@ -183,7 +183,9 @@ function getTypeText(type) {
     manual_adjustment: "手动调整",
     race_reward: "比赛奖励",
     transfer_out: "转赠扣款",
-    transfer_in: "转赠收款"
+    transfer_in: "转赠收款",
+    daily_maintenance_fee: "每日维护费",
+    salary: "工资"
   };
   return typeMap[type] || type;
 }

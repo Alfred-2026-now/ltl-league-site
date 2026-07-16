@@ -945,6 +945,21 @@ input[type="number"]::-webkit-outer-spin-button {
   display: block;
   margin-top: 4px;
 }
+.roster-groups {
+  display: grid;
+  gap: 16px;
+}
+.roster-section {
+  display: grid;
+  gap: 8px;
+}
+.roster-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 .roster {
   display: grid;
   gap: 10px;
@@ -960,8 +975,29 @@ input[type="number"]::-webkit-outer-spin-button {
   border-bottom: 1px dashed rgba(255, 255, 255, 0.12);
   padding: 0 0 9px;
 }
+.roster li.is-captain {
+  border-bottom-color: rgba(255, 207, 108, 0.35);
+}
+.roster li.is-empty span {
+  color: var(--muted);
+  font-size: 14px;
+}
 .roster li span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 16px;
+}
+.roster-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid rgba(255, 207, 108, 0.45);
+  border-radius: 999px;
+  color: #ffcf6c;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 .roster small {
   color: var(--cyan);
