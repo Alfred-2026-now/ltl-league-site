@@ -1,6 +1,7 @@
 import {
   createAdminMatch,
-  getTeams,
+  getAllTeams,
+  getCurrentTeams,
   listAdminMatches,
   publishSchedule,
   unpublishSchedule,
@@ -37,6 +38,7 @@ const els = {
 };
 
 let teams = [];
+let allTeams = [];
 let matches = [];
 
 function option(label, value) {
@@ -69,7 +71,8 @@ function badge(text, tone) {
 }
 
 function getTeamLabelById(id) {
-  const t = teams.find(x => String(x.id) === String(id));
+  const t = allTeams.find(x => String(x.id) === String(id))
+    || teams.find(x => String(x.id) === String(id));
   return t ? `${t.state} · ${t.name}` : String(id || "");
 }
 
@@ -250,7 +253,7 @@ function wireEvents() {
 
 async function init() {
   try {
-    teams = await getTeams();
+    [teams, allTeams] = await Promise.all([getCurrentTeams(), getAllTeams()]);
     renderTeamOptions(els.filterTeam, true);
     renderTeamOptions(els.formHomeTeam, false);
     renderTeamOptions(els.formAwayTeam, false);

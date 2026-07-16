@@ -54,7 +54,7 @@ public class CaptainController {
         return Result.success();
     }
 
-    /** 队长更新队伍简介/名称 */
+    /** 队长更新队伍简介/名称/简写 */
     @PutMapping("/team-info")
     public Result<Void> updateTeamInfo(@CookieValue(value = COOKIE_NAME, required = false) String token,
                                        @RequestBody CaptainUpdateTeamInfoRequest request) {

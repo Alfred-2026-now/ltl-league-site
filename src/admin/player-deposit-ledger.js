@@ -20,8 +20,8 @@ async function getPlayers() {
 }
 
 async function getTeams() {
-  // admin 场景需全量战队（含历史赛季）用于 id→名字映射
-  return request("/teams?season=all");
+  // 下拉与筛选仅当前赛季
+  return request("/teams");
 }
 
 async function listRuleParameters(groupKey) {

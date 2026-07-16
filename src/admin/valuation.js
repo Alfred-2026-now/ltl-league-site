@@ -1,4 +1,4 @@
-import { createManualValuationAdjustment, voidValuationChange, getPlayers, getTeams, listValuationChanges } from "./api.js";
+import { createManualValuationAdjustment, voidValuationChange, getPlayers, getCurrentTeams, listValuationChanges } from "./api.js";
 
 let teams = [];
 let players = [];
@@ -104,7 +104,7 @@ async function submitAdjustment() {
 
 async function init() {
   bindEls();
-  teams = await getTeams();
+  teams = await getCurrentTeams();
   players = await getPlayers();
   renderOptions();
   updateCurrentValueHint();

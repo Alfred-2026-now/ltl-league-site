@@ -13,4 +13,7 @@ public class CaptainUpdateTeamInfoRequest {
 
     /** 队伍名称（可选，不传则不改） */
     private String name;
+
+    /** 队伍简写/国名（可选，不传则不改） */
+    private String state;
 }

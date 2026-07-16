@@ -49,6 +49,8 @@ async function loadContext() {
   // 有队伍：渲染信息
   document.getElementById("teamTitle").textContent = `${currentContext.teamState} · ${currentContext.teamName}`;
   renderLogo(currentContext.logoUrl);
+  document.getElementById("teamStateInput").value = currentContext.teamState || "";
+  document.getElementById("teamNameInput").value = currentContext.teamName || "";
   document.getElementById("descriptionInput").value = currentContext.description || "";
   document.getElementById("teamCoinsDisplay").textContent = currentContext.teamPCoins ?? 0;
   document.getElementById("captainDepositDisplay").textContent = currentContext.captainDeposit ?? 0;
@@ -112,18 +114,35 @@ async function uploadLogo() {
   }
 }
 
-async function saveDescription() {
+async function saveTeamInfo() {
+  const state = document.getElementById("teamStateInput").value.trim();
+  const name = document.getElementById("teamNameInput").value.trim();
   const desc = document.getElementById("descriptionInput").value.trim();
   const msg = document.getElementById("descMsg");
+  if (!state) {
+    msg.style.color = "#ef4444";
+    msg.textContent = "请填写简写";
+    return;
+  }
+  if (!name) {
+    msg.style.color = "#ef4444";
+    msg.textContent = "请填写队名";
+    return;
+  }
   try {
     await request("/captain/team-info", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description: desc })
+      body: JSON.stringify({ state, name, description: desc })
     });
     msg.style.color = "#22c55e";
     msg.textContent = "已保存";
-    if (currentContext) currentContext.description = desc;
+    if (currentContext) {
+      currentContext.teamState = state;
+      currentContext.teamName = name;
+      currentContext.description = desc;
+      document.getElementById("teamTitle").textContent = `${state} · ${name}`;
+    }
   } catch (e) {
     msg.style.color = "#ef4444";
     msg.textContent = e.message;
@@ -196,7 +215,7 @@ function bindEvents() {
   });
   document.getElementById("salaryConfirm").addEventListener("click", confirmPay);
   document.getElementById("uploadLogoBtn").addEventListener("click", uploadLogo);
-  document.getElementById("saveDescBtn").addEventListener("click", saveDescription);
+  document.getElementById("saveDescBtn").addEventListener("click", saveTeamInfo);
   document.getElementById("depositBtn").addEventListener("click", depositToTeam);
 }
 

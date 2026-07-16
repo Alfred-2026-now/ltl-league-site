@@ -15,9 +15,19 @@ async function request(endpoint, options = {}) {
   return data.data;
 }
 
-export async function getTeams() {
-  // admin 场景需全量战队（含历史赛季）用于 id→名字映射
+/** 当前赛季战队（下拉选项、新建/编辑场景） */
+export async function getCurrentTeams() {
+  return request("/teams");
+}
+
+/** 全量战队（含历史赛季，仅用于 id→名字映射） */
+export async function getAllTeams() {
   return request("/teams?season=all");
+}
+
+/** @deprecated 请明确使用 getCurrentTeams 或 getAllTeams；默认返回当前赛季，避免下拉混入历史队伍 */
+export async function getTeams() {
+  return getCurrentTeams();
 }
 
 export async function getPlayers() {

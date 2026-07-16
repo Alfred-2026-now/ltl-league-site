@@ -18,6 +18,7 @@ import com.ltl.league.mapper.PLedgerMapper;
 import com.ltl.league.mapper.PlayerMapper;
 import com.ltl.league.mapper.TeamMapper;
 import com.ltl.league.mapper.ValuationChangeMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +39,9 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
     private final PlayerMapper playerMapper;
     private final RuleParameterService ruleParameterService;
     private final AdminAssetService adminAssetService;
+
+    @Value("${ltl.league.current-season:s1}")
+    private String currentSeason;
 
     public AdminEconomyServiceImpl(
             PLedgerMapper pLedgerMapper,
@@ -205,18 +209,12 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
             throw new BusinessException(404, "队伍不存在");
         }
 
-        PLedger lastLedger = pLedgerMapper.selectOne(new LambdaQueryWrapper<PLedger>()
-                .eq(PLedger::getTeamId, team.getId())
-                .eq(PLedger::getDeleted, 0)
-                .eq(PLedger::getIsVoided, 0)
-                .orderByDesc(PLedger::getCreatedAt)
-                .orderByDesc(PLedger::getId)
-                .last("LIMIT 1"));
-
-        Integer balanceBefore = lastLedger != null ? lastLedger.getBalanceAfter() : 0;
+        // 以队伍当前余额为准（与 team.p_coins 对齐），支持负余额时通过正数入账初始化
+        Integer balanceBefore = team.getPCoins() != null ? team.getPCoins() : 0;
         Integer balanceAfter = balanceBefore + request.getAmount();
 
-        if (balanceAfter < 0) {
+        // 仅扣减时校验余额；增加允许从负数回正或仍为负（分批初始化）
+        if (request.getAmount() < 0 && balanceAfter < 0) {
             throw new BusinessException(400, "队伍P币余额不足");
         }
 
@@ -369,8 +367,9 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
             throw new BusinessException(400, "工资比例必须在" + minRate + "-" + maxRate + "之间");
         }
 
-        // 查询所有队伍
+        // 仅当前赛季队伍
         List<Team> teams = teamMapper.selectList(new LambdaQueryWrapper<Team>()
+                .eq(Team::getSeason, currentSeason)
                 .eq(Team::getDeleted, 0));
 
         if (teams.isEmpty()) {

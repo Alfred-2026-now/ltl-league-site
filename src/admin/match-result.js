@@ -2,9 +2,10 @@ import {
   createResultDraft,
   deleteAttachment,
   getAdminMatch,
+  getAllTeams,
+  getCurrentTeams,
   getMatchResult,
   getPlayers,
-  getTeams,
   listPLedgers,
   listValuationChanges,
   previewResultSettlement,
@@ -62,6 +63,7 @@ function setVal(el, value) {
 
 let match = null;
 let teams = [];
+let currentTeams = [];
 let players = [];
 let resultCtx = null;
 let readOnly = false;
@@ -222,7 +224,7 @@ function updateTieUi() {
 function teamSelectOptions(selectedId = "", onlyMatchTeams = false) {
   const source = onlyMatchTeams && match
     ? teams.filter(t => String(t.id) === String(match.homeTeamId) || String(t.id) === String(match.awayTeamId))
-    : teams;
+    : currentTeams;
   return [`<option value="">请选择</option>`, ...source.map(t => `
     <option value="${t.id}" ${String(t.id) === String(selectedId) ? "selected" : ""}>${t.state} · ${t.name}</option>
   `)].join("");
@@ -880,7 +882,7 @@ async function init() {
     return;
   }
   try {
-    teams = await getTeams();
+    [teams, currentTeams] = await Promise.all([getAllTeams(), getCurrentTeams()]);
     players = await getPlayers();
     match = await getAdminMatch(matchId);
     const home = teams.find(t => String(t.id) === String(match.homeTeamId));

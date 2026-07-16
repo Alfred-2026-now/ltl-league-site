@@ -22,7 +22,7 @@ public interface CaptainService {
     void paySalary(Long captainPlayerId, CaptainPaySalaryRequest request);
 
     /**
-     * 队长更新队伍简介/名称
+     * 队长更新队伍简介/名称/简写
      */
     void updateTeamInfo(Long captainPlayerId, CaptainUpdateTeamInfoRequest request);
 

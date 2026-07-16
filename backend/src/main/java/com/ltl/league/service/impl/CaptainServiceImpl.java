@@ -194,7 +194,27 @@ public class CaptainServiceImpl implements CaptainService {
             team.setDescription(desc);
         }
         if (request.getName() != null && !request.getName().isBlank()) {
-            team.setName(request.getName().trim());
+            String name = request.getName().trim();
+            if (name.length() > 50) {
+                throw new BusinessException(400, "队名不能超过50字");
+            }
+            team.setName(name);
+        }
+        if (request.getState() != null && !request.getState().isBlank()) {
+            String state = request.getState().trim();
+            if (state.length() > 20) {
+                throw new BusinessException(400, "简写不能超过20字");
+            }
+            // 同赛季简写不可重复
+            Long conflict = teamMapper.selectCount(new LambdaQueryWrapper<Team>()
+                    .eq(Team::getSeason, team.getSeason())
+                    .eq(Team::getState, state)
+                    .ne(Team::getId, team.getId())
+                    .eq(Team::getDeleted, 0));
+            if (conflict != null && conflict > 0) {
+                throw new BusinessException(400, "当前赛季已存在简写「" + state + "」");
+            }
+            team.setState(state);
         }
         teamMapper.updateById(team);
     }

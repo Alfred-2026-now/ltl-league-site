@@ -81,6 +81,20 @@
     }
     .fund-transfer-row input:focus { outline: none; border-color: var(--blue); }
     .fund-msg { font-size: 0.78rem; min-height: 1rem; margin: 0.4rem 0 0; }
+    .team-name-row {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.6rem;
+      margin-bottom: 0.65rem;
+    }
+    .team-name-row .field-label {
+      font-size: 0.74rem; color: var(--muted); letter-spacing: 0.04em;
+    }
+    .team-name-row input {
+      background: rgba(255,255,255,0.05); border: 1px solid var(--line);
+      border-radius: 8px; color: var(--text); padding: 0.45rem 0.65rem;
+      font-family: inherit; font-size: 0.9rem; min-width: 72px;
+    }
+    .team-name-row input#teamNameInput { flex: 1; min-width: 140px; }
+    .team-name-row input:focus { outline: none; border-color: var(--blue); }
     .members-wrap { margin-top: 1.5rem; }
     .members-table { width: 100%; border-collapse: separate; border-spacing: 0; }
     .members-table th {
@@ -154,9 +168,15 @@
 
         <div class="team-info">
           <h2 id="teamTitle"></h2>
+          <div class="team-name-row">
+            <label class="field-label" for="teamStateInput">简写</label>
+            <input type="text" id="teamStateInput" maxlength="20" placeholder="如：秦" />
+            <label class="field-label" for="teamNameInput">队名</label>
+            <input type="text" id="teamNameInput" maxlength="50" placeholder="队伍全称" />
+          </div>
           <textarea id="descriptionInput" rows="2" placeholder="一句话介绍你的队伍"></textarea>
           <div class="desc-row">
-            <button class="btn ghost sm" id="saveDescBtn">保存简介</button>
+            <button class="btn ghost sm" id="saveDescBtn">保存队伍信息</button>
             <span id="descMsg" class="desc-msg"></span>
           </div>
         </div>

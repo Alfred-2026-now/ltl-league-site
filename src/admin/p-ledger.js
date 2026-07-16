@@ -1,4 +1,4 @@
-import { getTeams, listPLedgers, manualAddPLedger, voidPLedger, deductAllTeamsSalary, voidDeductAllTeamsSalary } from "./api.js";
+import { getCurrentTeams, listPLedgers, manualAddPLedger, voidPLedger, deductAllTeamsSalary, voidDeductAllTeamsSalary } from "./api.js";
 
 let teams = [];
 const els = {};
@@ -185,7 +185,7 @@ async function submitVoidDeductSalary() {
 
 async function init() {
   bindEls();
-  teams = await getTeams();
+  teams = await getCurrentTeams();
   renderTeamOptions();
   updateDeductSalaryPreview();
   els.refreshBtn.addEventListener("click", refresh);
