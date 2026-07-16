@@ -52,9 +52,9 @@ class ImageCompressUtilTest {
     }
 
     @Test
-    void compressConvertsPngToJpeg() throws Exception {
+    void compressConvertsOpaquePngToJpeg() throws Exception {
         Path file = tempDir.resolve("badge.png");
-        writeSolidPng(file, 1200, 1200, new Color(0, 128, 255, 180));
+        writeSolidPng(file, 1200, 1200, new Color(0, 128, 255));
 
         ImageCompressUtil.CompressResult result = ImageCompressUtil.compress(file);
         assertTrue(result.isChanged());
@@ -63,6 +63,20 @@ class ImageCompressUtilTest {
         assertTrue(Files.exists(result.getPath()));
         BufferedImage after = ImageIO.read(result.getPath().toFile());
         assertEquals(800, Math.max(after.getWidth(), after.getHeight()));
+    }
+
+    @Test
+    void compressPreservesTransparentPng() throws Exception {
+        Path file = tempDir.resolve("badge.png");
+        writeSolidPng(file, 1200, 1200, new Color(0, 128, 255, 180));
+
+        ImageCompressUtil.CompressResult result = ImageCompressUtil.compress(file);
+        assertTrue(result.isChanged());
+        assertTrue(result.getPath().getFileName().toString().endsWith(".png"));
+        assertEquals(file, result.getPath());
+        BufferedImage after = ImageIO.read(result.getPath().toFile());
+        assertEquals(800, Math.max(after.getWidth(), after.getHeight()));
+        assertTrue(ImageCompressUtil.hasTransparency(after));
     }
 
     private static void writeSolidJpeg(Path file, int w, int h, Color color) throws Exception {

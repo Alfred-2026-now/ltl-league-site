@@ -229,7 +229,7 @@ public class CaptainServiceImpl implements CaptainService {
         if (team == null) {
             throw new BusinessException(404, "所属队伍不存在");
         }
-        String filename = "team_" + team.getId() + "_" + UUID.randomUUID() + ".jpg";
+        String filename = "team_" + team.getId() + "_" + UUID.randomUUID() + resolveUploadExtension(file);
         String finalName;
         try {
             Path dir = Path.of(uploadBaseDir, "teams");
@@ -340,5 +340,23 @@ public class CaptainServiceImpl implements CaptainService {
         m.setIsSubstitute(p.getIsSubstitute());
         m.setIsCaptain(p.getRole() != null && p.getRole().equals(ROLE_CAPTAIN) ? 1 : 0);
         return m;
+    }
+
+    private static String resolveUploadExtension(MultipartFile file) {
+        String original = file.getOriginalFilename();
+        if (original != null && original.contains(".")) {
+            String ext = original.substring(original.lastIndexOf('.')).toLowerCase();
+            if (".png".equals(ext)) {
+                return ".png";
+            }
+            if (".jpg".equals(ext) || ".jpeg".equals(ext)) {
+                return ".jpg";
+            }
+        }
+        String contentType = file.getContentType();
+        if (contentType != null && contentType.toLowerCase().contains("png")) {
+            return ".png";
+        }
+        return ".jpg";
     }
 }

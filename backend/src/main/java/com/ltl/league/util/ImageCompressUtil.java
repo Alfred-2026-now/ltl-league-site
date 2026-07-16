@@ -7,9 +7,11 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
+import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.Transparency;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -90,9 +92,11 @@ public final class ImageCompressUtil {
         }
 
         boolean needScale = Math.max(srcW, srcH) > MAX_EDGE;
-        boolean pngToJpeg = "png".equals(format);
+        boolean hasAlpha = hasTransparency(source);
+        boolean keepPng = "png".equals(format) && hasAlpha;
+        boolean pngToJpeg = "png".equals(format) && !hasAlpha;
         long originalSize = Files.size(file);
-        if (!needScale && !pngToJpeg && originalSize <= SKIP_BELOW_BYTES) {
+        if (!needScale && !pngToJpeg && !keepPng && originalSize <= SKIP_BELOW_BYTES) {
             return new CompressResult(false, file);
         }
 
@@ -104,13 +108,19 @@ public final class ImageCompressUtil {
             targetH = Math.max(1, (int) Math.round(srcH * scale));
         }
 
-        BufferedImage resized = resizeToRgb(source, targetW, targetH);
+        BufferedImage resized = keepPng
+                ? resizePreserveAlpha(source, targetW, targetH)
+                : resizeToRgb(source, targetW, targetH);
         Path output = pngToJpeg ? withExtension(file, ".jpg") : file;
         Path temp = Files.createTempFile(file.getParent(), file.getFileName().toString() + ".", ".compress-tmp");
         try {
-            writeJpeg(resized, temp, JPEG_QUALITY);
+            if (keepPng) {
+                writePng(resized, temp);
+            } else {
+                writeJpeg(resized, temp, JPEG_QUALITY);
+            }
             long newSize = Files.size(temp);
-            if (!pngToJpeg && newSize >= originalSize && !needScale) {
+            if (!pngToJpeg && !keepPng && newSize >= originalSize && !needScale) {
                 Files.deleteIfExists(temp);
                 return new CompressResult(false, file);
             }
@@ -201,6 +211,7 @@ public final class ImageCompressUtil {
         BufferedImage target = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = target.createGraphics();
         try {
+            // 仅用于无透明通道的图转 JPEG；有透明边的 PNG 应走 resizePreserveAlpha
             g.setColor(Color.WHITE);
             g.fillRect(0, 0, width, height);
             g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
@@ -211,6 +222,45 @@ public final class ImageCompressUtil {
             g.dispose();
         }
         return target;
+    }
+
+    private static BufferedImage resizePreserveAlpha(BufferedImage source, int width, int height) {
+        BufferedImage target = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = target.createGraphics();
+        try {
+            g.setComposite(AlphaComposite.Src);
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.drawImage(source, 0, 0, width, height, null);
+        } finally {
+            g.dispose();
+        }
+        return target;
+    }
+
+    static boolean hasTransparency(BufferedImage image) {
+        if (image.getColorModel().getTransparency() == Transparency.OPAQUE) {
+            return false;
+        }
+        int w = image.getWidth();
+        int h = image.getHeight();
+        int stepX = Math.max(1, w / 16);
+        int stepY = Math.max(1, h / 16);
+        for (int y = 0; y < h; y += stepY) {
+            for (int x = 0; x < w; x += stepX) {
+                if (((image.getRGB(x, y) >> 24) & 0xff) < 255) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static void writePng(BufferedImage image, Path target) throws IOException {
+        if (!ImageIO.write(image, "png", target.toFile())) {
+            throw new IOException("当前环境不支持 PNG 写入");
+        }
     }
 
     private static void writeJpeg(BufferedImage image, Path target, float quality) throws IOException {
