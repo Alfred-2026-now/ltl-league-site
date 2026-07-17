@@ -297,9 +297,13 @@ function updateSalaryPreview() {
     return;
   }
 
-  // 计算将影响多少在职且在队伍中的选手
-  const affectedPlayers = players.filter(p => p.status === 1 && p.teamId != null);
-  els.salaryPreview.value = `将影响 ${affectedPlayers.length} 名选手`;
+  // 计算将影响多少在职队员（不含队长）
+  const affectedPlayers = salaryEligiblePlayers();
+  els.salaryPreview.value = `将影响 ${affectedPlayers.length} 名队员（不含队长）`;
+}
+
+function salaryEligiblePlayers() {
+  return players.filter(p => p.status === 1 && p.teamId != null && ((p.role ?? 0) & 2) === 0);
 }
 
 async function submitSalary() {
@@ -310,14 +314,14 @@ async function submitSalary() {
       return;
     }
 
-    const affectedPlayers = players.filter(p => p.status === 1 && p.teamId != null);
+    const affectedPlayers = salaryEligiblePlayers();
     if (affectedPlayers.length === 0) {
-      alert("没有在职的选手可以发放工资");
+      alert("没有在职的队员可以发放工资（队长不发）");
       return;
     }
 
     const totalSalary = affectedPlayers.reduce((sum, p) => sum + Math.floor(p.value * rate / 100), 0);
-    const confirmMsg = `确认为 ${affectedPlayers.length} 名在职选手发放工资？\n工资比例：${rate}%\n总金额：${totalSalary}P`;
+    const confirmMsg = `确认为 ${affectedPlayers.length} 名在职队员发放工资（不含队长）？\n工资比例：${rate}%\n总金额：${totalSalary}P`;
     if (!confirm(confirmMsg)) {
       return;
     }

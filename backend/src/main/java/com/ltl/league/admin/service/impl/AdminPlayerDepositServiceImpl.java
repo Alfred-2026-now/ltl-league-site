@@ -20,6 +20,8 @@ import java.util.stream.Collectors;
 @Service
 public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService {
 
+    private static final int ROLE_CAPTAIN = 2;
+
     private final PlayerMapper playerMapper;
     private final PlayerDepositLedgerMapper depositLedgerMapper;
     private final TeamMapper teamMapper;
@@ -342,11 +344,14 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         // 生成批次ID：使用时间戳
         String salaryBatchId = "SALARY_" + System.currentTimeMillis();
 
-        // 查询所有在职且在队伍中的选手
+        // 查询所有在职且在队伍中的队员（排除队长：role 含队长位）
         List<Player> activePlayers = playerMapper.selectList(new LambdaQueryWrapper<Player>()
                 .eq(Player::getStatus, 1)
                 .isNotNull(Player::getTeamId)
-                .eq(Player::getDeleted, 0));
+                .eq(Player::getDeleted, 0))
+                .stream()
+                .filter(p -> p.getRole() == null || (p.getRole() & ROLE_CAPTAIN) == 0)
+                .collect(Collectors.toList());
 
         if (activePlayers.isEmpty()) {
             throw new BusinessException(400, "没有在职的选手可以发放工资");
