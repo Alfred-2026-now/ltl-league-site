@@ -33,6 +33,8 @@ import java.util.stream.Collectors;
 @Service
 public class AdminEconomyServiceImpl implements AdminEconomyService {
 
+    private static final int ROLE_CAPTAIN = 2;
+
     private final PLedgerMapper pLedgerMapper;
     private final ValuationChangeMapper valuationChangeMapper;
     private final TeamMapper teamMapper;
@@ -381,22 +383,23 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
 
         // 为每个队伍计算工资并扣除
         for (Team team : teams) {
-            // 查询该队伍的所有选手
+            // 与选手工资发放保持同一口径：仅在职队员，且排除 role 中含队长位的选手。
             List<Player> players = playerMapper.selectList(new LambdaQueryWrapper<Player>()
                     .eq(Player::getTeamId, team.getId())
+                    .eq(Player::getStatus, 1)
                     .eq(Player::getDeleted, 0));
+            players = players.stream()
+                    .filter(p -> p.getRole() == null || (p.getRole() & ROLE_CAPTAIN) == 0)
+                    .collect(Collectors.toList());
 
             if (players.isEmpty()) {
                 continue; // 跳过没有选手的队伍
             }
 
-            // 计算队伍选手总身价
-            Integer totalPlayerValue = players.stream()
-                    .mapToInt(p -> p.getValue() != null ? p.getValue() : 0)
+            // 逐名计算再求和，与选手工资流水的整数取整方式完全一致。
+            Integer deductAmount = players.stream()
+                    .mapToInt(p -> (p.getValue() != null ? p.getValue() : 0) * rate / 100)
                     .sum();
-
-            // 计算扣除金额
-            Integer deductAmount = totalPlayerValue * rate / 100;
 
             if (deductAmount <= 0) {
                 continue; // 跳过扣除金额为0的队伍

@@ -155,7 +155,7 @@ async function submitDeductSalary() {
       return;
     }
 
-    const confirmMsg = `确认为所有队伍扣除工资？\n工资比例：${rate}%\n金额 = 队伍选手总身价 × ${rate}%`;
+    const confirmMsg = `确认为所有队伍扣除工资？\n工资比例：${rate}%\n金额与发给在职队员的工资总额一致（不含队长）`;
     if (!confirm(confirmMsg)) {
       return;
     }
