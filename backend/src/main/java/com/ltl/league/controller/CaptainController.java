@@ -3,6 +3,7 @@ package com.ltl.league.controller;
 import com.ltl.league.common.Result;
 import com.ltl.league.dto.CaptainContextVO;
 import com.ltl.league.dto.CaptainDepositToTeamRequest;
+import com.ltl.league.dto.CaptainPLedgerPageVO;
 import com.ltl.league.dto.CaptainPaySalaryRequest;
 import com.ltl.league.dto.CaptainUpdateTeamInfoRequest;
 import com.ltl.league.exception.BusinessException;
@@ -43,6 +44,16 @@ public class CaptainController {
     public Result<CaptainContextVO> getContext(@CookieValue(value = COOKIE_NAME, required = false) String token) {
         Long playerId = requireLogin(token);
         return Result.success(captainService.getContext(playerId));
+    }
+
+    /** 分页查询本队 P 币流水 */
+    @GetMapping("/p-ledger")
+    public Result<CaptainPLedgerPageVO> listTeamPLedgers(
+            @CookieValue(value = COOKIE_NAME, required = false) String token,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer pageSize) {
+        Long playerId = requireLogin(token);
+        return Result.success(captainService.listTeamPLedgers(playerId, page, pageSize));
     }
 
     /** 队长从队伍资金给指定队员发工资 */

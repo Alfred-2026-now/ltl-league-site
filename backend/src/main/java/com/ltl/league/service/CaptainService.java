@@ -2,6 +2,7 @@ package com.ltl.league.service;
 
 import com.ltl.league.dto.CaptainContextVO;
 import com.ltl.league.dto.CaptainDepositToTeamRequest;
+import com.ltl.league.dto.CaptainPLedgerPageVO;
 import com.ltl.league.dto.CaptainPaySalaryRequest;
 import com.ltl.league.dto.CaptainUpdateTeamInfoRequest;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,6 +16,11 @@ public interface CaptainService {
      * 获取队长管理页面上下文（队伍信息 + 队员列表）
      */
     CaptainContextVO getContext(Long captainPlayerId);
+
+    /**
+     * 分页查询本队 P 币流水（只读，仅有效流水）
+     */
+    CaptainPLedgerPageVO listTeamPLedgers(Long captainPlayerId, Integer page, Integer pageSize);
 
     /**
      * 队长从队伍资金给指定队员发工资（无手续费）

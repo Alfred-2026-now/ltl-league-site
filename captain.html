@@ -134,6 +134,19 @@
     }
     dialog input:focus { outline: none; border-color: var(--blue); }
     dialog label { color: var(--muted); font-size: 0.82rem; }
+    .ledger-toolbar {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.65rem 1rem;
+      margin-bottom: 0.85rem; font-size: 0.85rem; color: var(--muted);
+    }
+    .ledger-toolbar select, .ledger-toolbar input[type="number"] {
+      background: rgba(255,255,255,0.05); border: 1px solid var(--line);
+      border-radius: 8px; color: var(--text); padding: 0.35rem 0.55rem;
+      font-family: inherit; font-size: 0.85rem;
+    }
+    .ledger-toolbar select:focus, .ledger-toolbar input:focus { outline: none; border-color: var(--blue); }
+    .ledger-pager { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; margin-left: auto; }
+    .amount-pos { color: #7CFFB2; font-weight: 600; }
+    .amount-neg { color: #ff9f9f; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -213,6 +226,43 @@
               </tr>
             </thead>
             <tbody id="membersBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="ledgerSection" class="members-wrap" style="display:none;">
+      <div class="captain-card">
+        <h3 class="section-title">本队 P 币流水</h3>
+        <div class="ledger-toolbar">
+          <span id="ledgerTotalText">共 0 条</span>
+          <label>每页
+            <select id="ledgerPageSize">
+              <option value="10">10</option>
+              <option value="20" selected>20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            条
+          </label>
+          <div class="ledger-pager">
+            <button class="btn ghost sm" id="ledgerPrevBtn" type="button">上一页</button>
+            <span>第</span>
+            <input type="number" id="ledgerPageInput" min="1" value="1" style="width:64px;" />
+            <span>/ <span id="ledgerTotalPages">1</span> 页</span>
+            <button class="btn ghost sm" id="ledgerJumpBtn" type="button">跳转</button>
+            <button class="btn ghost sm" id="ledgerNextBtn" type="button">下一页</button>
+            <button class="btn ghost sm" id="ledgerRefreshBtn" type="button">刷新</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="members-table">
+            <thead>
+              <tr>
+                <th>时间</th><th>类型</th><th>金额</th><th>余额变化</th><th>比赛</th><th>原因</th>
+              </tr>
+            </thead>
+            <tbody id="ledgerBody"></tbody>
           </table>
         </div>
       </div>

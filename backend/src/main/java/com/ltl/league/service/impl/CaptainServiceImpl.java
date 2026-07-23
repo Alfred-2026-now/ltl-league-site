@@ -3,6 +3,8 @@ package com.ltl.league.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ltl.league.dto.CaptainContextVO;
 import com.ltl.league.dto.CaptainDepositToTeamRequest;
+import com.ltl.league.dto.CaptainPLedgerPageVO;
+import com.ltl.league.dto.CaptainPLedgerVO;
 import com.ltl.league.dto.CaptainPaySalaryRequest;
 import com.ltl.league.dto.CaptainUpdateTeamInfoRequest;
 import com.ltl.league.entity.PLedger;
@@ -39,6 +41,9 @@ public class CaptainServiceImpl implements CaptainService {
 
     private static final Integer ROLE_CAPTAIN = 2;
     private static final Integer STATUS_ACTIVE = 1;
+    private static final int DEFAULT_PAGE = 1;
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 100;
 
     private final PlayerMapper playerMapper;
     private final TeamMapper teamMapper;
@@ -95,6 +100,38 @@ public class CaptainServiceImpl implements CaptainService {
         vo.setDescription(team.getDescription());
         vo.setMembers(members.stream().map(this::toMemberVO).collect(Collectors.toList()));
         return vo;
+    }
+
+    @Override
+    public CaptainPLedgerPageVO listTeamPLedgers(Long captainPlayerId, Integer page, Integer pageSize) {
+        Player captain = requireCaptain(captainPlayerId);
+        int safePage = page == null || page < 1 ? DEFAULT_PAGE : page;
+        int safeSize = pageSize == null || pageSize < 1 ? DEFAULT_PAGE_SIZE : Math.min(pageSize, MAX_PAGE_SIZE);
+
+        LambdaQueryWrapper<PLedger> baseQuery = new LambdaQueryWrapper<PLedger>()
+                .eq(PLedger::getTeamId, captain.getTeamId())
+                .eq(PLedger::getIsVoided, 0);
+        long total = pLedgerMapper.selectCount(baseQuery);
+
+        int offset = (safePage - 1) * safeSize;
+        List<PLedger> records = total == 0 || offset >= total
+                ? Collections.emptyList()
+                : pLedgerMapper.selectList(new LambdaQueryWrapper<PLedger>()
+                .select(PLedger::getId, PLedger::getMatchId, PLedger::getType, PLedger::getAmount,
+                        PLedger::getReason, PLedger::getVersion, PLedger::getBalanceBefore,
+                        PLedger::getBalanceAfter, PLedger::getIsVoided, PLedger::getCreatedAt)
+                .eq(PLedger::getTeamId, captain.getTeamId())
+                .eq(PLedger::getIsVoided, 0)
+                .orderByDesc(PLedger::getCreatedAt)
+                .orderByDesc(PLedger::getId)
+                .last("LIMIT " + offset + "," + safeSize));
+
+        CaptainPLedgerPageVO pageVO = new CaptainPLedgerPageVO();
+        pageVO.setPage(safePage);
+        pageVO.setPageSize(safeSize);
+        pageVO.setTotal(total);
+        pageVO.setRecords(records.stream().map(this::toPLedgerVO).collect(Collectors.toList()));
+        return pageVO;
     }
 
     @Override
@@ -340,6 +377,21 @@ public class CaptainServiceImpl implements CaptainService {
         m.setIsSubstitute(p.getIsSubstitute());
         m.setIsCaptain(p.getRole() != null && p.getRole().equals(ROLE_CAPTAIN) ? 1 : 0);
         return m;
+    }
+
+    private CaptainPLedgerVO toPLedgerVO(PLedger row) {
+        CaptainPLedgerVO vo = new CaptainPLedgerVO();
+        vo.setId(row.getId());
+        vo.setMatchId(row.getMatchId());
+        vo.setType(row.getType());
+        vo.setAmount(row.getAmount());
+        vo.setReason(row.getReason());
+        vo.setVersion(row.getVersion());
+        vo.setBalanceBefore(row.getBalanceBefore());
+        vo.setBalanceAfter(row.getBalanceAfter());
+        vo.setIsVoided(row.getIsVoided());
+        vo.setCreatedAt(row.getCreatedAt() != null ? row.getCreatedAt().toString().replace('T', ' ') : null);
+        return vo;
     }
 
     private static String resolveUploadExtension(MultipartFile file) {

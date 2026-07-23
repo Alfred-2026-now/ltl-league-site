@@ -13,17 +13,27 @@ async function request(endpoint, options = {}) {
 
 let currentContext = null;
 let currentTarget = null;
+let ledgerPage = 1;
+let ledgerPageSize = 20;
+let ledgerTotalPages = 1;
 
-function showSection(id) {
-  ["errorNotice", "noTeamNotice", "teamSection", "membersSection"].forEach(s => {
-    document.getElementById(s).style.display = (s === id) ? "block" : "none";
-  });
-}
+const LEDGER_TYPE_MAP = {
+  match_reward: "比赛奖励",
+  luxury_tax: "奢侈税",
+  loan_fee: "租借费",
+  player_donation: "选手赠与",
+  player_sign_loss: "买入损耗",
+  player_release_loss: "解约损耗",
+  salary_deduct: "工资扣除",
+  captain_salary: "队长发工资",
+  captain_deposit: "队长转入",
+  manual_admin: "管理员调整"
+};
 
 function showError(msg) {
   document.getElementById("errorMessage").textContent = msg;
   document.getElementById("errorNotice").style.display = "block";
-  ["noTeamNotice", "teamSection", "membersSection"].forEach(s => {
+  ["noTeamNotice", "teamSection", "membersSection", "ledgerSection"].forEach(s => {
     document.getElementById(s).style.display = "none";
   });
 }
@@ -38,15 +48,14 @@ async function loadContext() {
 
   const hasTeam = currentContext.teamId != null;
   if (!hasTeam) {
-    // 队长尚未归属队伍
     document.getElementById("noTeamNotice").style.display = "block";
     document.getElementById("teamSection").style.display = "none";
     document.getElementById("membersSection").style.display = "none";
+    document.getElementById("ledgerSection").style.display = "none";
     document.getElementById("errorNotice").style.display = "none";
     return;
   }
 
-  // 有队伍：渲染信息
   document.getElementById("teamTitle").textContent = `${currentContext.teamState} · ${currentContext.teamName}`;
   renderLogo(currentContext.logoUrl);
   document.getElementById("teamStateInput").value = currentContext.teamState || "";
@@ -57,10 +66,12 @@ async function loadContext() {
 
   document.getElementById("teamSection").style.display = "block";
   document.getElementById("membersSection").style.display = "block";
+  document.getElementById("ledgerSection").style.display = "block";
   document.getElementById("noTeamNotice").style.display = "none";
   document.getElementById("errorNotice").style.display = "none";
 
   renderMembers(currentContext.members);
+  await loadLedger();
 }
 
 function renderLogo(url) {
@@ -84,8 +95,8 @@ function renderMembers(members) {
       : (m.isSubstitute ? `<span class="role-tag sub">替补</span>` : `<span class="role-tag member">队员</span>`);
     return `
       <tr>
-        <td>${m.name}</td>
-        <td>${m.position || '-'}</td>
+        <td>${escapeHtml(m.name)}</td>
+        <td>${escapeHtml(m.position || "-")}</td>
         <td>${m.value ?? 0}</td>
         <td>${m.deposit ?? 0}</td>
         <td>${roleTag}</td>
@@ -93,6 +104,79 @@ function renderMembers(members) {
       </tr>
     `;
   }).join("");
+}
+
+function escapeHtml(text) {
+  return String(text ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function formatAmount(value) {
+  const n = Number(value || 0);
+  const cls = n >= 0 ? "amount-pos" : "amount-neg";
+  return `<span class="${cls}">${n > 0 ? "+" : ""}${n}P</span>`;
+}
+
+function getTypeText(type) {
+  return LEDGER_TYPE_MAP[type] || type || "-";
+}
+
+function updateLedgerPager(total, page, pageSize) {
+  const totalPages = Math.max(1, Math.ceil((total || 0) / pageSize));
+  ledgerTotalPages = totalPages;
+  ledgerPage = Math.min(Math.max(1, page), totalPages);
+  document.getElementById("ledgerTotalText").textContent = `共 ${total || 0} 条`;
+  document.getElementById("ledgerTotalPages").textContent = String(totalPages);
+  document.getElementById("ledgerPageInput").value = String(ledgerPage);
+  document.getElementById("ledgerPageInput").max = String(totalPages);
+  document.getElementById("ledgerPrevBtn").disabled = ledgerPage <= 1;
+  document.getElementById("ledgerNextBtn").disabled = ledgerPage >= totalPages;
+}
+
+function renderLedgerRows(rows) {
+  const body = document.getElementById("ledgerBody");
+  if (!rows || rows.length === 0) {
+    body.innerHTML = `<tr><td colspan="6" style="padding:1rem;color:#888;text-align:center;">暂无流水</td></tr>`;
+    return;
+  }
+  body.innerHTML = rows.map(row => `
+    <tr>
+      <td>${escapeHtml(row.createdAt || "-")}</td>
+      <td>${escapeHtml(getTypeText(row.type))}</td>
+      <td>${formatAmount(row.amount)}</td>
+      <td>${row.balanceBefore ?? "-"} → ${row.balanceAfter ?? "-"}</td>
+      <td>${row.matchId ? `#${row.matchId}${row.version ? " " + escapeHtml(row.version) : ""}` : "-"}</td>
+      <td>${escapeHtml(row.reason || "-")}</td>
+    </tr>
+  `).join("");
+}
+
+async function loadLedger() {
+  const body = document.getElementById("ledgerBody");
+  if (!currentContext || currentContext.teamId == null) {
+    return;
+  }
+  body.innerHTML = `<tr><td colspan="6" style="padding:1rem;color:#888;text-align:center;">加载中…</td></tr>`;
+  try {
+    const data = await request(`/captain/p-ledger?page=${ledgerPage}&pageSize=${ledgerPageSize}`);
+    updateLedgerPager(data.total, data.page, data.pageSize);
+    renderLedgerRows(data.records || []);
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="6" style="padding:1rem;color:#ff9f9f;text-align:center;">加载失败：${escapeHtml(e.message)}</td></tr>`;
+  }
+}
+
+async function jumpLedgerPage() {
+  const input = Number(document.getElementById("ledgerPageInput").value);
+  if (!input || input < 1) {
+    document.getElementById("ledgerPageInput").value = String(ledgerPage);
+    return;
+  }
+  ledgerPage = Math.min(input, ledgerTotalPages);
+  await loadLedger();
 }
 
 async function uploadLogo() {
@@ -165,6 +249,7 @@ async function depositToTeam() {
     msg.textContent = "转入成功";
     document.getElementById("depositAmount").value = "";
     document.getElementById("depositReason").value = "";
+    ledgerPage = 1;
     await loadContext();
   } catch (e) {
     msg.textContent = e.message;
@@ -197,6 +282,7 @@ async function confirmPay() {
       body: JSON.stringify({ targetPlayerId: currentTarget.id, amount, reason })
     });
     document.getElementById("salaryDialog").close();
+    ledgerPage = 1;
     await loadContext();
   } catch (e) {
     errEl.textContent = e.message;
@@ -217,6 +303,27 @@ function bindEvents() {
   document.getElementById("uploadLogoBtn").addEventListener("click", uploadLogo);
   document.getElementById("saveDescBtn").addEventListener("click", saveTeamInfo);
   document.getElementById("depositBtn").addEventListener("click", depositToTeam);
+
+  document.getElementById("ledgerPageSize").addEventListener("change", async (e) => {
+    ledgerPageSize = Number(e.target.value) || 20;
+    ledgerPage = 1;
+    await loadLedger();
+  });
+  document.getElementById("ledgerPrevBtn").addEventListener("click", async () => {
+    if (ledgerPage <= 1) return;
+    ledgerPage -= 1;
+    await loadLedger();
+  });
+  document.getElementById("ledgerNextBtn").addEventListener("click", async () => {
+    if (ledgerPage >= ledgerTotalPages) return;
+    ledgerPage += 1;
+    await loadLedger();
+  });
+  document.getElementById("ledgerJumpBtn").addEventListener("click", jumpLedgerPage);
+  document.getElementById("ledgerPageInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") jumpLedgerPage();
+  });
+  document.getElementById("ledgerRefreshBtn").addEventListener("click", loadLedger);
 }
 
 async function init() {
