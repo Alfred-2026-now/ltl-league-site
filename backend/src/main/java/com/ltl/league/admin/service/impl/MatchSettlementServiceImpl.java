@@ -2,6 +2,7 @@ package com.ltl.league.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.ltl.league.admin.dto.LineupAppearanceInputDTO;
 import com.ltl.league.admin.dto.LoanFeeInputDTO;
 import com.ltl.league.admin.dto.LoanFeePreviewVO;
 import com.ltl.league.admin.dto.LuxuryTaxPreviewVO;
@@ -17,6 +18,7 @@ import com.ltl.league.admin.service.MatchSettlementService;
 import com.ltl.league.admin.service.RuleParameterService;
 import com.ltl.league.entity.Match;
 import com.ltl.league.entity.MatchResult;
+import com.ltl.league.entity.MatchResultLineupInput;
 import com.ltl.league.entity.MatchResultLoanInput;
 import com.ltl.league.entity.MatchResultValuationInput;
 import com.ltl.league.entity.PLedger;
@@ -26,7 +28,9 @@ import com.ltl.league.entity.Team;
 import com.ltl.league.entity.ValuationChange;
 import com.ltl.league.exception.BusinessException;
 import com.ltl.league.mapper.MatchResultLoanInputMapper;
+import com.ltl.league.mapper.MatchResultLineupInputMapper;
 import com.ltl.league.mapper.MatchResultMapper;
+import com.ltl.league.mapper.MatchMapper;
 import com.ltl.league.mapper.MatchResultValuationInputMapper;
 import com.ltl.league.mapper.PLedgerMapper;
 import com.ltl.league.mapper.PlayerMapper;
@@ -35,6 +39,7 @@ import com.ltl.league.mapper.TeamMapper;
 import com.ltl.league.mapper.ValuationChangeMapper;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -50,7 +55,9 @@ import java.util.stream.Collectors;
 public class MatchSettlementServiceImpl implements MatchSettlementService {
 
     private final MatchSettlementCalculator calculator;
+    private final MatchMapper matchMapper;
     private final MatchResultMapper matchResultMapper;
+    private final MatchResultLineupInputMapper lineupInputMapper;
     private final MatchResultLoanInputMapper loanInputMapper;
     private final MatchResultValuationInputMapper valuationInputMapper;
     private final SettlementRewardRuleMapper rewardRuleMapper;
@@ -64,7 +71,9 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
 
     public MatchSettlementServiceImpl(
             MatchSettlementCalculator calculator,
+            MatchMapper matchMapper,
             MatchResultMapper matchResultMapper,
+            MatchResultLineupInputMapper lineupInputMapper,
             MatchResultLoanInputMapper loanInputMapper,
             MatchResultValuationInputMapper valuationInputMapper,
             SettlementRewardRuleMapper rewardRuleMapper,
@@ -76,7 +85,9 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
             RuleParameterService ruleParameterService,
             AdminAssetService adminAssetService) {
         this.calculator = calculator;
+        this.matchMapper = matchMapper;
         this.matchResultMapper = matchResultMapper;
+        this.lineupInputMapper = lineupInputMapper;
         this.loanInputMapper = loanInputMapper;
         this.valuationInputMapper = valuationInputMapper;
         this.rewardRuleMapper = rewardRuleMapper;
@@ -94,6 +105,7 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
         SettlementPreviewVO preview = new SettlementPreviewVO();
         try {
             SettlementInputDTO input = normalizeSettlement(settlement);
+            resolveLineValues(match, result, input, !Boolean.TRUE.equals(input.getTaxExempt()), result.getId() != null);
             List<LedgerDraft> ledgers = buildLedgerDrafts(match, result, input);
             applyBalancePreview(preview, ledgers);
             preview.setLuxuryTaxes(buildLuxuryTaxPreview(match, input));
@@ -127,12 +139,16 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
     @Override
     public void syncInputs(Match match, MatchResult result, SettlementInputDTO settlement) {
         SettlementInputDTO input = normalizeSettlement(settlement);
+        resolveLineValues(match, result, input, false, false);
         result.setTaxExempt(Boolean.TRUE.equals(input.getTaxExempt()) ? 1 : 0);
         result.setHomeLineValue(input.getHomeLineValue());
         result.setAwayLineValue(input.getAwayLineValue());
-        result.setHomeRosterSize(input.getHomeRosterSize());
-        result.setAwayRosterSize(input.getAwayRosterSize());
         matchResultMapper.updateById(result);
+
+        lineupInputMapper.delete(new LambdaQueryWrapper<MatchResultLineupInput>()
+                .eq(MatchResultLineupInput::getResultId, result.getId()));
+        persistLineupInputs(match, result, match.getHomeTeamId(), input.getHomeAppearances());
+        persistLineupInputs(match, result, match.getAwayTeamId(), input.getAwayAppearances());
 
         loanInputMapper.delete(new LambdaQueryWrapper<MatchResultLoanInput>().eq(MatchResultLoanInput::getResultId, result.getId()));
         for (LoanFeeInputDTO dto : input.getLoanFees()) {
@@ -176,8 +192,16 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
             input.setTaxExempt(result.getTaxExempt() != null && result.getTaxExempt() == 1);
             input.setHomeLineValue(result.getHomeLineValue());
             input.setAwayLineValue(result.getAwayLineValue());
-            input.setHomeRosterSize(result.getHomeRosterSize());
-            input.setAwayRosterSize(result.getAwayRosterSize());
+        }
+        List<MatchResultLineupInput> lineupInputs = lineupInputMapper.selectList(
+                new LambdaQueryWrapper<MatchResultLineupInput>()
+                        .eq(MatchResultLineupInput::getResultId, resultId)
+                        .eq(MatchResultLineupInput::getDeleted, 0)
+                        .orderByAsc(MatchResultLineupInput::getId));
+        Match match = matchMapper.selectById(matchId);
+        if (match != null) {
+            input.setHomeAppearances(toLineupDtos(lineupInputs, match.getHomeTeamId()));
+            input.setAwayAppearances(toLineupDtos(lineupInputs, match.getAwayTeamId()));
         }
         List<MatchResultLoanInput> loanInputs = loanInputMapper.selectList(new LambdaQueryWrapper<MatchResultLoanInput>()
                 .eq(MatchResultLoanInput::getResultId, resultId)
@@ -206,6 +230,222 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
             return dto;
         }).collect(Collectors.toList()));
         return input;
+    }
+
+    private void resolveLineValues(
+            Match match,
+            MatchResult result,
+            SettlementInputDTO input,
+            boolean strict,
+            boolean preferStoredValues) {
+        int totalGames = Optional.ofNullable(result.getHomeScore()).orElse(0)
+                + Optional.ofNullable(result.getAwayScore()).orElse(0);
+        int advantageGameLimit = maxGamesForFormat(match.getFormat());
+        input.setHomeLineValue(resolveTeamLineValue(
+                match.getHomeTeamId(),
+                input.getHomeAppearances(),
+                input.getLoanFees(),
+                totalGames,
+                advantageGameLimit,
+                strict,
+                preferStoredValues));
+        input.setAwayLineValue(resolveTeamLineValue(
+                match.getAwayTeamId(),
+                input.getAwayAppearances(),
+                input.getLoanFees(),
+                totalGames,
+                advantageGameLimit,
+                strict,
+                preferStoredValues));
+
+        if (strict) {
+            Set<Long> homePlayerIds = input.getHomeAppearances().stream()
+                    .map(LineupAppearanceInputDTO::getPlayerId)
+                    .collect(Collectors.toSet());
+            Optional<Long> duplicated = input.getAwayAppearances().stream()
+                    .map(LineupAppearanceInputDTO::getPlayerId)
+                    .filter(homePlayerIds::contains)
+                    .findFirst();
+            if (duplicated.isPresent()) {
+                Player player = requirePlayer(duplicated.get());
+                throw new BusinessException(400, player.getName() + " 不能同时为主客两队出场");
+            }
+        }
+    }
+
+    private BigDecimal resolveTeamLineValue(
+            Long teamId,
+            List<LineupAppearanceInputDTO> appearances,
+            List<LoanFeeInputDTO> loanFees,
+            int totalGames,
+            int advantageGameLimit,
+            boolean strict,
+            boolean preferStoredValues) {
+        List<LineupAppearanceInputDTO> normalized = new ArrayList<>();
+        Set<Long> playerIds = new HashSet<>();
+        int appearanceSlots = 0;
+        List<MatchSettlementCalculator.AppearanceValue> values = new ArrayList<>();
+
+        for (LineupAppearanceInputDTO dto : appearances) {
+            if (dto == null || dto.getPlayerId() == null || dto.getGamesPlayed() == null || dto.getGamesPlayed() <= 0) {
+                if (strict) {
+                    throw new BusinessException(400, "出场选手和出场局数不能为空");
+                }
+                continue;
+            }
+            if (!playerIds.add(dto.getPlayerId())) {
+                Player duplicated = requirePlayer(dto.getPlayerId());
+                throw new BusinessException(400, duplicated.getName() + " 在同一队伍的出场名单中重复");
+            }
+            if (totalGames > 0 && dto.getGamesPlayed() > totalGames) {
+                Player player = requirePlayer(dto.getPlayerId());
+                throw new BusinessException(400, player.getName() + " 的出场局数不能超过本场总局数 " + totalGames);
+            }
+
+            Player player = requirePlayer(dto.getPlayerId());
+            boolean ownRosterPlayer = isOwnRosterPlayer(player, teamId);
+            String playerType = "loan".equalsIgnoreCase(dto.getPlayerType()) ? "loan" : "roster";
+            if ("roster".equals(playerType) && !ownRosterPlayer) {
+                throw new BusinessException(400, player.getName() + " 不是该队当前可出场的本队选手");
+            }
+            if ("loan".equals(playerType) && ownRosterPlayer) {
+                throw new BusinessException(400, player.getName() + " 是本队选手，不能登记为租借出场");
+            }
+            if (strict && "loan".equals(playerType) && !hasMatchingLoanFee(loanFees, teamId, player.getId())) {
+                throw new BusinessException(400, player.getName() + " 已登记为租借出场，但租借费中没有对应记录");
+            }
+
+            int playerValue = preferStoredValues && dto.getPlayerValue() != null
+                    ? dto.getPlayerValue().intValueExact()
+                    : Optional.ofNullable(player.getValue()).orElse(0);
+            List<Integer> advantageTiers = normalizeAdvantageTiers(dto.getAdvantageTiers(), advantageGameLimit);
+            dto.setPlayerType(playerType);
+            dto.setPlayerValue(BigDecimal.valueOf(playerValue));
+            dto.setAdvantageTiers(advantageTiers);
+            normalized.add(dto);
+            appearanceSlots += dto.getGamesPlayed();
+            values.add(new MatchSettlementCalculator.AppearanceValue(playerValue, dto.getGamesPlayed(), advantageTiers));
+        }
+
+        appearances.clear();
+        appearances.addAll(normalized);
+        if (totalGames <= 0 || normalized.isEmpty()) {
+            if (strict) {
+                throw new BusinessException(400, "请先填写有效比分，再选择出场选手和出场局数");
+            }
+            return null;
+        }
+        if (strict) {
+            int requiredSlots = ruleParameterService.getInt("luxury.standard_roster_size") * totalGames;
+            if (appearanceSlots != requiredSlots) {
+                Team team = requireTeam(teamId);
+                throw new BusinessException(400, team.getState() + " 出场局数合计应为 " + requiredSlots
+                        + "（" + totalGames + " 局 × 每局 "
+                        + ruleParameterService.getInt("luxury.standard_roster_size") + " 人），当前为 " + appearanceSlots);
+            }
+        }
+        return calculator.calculateWeightedLineValue(values, totalGames, advantageGameLimit);
+    }
+
+    private boolean isOwnRosterPlayer(Player player, Long teamId) {
+        return Objects.equals(player.getTeamId(), teamId)
+                && (player.getStatus() == null || player.getStatus() == 1)
+                && (player.getIsLoan() == null || player.getIsLoan() != 1);
+    }
+
+    private boolean hasMatchingLoanFee(List<LoanFeeInputDTO> loanFees, Long teamId, Long playerId) {
+        return loanFees.stream().anyMatch(dto -> dto != null
+                && Objects.equals(dto.getPayingTeamId(), teamId)
+                && Objects.equals(dto.getPlayerId(), playerId));
+    }
+
+    private void persistLineupInputs(
+            Match match,
+            MatchResult result,
+            Long teamId,
+            List<LineupAppearanceInputDTO> appearances) {
+        for (LineupAppearanceInputDTO dto : appearances) {
+            MatchResultLineupInput row = new MatchResultLineupInput();
+            row.setResultId(result.getId());
+            row.setMatchId(match.getId());
+            row.setTeamId(teamId);
+            row.setPlayerId(dto.getPlayerId());
+            row.setPlayerType(dto.getPlayerType());
+            row.setGamesPlayed(dto.getGamesPlayed());
+            row.setPlayerValue(dto.getPlayerValue());
+            row.setAdvantageTiers(joinAdvantageTiers(dto.getAdvantageTiers()));
+            lineupInputMapper.insert(row);
+        }
+    }
+
+    private List<LineupAppearanceInputDTO> toLineupDtos(
+            List<MatchResultLineupInput> rows,
+            Long teamId) {
+        return rows.stream()
+                .filter(row -> Objects.equals(row.getTeamId(), teamId))
+                .map(row -> {
+                    LineupAppearanceInputDTO dto = new LineupAppearanceInputDTO();
+                    dto.setPlayerId(row.getPlayerId());
+                    dto.setPlayerType(row.getPlayerType());
+                    dto.setGamesPlayed(row.getGamesPlayed());
+                    dto.setPlayerValue(row.getPlayerValue());
+                    dto.setAdvantageTiers(parseAdvantageTiers(row.getAdvantageTiers()));
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
+    private List<Integer> normalizeAdvantageTiers(List<Integer> tiers, int advantageGameLimit) {
+        List<Integer> normalized = tiers == null ? new ArrayList<>() : tiers.stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        Set<Integer> unique = new HashSet<>(normalized);
+        if (unique.size() != normalized.size()
+                || !Set.of(1000, 1500, 2000, 2500, 3000).containsAll(unique)) {
+            throw new BusinessException(400, "身价差优势档位必须从 1000、1500、2000、2500、3000 中选择，且不能重复");
+        }
+        if (normalized.size() > advantageGameLimit) {
+            throw new BusinessException(400, "每名选手勾选的身价差优势档位不能超过赛制总局数 " + advantageGameLimit);
+        }
+        return normalized;
+    }
+
+    private int maxGamesForFormat(String format) {
+        if ("BO1".equalsIgnoreCase(format)) {
+            return 1;
+        }
+        if ("BO2".equalsIgnoreCase(format)) {
+            return 2;
+        }
+        if ("BO3".equalsIgnoreCase(format)) {
+            return 3;
+        }
+        if ("BO5".equalsIgnoreCase(format)) {
+            return 5;
+        }
+        throw new BusinessException(400, "不支持的比赛赛制: " + format);
+    }
+
+    private String joinAdvantageTiers(List<Integer> tiers) {
+        if (tiers == null || tiers.isEmpty()) {
+            return null;
+        }
+        return tiers.stream().map(String::valueOf).collect(Collectors.joining(","));
+    }
+
+    private List<Integer> parseAdvantageTiers(String value) {
+        if (value == null || value.isBlank()) {
+            return new ArrayList<>();
+        }
+        try {
+            return java.util.Arrays.stream(value.split(","))
+                    .map(String::trim)
+                    .filter(part -> !part.isEmpty())
+                    .map(Integer::valueOf)
+                    .collect(Collectors.toList());
+        } catch (NumberFormatException e) {
+            throw new BusinessException(500, "赛果中的身价差优势档位数据损坏");
+        }
     }
 
     private List<LedgerDraft> buildLedgerDrafts(Match match, MatchResult result, SettlementInputDTO settlement) {
@@ -265,15 +505,14 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
         requireTaxInput(settlement);
         double leagueStandard = calculateLeagueStandard();
         List<LedgerDraft> ledgers = new ArrayList<>();
-        addLuxuryTaxLedger(ledgers, match.getHomeTeamId(), leagueStandard, settlement.getHomeLineValue(), settlement.getHomeRosterSize(), match.getFormat());
-        addLuxuryTaxLedger(ledgers, match.getAwayTeamId(), leagueStandard, settlement.getAwayLineValue(), settlement.getAwayRosterSize(), match.getFormat());
+        addLuxuryTaxLedger(ledgers, match.getHomeTeamId(), leagueStandard, settlement.getHomeLineValue(), match.getFormat());
+        addLuxuryTaxLedger(ledgers, match.getAwayTeamId(), leagueStandard, settlement.getAwayLineValue(), match.getFormat());
         return ledgers;
     }
 
     private void requireTaxInput(SettlementInputDTO settlement) {
-        if (settlement.getHomeLineValue() == null || settlement.getAwayLineValue() == null
-                || settlement.getHomeRosterSize() == null || settlement.getAwayRosterSize() == null) {
-            throw new BusinessException(400, "未标记免税时必须填写主客队奢侈税结算输入");
+        if (settlement.getHomeLineValue() == null || settlement.getAwayLineValue() == null) {
+            throw new BusinessException(400, "未标记免税时必须填写主客队出场选手及其出场局数");
         }
     }
 
@@ -284,34 +523,31 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
         requireTaxInput(settlement);
         double leagueStandard = calculateLeagueStandard();
         List<LuxuryTaxPreviewVO> rows = new ArrayList<>();
-        rows.add(toLuxuryTaxPreview(match.getHomeTeamId(), leagueStandard, settlement.getHomeLineValue(), settlement.getHomeRosterSize(), match.getFormat()));
-        rows.add(toLuxuryTaxPreview(match.getAwayTeamId(), leagueStandard, settlement.getAwayLineValue(), settlement.getAwayRosterSize(), match.getFormat()));
+        rows.add(toLuxuryTaxPreview(match.getHomeTeamId(), leagueStandard, settlement.getHomeLineValue(), match.getFormat()));
+        rows.add(toLuxuryTaxPreview(match.getAwayTeamId(), leagueStandard, settlement.getAwayLineValue(), match.getFormat()));
         return rows;
     }
 
-    private LuxuryTaxPreviewVO toLuxuryTaxPreview(Long teamId, double leagueStandard, int lineValue, int rosterSize, String format) {
+    private LuxuryTaxPreviewVO toLuxuryTaxPreview(Long teamId, double leagueStandard, BigDecimal lineValue, String format) {
         Team team = requireTeam(teamId);
-        MatchSettlementCalculator.LuxuryTaxResult result = calculator.calculateLuxuryTax(leagueStandard, lineValue, rosterSize, format);
+        MatchSettlementCalculator.LuxuryTaxResult result = calculator.calculateLuxuryTax(leagueStandard, lineValue.doubleValue(), format);
         LuxuryTaxPreviewVO vo = new LuxuryTaxPreviewVO();
         vo.setTeamId(teamId);
         vo.setTeamState(team.getState());
         vo.setLineValue(lineValue);
-        vo.setRosterSize(rosterSize);
-        vo.setFactor(result.factor());
-        vo.setAdjustedLineValue(Math.toIntExact(Math.round(result.adjustedLineValue())));
         vo.setTaxLine(Math.toIntExact(Math.round(result.taxLine())));
         vo.setTaxable(Math.toIntExact(Math.round(result.taxable())));
         vo.setTax(result.tax());
         return vo;
     }
 
-    private void addLuxuryTaxLedger(List<LedgerDraft> ledgers, Long teamId, double leagueStandard, int lineValue, int rosterSize, String format) {
-        MatchSettlementCalculator.LuxuryTaxResult result = calculator.calculateLuxuryTax(leagueStandard, lineValue, rosterSize, format);
+    private void addLuxuryTaxLedger(List<LedgerDraft> ledgers, Long teamId, double leagueStandard, BigDecimal lineValue, String format) {
+        MatchSettlementCalculator.LuxuryTaxResult result = calculator.calculateLuxuryTax(leagueStandard, lineValue.doubleValue(), format);
         if (result.tax() <= 0) {
             return;
         }
-        String reason = "奢侈税：L=" + lineValue + "，人数=" + rosterSize + "，修正L="
-                + Math.round(result.adjustedLineValue()) + "，税线=" + Math.round(result.taxLine())
+        String reason = "奢侈税：加权L=" + lineValue.stripTrailingZeros().toPlainString()
+                + "，税线=" + Math.round(result.taxLine())
                 + "，应税=" + Math.round(result.taxable());
         ledgers.add(new LedgerDraft(teamId, "luxury_tax", -result.tax(), reason));
     }
@@ -638,6 +874,12 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
 
     private SettlementInputDTO normalizeSettlement(SettlementInputDTO settlement) {
         SettlementInputDTO input = settlement != null ? settlement : new SettlementInputDTO();
+        if (input.getHomeAppearances() == null) {
+            input.setHomeAppearances(new ArrayList<>());
+        }
+        if (input.getAwayAppearances() == null) {
+            input.setAwayAppearances(new ArrayList<>());
+        }
         if (input.getLoanFees() == null) {
             input.setLoanFees(new ArrayList<>());
         }

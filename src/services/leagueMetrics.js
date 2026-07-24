@@ -2,12 +2,6 @@ export const DEFAULT_RULE_PARAMETERS = {
   "luxury.tax_line_factor": 0.92,
   "luxury.standard_roster_size": 5,
   "luxury.taxable_floor": 0,
-  "luxury.roster_factor.le5": 1,
-  "luxury.roster_factor.eq6": 1.1,
-  "luxury.roster_factor.eq7": 1.25,
-  "luxury.roster_factor.eq8": 1.45,
-  "luxury.roster_factor.eq9": 1.7,
-  "luxury.roster_factor.ge10": 2,
   "luxury.tier_width": 1000,
   "luxury.bo2.rate.tier1": 0.8,
   "luxury.bo2.rate.tier2": 1.1,
@@ -26,15 +20,6 @@ export const DEFAULT_RULE_PARAMETERS = {
   "loan.free_agent_source_share": 0,
   "loan.free_agent_league_share": 0.6
 };
-
-export const rosterFactors = [
-  { max: 5, factor: 1 },
-  { max: 6, factor: 1.1 },
-  { max: 7, factor: 1.25 },
-  { max: 8, factor: 1.45 },
-  { max: 9, factor: 1.7 },
-  { max: Infinity, factor: 2 }
-];
 
 export function buildRuleParameterMap(rows = []) {
   const params = { ...DEFAULT_RULE_PARAMETERS };
@@ -64,15 +49,6 @@ export function getTeamTotal(team) {
   return team.players.reduce((sum, player) => sum + player[1], 0);
 }
 
-export function getRosterFactor(rosterSize, params = DEFAULT_RULE_PARAMETERS) {
-  if (rosterSize <= 5) return getRuleParameter(params, "luxury.roster_factor.le5");
-  if (rosterSize === 6) return getRuleParameter(params, "luxury.roster_factor.eq6");
-  if (rosterSize === 7) return getRuleParameter(params, "luxury.roster_factor.eq7");
-  if (rosterSize === 8) return getRuleParameter(params, "luxury.roster_factor.eq8");
-  if (rosterSize === 9) return getRuleParameter(params, "luxury.roster_factor.eq9");
-  return getRuleParameter(params, "luxury.roster_factor.ge10");
-}
-
 export function getLeagueStandardR(teams, params = DEFAULT_RULE_PARAMETERS) {
   const total = teams.reduce((sum, team) => sum + getTeamTotal(team), 0);
   const count = teams.reduce((sum, team) => sum + team.players.length, 0);
@@ -93,13 +69,11 @@ export function calcProgressiveTax(taxable, format, params = DEFAULT_RULE_PARAME
   return parts.reduce((sum, part, index) => sum + part * rates[index], 0);
 }
 
-export function calcLuxuryTax(teams, lineValue, rosterSize, format, params = DEFAULT_RULE_PARAMETERS) {
-  const factor = getRosterFactor(rosterSize, params);
-  const adjustedLineValue = lineValue * factor;
+export function calcLuxuryTax(teams, lineValue, format, params = DEFAULT_RULE_PARAMETERS) {
   const taxLine = getTaxLine(teams, params);
-  const taxable = Math.max(getRuleParameter(params, "luxury.taxable_floor"), adjustedLineValue - taxLine);
+  const taxable = Math.max(getRuleParameter(params, "luxury.taxable_floor"), lineValue - taxLine);
   const tax = calcProgressiveTax(taxable, format, params);
-  return { factor, adjustedLineValue, taxLine, taxable, tax };
+  return { lineValue, taxLine, taxable, tax };
 }
 
 export function calcLoanFee(playerValue, format, playerType, params = DEFAULT_RULE_PARAMETERS) {

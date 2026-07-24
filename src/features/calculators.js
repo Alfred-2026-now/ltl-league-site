@@ -14,14 +14,13 @@ function percentLabel(rate) {
 
 /** 根据规则参数生成计算器界面文案（便于单测） */
 export function buildCalculatorLabels(ruleParameters) {
-  const rosterSize = getRuleParameter(ruleParameters, "luxury.standard_roster_size");
   const bo2 = percentLabel(getRuleParameter(ruleParameters, "loan.bo2.rate"));
   const bo3 = percentLabel(getRuleParameter(ruleParameters, "loan.bo3.rate"));
   const playerShare = percentLabel(getRuleParameter(ruleParameters, "loan.player_share"));
   const teamShare = percentLabel(getRuleParameter(ruleParameters, "loan.original_team_share"));
   const freeLeagueShare = percentLabel(getRuleParameter(ruleParameters, "loan.free_agent_league_share"));
   return {
-    luxuryLineLabel: `实际出场${rosterSize}人总身价L`,
+    luxuryLineLabel: "按每名选手出场局数加权的总身价L",
     loanBo2Option: `BO2：${bo2}`,
     loanBo3Option: `BO3：${bo3}`,
     loanShareHint: `分成：选手 ${playerShare} / 原队 ${teamShare}；自由人联盟回收 ${freeLeagueShare}`
@@ -73,13 +72,11 @@ function setupLuxuryTaxCalculator(teams, ruleParameters) {
 
   button.addEventListener("click", () => {
     const lineValue = Number(document.getElementById("luxuryL").value || 0);
-    const rosterSize = Number(document.getElementById("rosterN").value || 5);
     const format = document.getElementById("format").value;
-    const result = calcLuxuryTax(teams, lineValue, rosterSize, format, ruleParameters);
+    const result = calcLuxuryTax(teams, lineValue, format, ruleParameters);
 
     document.getElementById("luxuryResult").innerHTML =
-      `修正因子：×${result.factor.toFixed(2)}<br>` +
-      `修正后L：${formatP(result.adjustedLineValue)}<br>` +
+      `加权出场总身价L：${formatP(result.lineValue)}<br>` +
       `工资帽线：${formatP(result.taxLine)}<br>` +
       `应税部分X：${formatP(result.taxable)}<br>` +
       `<strong>${format}奢侈税：${formatP(result.tax)}</strong>`;

@@ -3,6 +3,9 @@ package com.ltl.league.admin.service;
 import com.ltl.league.exception.BusinessException;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -12,10 +15,9 @@ class MatchSettlementCalculatorTest {
 
     @Test
     void calculateLuxuryTaxUsesBo3ProgressiveRates() {
-        MatchSettlementCalculator.LuxuryTaxResult result = calculator.calculateLuxuryTax(10000, 13000, 5, "BO3");
+        MatchSettlementCalculator.LuxuryTaxResult result = calculator.calculateLuxuryTax(10000, 13000, "BO3");
 
-        assertEquals(1, result.factor());
-        assertEquals(13000, result.adjustedLineValue());
+        assertEquals(13000, result.lineValue());
         assertEquals(9200, result.taxLine());
         assertEquals(3800, result.taxable());
         assertEquals(5760, result.tax());
@@ -23,26 +25,70 @@ class MatchSettlementCalculatorTest {
 
     @Test
     void calculateLuxuryTaxUsesDefaultRatesForBo2() {
-        MatchSettlementCalculator.LuxuryTaxResult result = calculator.calculateLuxuryTax(10000, 13000, 5, "BO2");
+        MatchSettlementCalculator.LuxuryTaxResult result = calculator.calculateLuxuryTax(10000, 13000, "BO2");
 
         assertEquals(4740, result.tax());
     }
 
     @Test
-    void calculateLuxuryTaxAppliesRosterFactor() {
-        MatchSettlementCalculator.LuxuryTaxResult result = calculator.calculateLuxuryTax(10000, 10000, 8, "BO2");
+    void calculateLuxuryTaxDoesNotApplyRosterFactor() {
+        MatchSettlementCalculator.LuxuryTaxResult result = calculator.calculateLuxuryTax(10000, 10000, "BO2");
 
-        assertEquals(1.45, result.factor());
-        assertEquals(14500, result.adjustedLineValue());
-        assertEquals(8090, result.tax());
+        assertEquals(10000, result.lineValue());
+        assertEquals(640, result.tax());
     }
 
     @Test
     void calculateLuxuryTaxReturnsZeroWhenUnderTaxLine() {
-        MatchSettlementCalculator.LuxuryTaxResult result = calculator.calculateLuxuryTax(10000, 8000, 5, "BO3");
+        MatchSettlementCalculator.LuxuryTaxResult result = calculator.calculateLuxuryTax(10000, 8000, "BO3");
 
         assertEquals(0, result.taxable());
         assertEquals(0, result.tax());
+    }
+
+    @Test
+    void calculateWeightedLineValueUsesEachPlayersShareOfGames() {
+        BigDecimal result = calculator.calculateWeightedLineValue(List.of(
+                new MatchSettlementCalculator.AppearanceValue(3000, 2, List.of()),
+                new MatchSettlementCalculator.AppearanceValue(1500, 1, List.of())), 3, 3);
+
+        assertEquals(new BigDecimal("2500.00"), result);
+    }
+
+    @Test
+    void calculateWeightedLineValueRoundsOnlyAfterAccumulating() {
+        BigDecimal result = calculator.calculateWeightedLineValue(List.of(
+                new MatchSettlementCalculator.AppearanceValue(1000, 1, List.of())), 3, 3);
+
+        assertEquals(new BigDecimal("333.33"), result);
+    }
+
+    @Test
+    void calculateWeightedLineValueRejectsMoreAppearancesThanGames() {
+        assertThrows(BusinessException.class, () -> calculator.calculateWeightedLineValue(List.of(
+                new MatchSettlementCalculator.AppearanceValue(1000, 4, List.of())), 3, 3));
+    }
+
+    @Test
+    void calculateWeightedLineValueAppliesAdvantageTiersBeforeAppearanceShare() {
+        BigDecimal result = calculator.calculateWeightedLineValue(List.of(
+                new MatchSettlementCalculator.AppearanceValue(4000, 2, List.of(1000, 1500))), 2, 2);
+
+        assertEquals(new BigDecimal("2750.00"), result);
+    }
+
+    @Test
+    void calculateWeightedLineValueLimitsAdvantageTierCountToTotalGames() {
+        assertThrows(BusinessException.class, () -> calculator.calculateWeightedLineValue(List.of(
+                new MatchSettlementCalculator.AppearanceValue(5000, 2, List.of(1000, 1500, 2000))), 2, 2));
+    }
+
+    @Test
+    void calculateWeightedLineValueUsesFormatGameCountForAdvantageRule() {
+        BigDecimal result = calculator.calculateWeightedLineValue(List.of(
+                new MatchSettlementCalculator.AppearanceValue(4000, 2, List.of(1500))), 2, 3);
+
+        assertEquals(new BigDecimal("3500.00"), result);
     }
 
     @Test

@@ -27,19 +27,10 @@ function luxuryRateRows(format, params) {
 
 function renderLuxuryRosterRule(params) {
   return `
-    <p>队伍可以拥有超过${getRuleParameter(params, "luxury.standard_roster_size")}名在职人数（包括教练），但队伍在职人数越多，最终奢侈税越高。本场基础奢侈税仍按照实际出场名单的总身价L计算；若队伍在职人数超过标准人数，则用于奢侈税计算的总身价L乘以修正因子。</p>
-    <table class="rule-table">
-      <thead><tr><th>在职人数</th><th>修正因子</th></tr></thead>
-      <tbody>
-        <tr><td>≤5人</td><td>×${factor(getRuleParameter(params, "luxury.roster_factor.le5"))}</td></tr>
-        <tr><td>6人</td><td>×${factor(getRuleParameter(params, "luxury.roster_factor.eq6"))}</td></tr>
-        <tr><td>7人</td><td>×${factor(getRuleParameter(params, "luxury.roster_factor.eq7"))}</td></tr>
-        <tr><td>8人</td><td>×${factor(getRuleParameter(params, "luxury.roster_factor.eq8"))}</td></tr>
-        <tr><td>9人</td><td>×${factor(getRuleParameter(params, "luxury.roster_factor.eq9"))}</td></tr>
-        <tr><td>10人及以上</td><td>×${factor(getRuleParameter(params, "luxury.roster_factor.ge10"))}</td></tr>
-      </tbody>
-    </table>
-    <p class="note">租借选手临时出场不计入队伍在职人数；若正式登记进入队伍名单，则计入在职人数。</p>
+    <p>奢侈税不再按队伍在职人数乘修正因子，而是按本轮每名实际出场选手的出场局数计算。</p>
+    <p>若一名选手在本轮共 n 局比赛中出场 m 局，则该选手计入出场总身价 L 的金额为：选手身价 × m ÷ n。主队、客队的本队选手和租借选手均按此公式累计。</p>
+    <p>若某选手使用身价差优势规则，可从 1000、1500、2000、2500、3000 档位中勾选，勾选项数不得超过赛制总局数（BO2=2、BO3=3、BO5=5）。该选手本场折算身价 = 原始身价 − 勾选档位之和 ÷ 赛制总局数，再按实际出场局数计入 L。</p>
+    <p class="note">租借选手的加权身价计入使用队伍，同时仍需按租借规则登记租借费。</p>
   `;
 }
 
@@ -48,7 +39,7 @@ function renderLuxuryTaxRule(params) {
   const taxLineFactor = getRuleParameter(params, "luxury.tax_line_factor");
   const taxableFloor = getRuleParameter(params, "luxury.taxable_floor");
   return `
-    <p>应税部分X=max(${taxableFloor}P，修正后的L−${factor(taxLineFactor)}R)，其中R=所有在战队选手的身价平均值×${rosterSize}。</p>
+    <p>应税部分X=max(${taxableFloor}P，按出场局数加权的L−${factor(taxLineFactor)}R)，其中R=所有在战队选手的身价平均值×${rosterSize}。</p>
     <div class="two-col">
       <table class="rule-table"><thead><tr><th colspan="2">周内BO2</th></tr></thead><tbody>${luxuryRateRows("BO2", params)}</tbody></table>
       <table class="rule-table"><thead><tr><th colspan="2">周末BO3</th></tr></thead><tbody>${luxuryRateRows("BO3", params)}</tbody></table>
