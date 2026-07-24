@@ -4,6 +4,12 @@ import com.ltl.league.exception.BusinessException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 @Component
 public class MatchSettlementCalculator {
 
@@ -18,13 +24,54 @@ public class MatchSettlementCalculator {
         this.ruleParameterService = ruleParameterService;
     }
 
-    public LuxuryTaxResult calculateLuxuryTax(double leagueStandard, int lineValue, int rosterSize, String format) {
-        double factor = getRosterFactor(rosterSize);
-        double adjustedLineValue = lineValue * factor;
+    public LuxuryTaxResult calculateLuxuryTax(double leagueStandard, double lineValue, String format) {
         double taxLine = leagueStandard * ruleParameterService.getDecimal("luxury.tax_line_factor");
-        double taxable = Math.max(ruleParameterService.getInt("luxury.taxable_floor"), adjustedLineValue - taxLine);
+        double taxable = Math.max(ruleParameterService.getInt("luxury.taxable_floor"), lineValue - taxLine);
         int tax = Math.toIntExact(Math.round(calculateProgressiveTax(taxable, format)));
-        return new LuxuryTaxResult(factor, adjustedLineValue, taxLine, taxable, tax);
+        return new LuxuryTaxResult(lineValue, taxLine, taxable, tax);
+    }
+
+    public BigDecimal calculateWeightedLineValue(
+            List<AppearanceValue> appearances,
+            int totalGames,
+            int advantageGameLimit) {
+        if (totalGames <= 0) {
+            throw new BusinessException(400, "本场总局数必须大于 0");
+        }
+        if (advantageGameLimit <= 0) {
+            throw new BusinessException(400, "赛制总局数必须大于 0");
+        }
+        BigDecimal weightedTotal = BigDecimal.ZERO;
+        for (AppearanceValue appearance : appearances) {
+            if (appearance.playerValue() < 0) {
+                throw new BusinessException(400, "选手身价不能小于 0");
+            }
+            if (appearance.gamesPlayed() <= 0 || appearance.gamesPlayed() > totalGames) {
+                throw new BusinessException(400, "选手出场局数必须在 1 到 " + totalGames + " 之间");
+            }
+            List<Integer> advantageTiers = appearance.advantageTiers() != null
+                    ? appearance.advantageTiers()
+                    : List.of();
+            Set<Integer> uniqueTiers = new HashSet<>(advantageTiers);
+            if (uniqueTiers.size() != advantageTiers.size()
+                    || !Set.of(1000, 1500, 2000, 2500, 3000).containsAll(uniqueTiers)) {
+                throw new BusinessException(400, "身价差优势档位必须从 1000、1500、2000、2500、3000 中选择，且不能重复");
+            }
+            if (advantageTiers.size() > advantageGameLimit) {
+                throw new BusinessException(400, "身价差优势档位数量不能超过赛制总局数 " + advantageGameLimit);
+            }
+            int advantageTotal = advantageTiers.stream().mapToInt(Integer::intValue).sum();
+            BigDecimal foldedPlayerValue = BigDecimal.valueOf(appearance.playerValue())
+                    .subtract(BigDecimal.valueOf(advantageTotal)
+                            .divide(BigDecimal.valueOf(advantageGameLimit), 10, RoundingMode.HALF_UP));
+            if (foldedPlayerValue.signum() < 0) {
+                throw new BusinessException(400, "身价差优势折算后选手身价不能小于 0");
+            }
+            weightedTotal = weightedTotal.add(
+                    foldedPlayerValue
+                            .multiply(BigDecimal.valueOf(appearance.gamesPlayed())));
+        }
+        return weightedTotal.divide(BigDecimal.valueOf(totalGames), 2, RoundingMode.HALF_UP);
     }
 
     public LoanFeeResult calculateLoanFee(int playerValue, String format, String sourceType) {
@@ -57,25 +104,6 @@ public class MatchSettlementCalculator {
         return homeScore + ":" + awayScore;
     }
 
-    private double getRosterFactor(int rosterSize) {
-        if (rosterSize <= 5) {
-            return ruleParameterService.getDecimal("luxury.roster_factor.le5");
-        }
-        if (rosterSize == 6) {
-            return ruleParameterService.getDecimal("luxury.roster_factor.eq6");
-        }
-        if (rosterSize == 7) {
-            return ruleParameterService.getDecimal("luxury.roster_factor.eq7");
-        }
-        if (rosterSize == 8) {
-            return ruleParameterService.getDecimal("luxury.roster_factor.eq8");
-        }
-        if (rosterSize == 9) {
-            return ruleParameterService.getDecimal("luxury.roster_factor.eq9");
-        }
-        return ruleParameterService.getDecimal("luxury.roster_factor.ge10");
-    }
-
     private double calculateProgressiveTax(double taxable, String format) {
         String prefix = "BO3".equalsIgnoreCase(format) ? "luxury.bo3.rate.tier" : "luxury.bo2.rate.tier";
         double[] rates = {
@@ -101,11 +129,13 @@ public class MatchSettlementCalculator {
     }
 
     public record LuxuryTaxResult(
-            double factor,
-            double adjustedLineValue,
+            double lineValue,
             double taxLine,
             double taxable,
             int tax) {
+    }
+
+    public record AppearanceValue(int playerValue, int gamesPlayed, List<Integer> advantageTiers) {
     }
 
     public record LoanFeeResult(

@@ -76,11 +76,47 @@
           <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem;">
             <input type="checkbox" id="taxExempt" /> <span>本场不征收奢侈税</span>
           </label>
-          <div style="display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:.5rem;">
-            <label class="field"><span class="field-label">主队出场总身价</span><input class="input" id="homeLineValue" type="number" min="0" placeholder="5人总身价" /></label>
-            <label class="field"><span class="field-label">主队在职人数</span><input class="input" id="homeRosterSize" type="number" min="1" placeholder="含教练" /></label>
-            <label class="field"><span class="field-label">客队出场总身价</span><input class="input" id="awayLineValue" type="number" min="0" placeholder="5人总身价" /></label>
-            <label class="field"><span class="field-label">客队在职人数</span><input class="input" id="awayRosterSize" type="number" min="1" placeholder="含教练" /></label>
+          <p class="muted" style="margin:0 0 .75rem;">
+            系统按“本场折算身价 × 出场局数 ÷ 实际比赛局数”累计出场总身价；如使用身价差优势，折算身价为“原始身价 − 勾选档位之和 ÷ 赛制总局数”（BO2=2、BO3=3、BO5=5），勾选项数也不得超过赛制总局数。每队出场局数合计应为“实际比赛局数 × 5”。
+          </p>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:.75rem;">
+            <section class="panel" style="padding:.75rem;" data-lineup-side="home">
+              <div style="display:flex;align-items:end;justify-content:space-between;gap:.75rem;flex-wrap:wrap;">
+                <div>
+                  <strong id="homeLineupTitle">主队出场选手</strong>
+                  <p class="muted" style="margin:.25rem 0 0;">勾选本队选手并填写出场局数。</p>
+                </div>
+                <label class="field" style="min-width:150px;">
+                  <span class="field-label">加权出场总身价</span>
+                  <input class="input" id="homeLineValue" type="number" min="0" step="0.01" readonly />
+                </label>
+              </div>
+              <div id="homeRosterAppearances" style="margin-top:.75rem;"></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.75rem;">
+                <strong style="font-size:.95rem;">租借出场选手</strong>
+                <button class="btn ghost" type="button" id="addHomeLoanAppearanceBtn">添加租借选手</button>
+              </div>
+              <div id="homeLoanAppearances"></div>
+            </section>
+
+            <section class="panel" style="padding:.75rem;" data-lineup-side="away">
+              <div style="display:flex;align-items:end;justify-content:space-between;gap:.75rem;flex-wrap:wrap;">
+                <div>
+                  <strong id="awayLineupTitle">客队出场选手</strong>
+                  <p class="muted" style="margin:.25rem 0 0;">勾选本队选手并填写出场局数。</p>
+                </div>
+                <label class="field" style="min-width:150px;">
+                  <span class="field-label">加权出场总身价</span>
+                  <input class="input" id="awayLineValue" type="number" min="0" step="0.01" readonly />
+                </label>
+              </div>
+              <div id="awayRosterAppearances" style="margin-top:.75rem;"></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.75rem;">
+                <strong style="font-size:.95rem;">租借出场选手</strong>
+                <button class="btn ghost" type="button" id="addAwayLoanAppearanceBtn">添加租借选手</button>
+              </div>
+              <div id="awayLoanAppearances"></div>
+            </section>
           </div>
         </div>
 

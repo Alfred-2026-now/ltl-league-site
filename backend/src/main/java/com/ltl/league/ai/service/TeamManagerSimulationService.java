@@ -119,7 +119,7 @@ public class TeamManagerSimulationService {
         int lineValue = lineup.stream().map(Player::getValue).filter(Objects::nonNull).mapToInt(Integer::intValue).sum();
         int opponentLineValue = opponentLineup.stream().map(Player::getValue).filter(Objects::nonNull).mapToInt(Integer::intValue).sum();
         int loanFeePaid = calculateLoanFeePaid(currentTeam, lineup, format);
-        int luxuryTax = calculator.calculateLuxuryTax(leagueStandard, lineValue, rosterSize, format).tax();
+        int luxuryTax = calculator.calculateLuxuryTax(leagueStandard, lineValue, format).tax();
 
         TeamManagerDtos.SimulationResponse response = new TeamManagerDtos.SimulationResponse();
         response.setCurrentTeamId(currentTeam.getId());
@@ -377,11 +377,6 @@ public class TeamManagerSimulationService {
             return valueOrZero(rule.getDrawAmount());
         }
         return mine > opponent ? valueOrZero(rule.getWinnerAmount()) : valueOrZero(rule.getLoserAmount());
-    }
-
-    private int calculateLuxuryTax(List<Player> players, int lineValue, int rosterSize, String format) {
-        double leagueStandard = calculateLeagueStandard(players);
-        return calculator.calculateLuxuryTax(leagueStandard, lineValue, rosterSize, format).tax();
     }
 
     private int calculateLoanFeePaid(Team currentTeam, List<Player> lineup, String format) {

@@ -40,19 +40,7 @@ public final class RuleParameterCatalog {
         add(specs, "luxury.standard_roster_size", GROUP_LUXURY_TAX, "奢侈税", "标准出场人数", "5", "int", "人",
                 "联盟标准身价 R = 当前在职选手平均身价 × 本人数。", order++);
         add(specs, "luxury.taxable_floor", GROUP_LUXURY_TAX, "奢侈税", "应税额下限", "0", "int", "P",
-                "应税额 X = max(本值, 修正后 L - 税线)。通常保持为 0，避免低于税线时产生负税。", order++);
-        add(specs, "luxury.roster_factor.le5", GROUP_LUXURY_TAX, "奢侈税", "名单人数≤5修正因子", "1", "decimal", "倍",
-                "队伍在职人数不超过 5 人时，出场总身价 L 的放大倍率。", order++);
-        add(specs, "luxury.roster_factor.eq6", GROUP_LUXURY_TAX, "奢侈税", "名单人数6修正因子", "1.1", "decimal", "倍",
-                "队伍在职人数为 6 人时，出场总身价 L 的放大倍率。", order++);
-        add(specs, "luxury.roster_factor.eq7", GROUP_LUXURY_TAX, "奢侈税", "名单人数7修正因子", "1.25", "decimal", "倍",
-                "队伍在职人数为 7 人时，出场总身价 L 的放大倍率。", order++);
-        add(specs, "luxury.roster_factor.eq8", GROUP_LUXURY_TAX, "奢侈税", "名单人数8修正因子", "1.45", "decimal", "倍",
-                "队伍在职人数为 8 人时，出场总身价 L 的放大倍率。", order++);
-        add(specs, "luxury.roster_factor.eq9", GROUP_LUXURY_TAX, "奢侈税", "名单人数9修正因子", "1.7", "decimal", "倍",
-                "队伍在职人数为 9 人时，出场总身价 L 的放大倍率。", order++);
-        add(specs, "luxury.roster_factor.ge10", GROUP_LUXURY_TAX, "奢侈税", "名单人数≥10修正因子", "2", "decimal", "倍",
-                "队伍在职人数为 10 人及以上时，出场总身价 L 的放大倍率。", order++);
+                "应税额 X = max(本值, 按出场局数加权的 L - 税线)。通常保持为 0，避免低于税线时产生负税。", order++);
         add(specs, "luxury.tier_width", GROUP_LUXURY_TAX, "奢侈税", "累进税档宽度", "1000", "int", "P",
                 "奢侈税累进分段的单档宽度；默认每 1000P 进入下一档。", order++);
 

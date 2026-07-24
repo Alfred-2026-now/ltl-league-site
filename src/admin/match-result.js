@@ -14,6 +14,12 @@ import {
   uploadGameScreenshot,
   withdrawResult
 } from "./api.js";
+import {
+  appearanceSlotTotal,
+  calculateWeightedLineValue,
+  formatLineValue,
+  totalGamesFromScores
+} from "./lineup-value.js";
 
 const params = new URLSearchParams(window.location.search);
 const matchId = params.get("matchId");
@@ -37,8 +43,14 @@ function bindEls() {
     taxExempt: document.getElementById("taxExempt"),
     homeLineValue: document.getElementById("homeLineValue"),
     awayLineValue: document.getElementById("awayLineValue"),
-    homeRosterSize: document.getElementById("homeRosterSize"),
-    awayRosterSize: document.getElementById("awayRosterSize"),
+    homeLineupTitle: document.getElementById("homeLineupTitle"),
+    awayLineupTitle: document.getElementById("awayLineupTitle"),
+    homeRosterAppearances: document.getElementById("homeRosterAppearances"),
+    awayRosterAppearances: document.getElementById("awayRosterAppearances"),
+    homeLoanAppearances: document.getElementById("homeLoanAppearances"),
+    awayLoanAppearances: document.getElementById("awayLoanAppearances"),
+    addHomeLoanAppearanceBtn: document.getElementById("addHomeLoanAppearanceBtn"),
+    addAwayLoanAppearanceBtn: document.getElementById("addAwayLoanAppearanceBtn"),
     loanInputs: document.getElementById("loanInputs"),
     valuationInputs: document.getElementById("valuationInputs"),
     addLoanBtn: document.getElementById("addLoanBtn"),
@@ -68,6 +80,7 @@ let players = [];
 let resultCtx = null;
 let readOnly = false;
 let previewTimer = null;
+const ADVANTAGE_TIERS = [1000, 1500, 2000, 2500, 3000];
 
 function maxGamesForFormat(format) {
   const f = (format || "").toUpperCase();
@@ -256,14 +269,6 @@ function numberOrNull(value) {
   return value !== "" && value != null ? Number(value) : null;
 }
 
-function calcTeamLineValue(teamId) {
-  return activeTeamPlayers(teamId).reduce((sum, p) => sum + (p.value || 0), 0);
-}
-
-function calcTeamRosterSize(teamId) {
-  return activeTeamPlayers(teamId).length;
-}
-
 function matchTeamIds() {
   if (!match) return [];
   return [match.homeTeamId, match.awayTeamId].filter(id => id != null).map(id => String(id));
@@ -324,42 +329,237 @@ function syncLoanPlayerFields(row) {
   refreshReplacedPlayerOptions(row);
 }
 
-function calculatedLineValueWithLoans(teamId) {
-  let total = calcTeamLineValue(teamId);
-  collectLoanInputs()
-    .filter(row => String(row.payingTeamId) === String(teamId) && row.playerId && row.replacedPlayerId)
-    .forEach(row => {
-      const loanPlayer = players.find(p => String(p.id) === String(row.playerId));
-      const replacedPlayer = players.find(p => String(p.id) === String(row.replacedPlayerId));
-      const loanValue = row.playerValue ?? loanPlayer?.value ?? 0;
-      total += loanValue - (replacedPlayer?.value || 0);
+function currentTotalGames() {
+  return totalGamesFromScores(els.homeScore?.value, els.awayScore?.value);
+}
+
+function currentAdvantageGameLimit() {
+  return maxGamesForFormat(match?.format);
+}
+
+function sideConfig(side) {
+  const home = side === "home";
+  return {
+    teamId: home ? match?.homeTeamId : match?.awayTeamId,
+    lineValue: home ? els.homeLineValue : els.awayLineValue,
+    title: home ? els.homeLineupTitle : els.awayLineupTitle,
+    rosterContainer: home ? els.homeRosterAppearances : els.awayRosterAppearances,
+    loanContainer: home ? els.homeLoanAppearances : els.awayLoanAppearances,
+    section: document.querySelector(`[data-lineup-side="${side}"]`)
+  };
+}
+
+function teamDisplayName(teamId) {
+  const team = teams.find(row => String(row.id) === String(teamId));
+  return team ? `${team.state} · ${team.name}` : "队伍";
+}
+
+function appearancePlayerOptions(teamId, selectedId = "") {
+  const candidates = players.filter(player => {
+    const ownRoster = String(player.teamId) === String(teamId)
+      && player.status === 1
+      && !player.isLoan;
+    return player.status === 1 && !ownRoster;
+  });
+  return [
+    `<option value="">请选择租借选手</option>`,
+    ...candidates.map(player => {
+      const sourceTeam = teams.find(team => String(team.id) === String(player.teamId));
+      const source = sourceTeam ? ` · ${sourceTeam.state}` : " · 自由人";
+      return `<option value="${player.id}" ${String(player.id) === String(selectedId) ? "selected" : ""}>${player.name}${source} · ${player.value ?? 0}P</option>`;
+    })
+  ].join("");
+}
+
+function advantageTierControls(selectedTiers = []) {
+  const selected = new Set((selectedTiers || []).map(Number));
+  return `
+    <fieldset class="advantage-tier-fieldset" style="border:0;padding:0;margin:.5rem 0 0;">
+      <legend class="field-label">是否使用身价差优势规则</legend>
+      <div style="display:flex;flex-wrap:wrap;gap:.35rem .65rem;margin-top:.3rem;">
+        ${ADVANTAGE_TIERS.map(tier => `
+          <label style="display:flex;align-items:center;gap:.25rem;">
+            <input class="advantage-tier" type="checkbox" value="${tier}" ${selected.has(tier) ? "checked" : ""} />
+            <span>${tier}</span>
+          </label>
+        `).join("")}
+      </div>
+      <p class="muted advantage-tier-summary" style="margin:.35rem 0 0;"></p>
+    </fieldset>
+  `;
+}
+
+function selectedAdvantageTiers(row) {
+  return Array.from(row?.querySelectorAll(".advantage-tier:checked") || []).map(input => Number(input.value));
+}
+
+function syncAdvantageTierState(row) {
+  if (!row) return;
+  const advantageGameLimit = currentAdvantageGameLimit();
+  const selected = selectedAdvantageTiers(row);
+  const rosterRow = row.closest("[data-roster-appearance]");
+  const loanRow = row.closest("[data-loan-appearance]");
+  const isActive = rosterRow
+    ? rosterRow.querySelector(".appearance-enabled")?.checked === true
+    : Boolean(loanRow?.querySelector(".appearance-player")?.value);
+  row.querySelectorAll(".advantage-tier").forEach(input => {
+    input.disabled = readOnly
+      || els.taxExempt?.checked === true
+      || !isActive
+      || (!input.checked && selected.length >= advantageGameLimit);
+  });
+  const summary = row.querySelector(".advantage-tier-summary");
+  if (!summary) return;
+  const rawValue = Number(row.dataset.playerValue || 0);
+  const foldedValue = rawValue - selected.reduce((sum, tier) => sum + tier, 0) / advantageGameLimit;
+  summary.textContent = `已选 ${selected.length} / ${advantageGameLimit} 项 · 本场折算身价 ${formatLineValue(foldedValue)}P`;
+  summary.style.color = selected.length > advantageGameLimit || foldedValue < 0 ? "#ff9f9f" : "";
+}
+
+function syncAllAdvantageTierStates() {
+  document.querySelectorAll("[data-roster-appearance], [data-loan-appearance]").forEach(syncAdvantageTierState);
+}
+
+function renderRosterAppearances(side, savedRows = []) {
+  const config = sideConfig(side);
+  if (!config.rosterContainer) return;
+  const savedByPlayer = new Map(savedRows
+    .filter(row => row.playerType !== "loan")
+    .map(row => [String(row.playerId), row]));
+  const roster = activeTeamPlayers(config.teamId);
+  const totalGames = currentTotalGames();
+  if (!roster.length) {
+    config.rosterContainer.innerHTML = `<p class="muted">当前没有可选择的本队在职选手。</p>`;
+    return;
+  }
+  config.rosterContainer.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.45rem;">
+      ${roster.map(player => {
+        const saved = savedByPlayer.get(String(player.id));
+        const checked = Boolean(saved);
+        return `
+          <div class="panel" data-roster-appearance data-player-id="${player.id}" data-player-value="${player.value ?? 0}" style="padding:.5rem;">
+            <label style="display:flex;align-items:center;gap:.45rem;">
+              <input class="appearance-enabled" type="checkbox" ${checked ? "checked" : ""} />
+              <span>${player.name} · ${player.value ?? 0}P</span>
+            </label>
+            <label class="field" style="margin-top:.4rem;">
+              <span class="field-label">出场局数</span>
+              <input class="input appearance-games" type="number" min="1" max="${totalGames || 1}"
+                value="${saved?.gamesPlayed ?? ""}" ${checked ? "" : "disabled"} />
+            </label>
+            ${advantageTierControls(saved?.advantageTiers || [])}
+          </div>
+        `;
+      }).join("")}
+    </div>
+    <p class="muted lineup-slot-summary" style="margin:.5rem 0 0;"></p>
+  `;
+}
+
+function renderLoanAppearances(side, savedRows = []) {
+  const config = sideConfig(side);
+  if (!config.loanContainer) return;
+  const rows = savedRows.filter(row => row.playerType === "loan");
+  const totalGames = currentTotalGames();
+  config.loanContainer.innerHTML = rows.length ? rows.map((row, index) => `
+    <div class="panel" data-loan-appearance data-player-value="${players.find(player => String(player.id) === String(row.playerId))?.value ?? row.playerValue ?? 0}" style="padding:.5rem;margin-top:.45rem;">
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 120px auto;gap:.45rem;align-items:end;">
+        <label class="field"><span class="field-label">租借选手</span>
+          <select class="input appearance-player">${appearancePlayerOptions(config.teamId, row.playerId)}</select>
+        </label>
+        <label class="field"><span class="field-label">出场局数</span>
+          <input class="input appearance-games" type="number" min="1" max="${totalGames || 1}" value="${row.gamesPlayed ?? ""}" />
+        </label>
+        <button class="btn ghost remove-loan-appearance" type="button" data-index="${index}">删除</button>
+      </div>
+      ${advantageTierControls(row.advantageTiers || [])}
+    </div>
+  `).join("") : `<p class="muted" style="margin:.5rem 0 0;">本场暂无租借选手出场。租借选手还须在下方“租借费”中登记。</p>`;
+}
+
+function collectSideAppearances(side) {
+  const config = sideConfig(side);
+  const appearances = [];
+  config.rosterContainer?.querySelectorAll("[data-roster-appearance]").forEach(row => {
+    if (!row.querySelector(".appearance-enabled")?.checked) return;
+    appearances.push({
+      playerId: Number(row.dataset.playerId),
+      playerType: "roster",
+      gamesPlayed: numberOrNull(row.querySelector(".appearance-games")?.value),
+      playerValue: Number(row.dataset.playerValue || 0),
+      advantageTiers: selectedAdvantageTiers(row)
     });
-  return Math.max(0, total);
+  });
+  config.loanContainer?.querySelectorAll("[data-loan-appearance]").forEach(row => {
+    const playerId = numberOrNull(row.querySelector(".appearance-player")?.value);
+    if (!playerId) return;
+    const player = players.find(candidate => String(candidate.id) === String(playerId));
+    appearances.push({
+      playerId,
+      playerType: "loan",
+      gamesPlayed: numberOrNull(row.querySelector(".appearance-games")?.value),
+      playerValue: Number(player?.value || 0),
+      advantageTiers: selectedAdvantageTiers(row)
+    });
+  });
+  return appearances;
 }
 
-function syncLineValuesFromLoans() {
-  if (!match || readOnly) return;
-  setVal(els.homeLineValue, calculatedLineValueWithLoans(match.homeTeamId));
-  setVal(els.awayLineValue, calculatedLineValueWithLoans(match.awayTeamId));
+function syncLineupValue(side, fallbackValue = null) {
+  const config = sideConfig(side);
+  const appearances = collectSideAppearances(side);
+  const totalGames = currentTotalGames();
+  const value = appearances.length
+    ? calculateWeightedLineValue(appearances, totalGames, currentAdvantageGameLimit())
+    : fallbackValue;
+  setVal(config.lineValue, value == null ? "" : formatLineValue(value));
+  const slots = appearanceSlotTotal(appearances);
+  const required = totalGames > 0 ? totalGames * 5 : 0;
+  const summary = config.rosterContainer?.querySelector(".lineup-slot-summary");
+  if (summary) {
+    summary.textContent = totalGames > 0
+      ? `出场局数合计：${slots} / ${required}`
+      : "请先填写主客队比分，系统才能确定本场总局数。";
+    summary.style.color = required > 0 && slots !== required ? "#ffc857" : "";
+  }
 }
 
-function autoFillTeamSettlement() {
-  if (!match) return;
-  if (!els.homeLineValue?.value) setVal(els.homeLineValue, calculatedLineValueWithLoans(match.homeTeamId));
-  if (!els.awayLineValue?.value) setVal(els.awayLineValue, calculatedLineValueWithLoans(match.awayTeamId));
-  if (!els.homeRosterSize?.value) setVal(els.homeRosterSize, calcTeamRosterSize(match.homeTeamId));
-  if (!els.awayRosterSize?.value) setVal(els.awayRosterSize, calcTeamRosterSize(match.awayTeamId));
+function syncAllLineupValues(fallback = {}) {
+  syncLineupValue("home", fallback.homeLineValue ?? null);
+  syncLineupValue("away", fallback.awayLineValue ?? null);
+}
+
+function renderLineups(settlement = {}) {
+  const homeTeamId = match?.homeTeamId;
+  const awayTeamId = match?.awayTeamId;
+  if (els.homeLineupTitle) els.homeLineupTitle.textContent = `主队 · ${teamDisplayName(homeTeamId)} 出场选手`;
+  if (els.awayLineupTitle) els.awayLineupTitle.textContent = `客队 · ${teamDisplayName(awayTeamId)} 出场选手`;
+  renderRosterAppearances("home", settlement.homeAppearances || []);
+  renderLoanAppearances("home", settlement.homeAppearances || []);
+  renderRosterAppearances("away", settlement.awayAppearances || []);
+  renderLoanAppearances("away", settlement.awayAppearances || []);
+  syncAllLineupValues(settlement);
+  syncAllAdvantageTierStates();
+}
+
+function updateAppearanceGameLimits() {
+  const totalGames = currentTotalGames();
+  document.querySelectorAll("[data-lineup-side] .appearance-games").forEach(input => {
+    input.max = String(totalGames || 1);
+    if (totalGames > 0 && Number(input.value) > totalGames) {
+      input.value = String(totalGames);
+    }
+  });
+  syncAllAdvantageTierStates();
+  syncAllLineupValues();
 }
 
 function renderSettlement(settlement = {}) {
   if (els.taxExempt) els.taxExempt.checked = settlement.taxExempt === true;
-  setVal(els.homeLineValue, settlement.homeLineValue ?? "");
-  setVal(els.awayLineValue, settlement.awayLineValue ?? "");
-  setVal(els.homeRosterSize, settlement.homeRosterSize ?? "");
-  setVal(els.awayRosterSize, settlement.awayRosterSize ?? "");
   renderLoanInputs(settlement.loanFees || []);
+  renderLineups(settlement);
   renderValuationInputs(settlement.valuationChanges || []);
-  autoFillTeamSettlement();
   updateTaxInputsState();
 }
 
@@ -435,8 +635,8 @@ function collectSettlement() {
     taxExempt: els.taxExempt?.checked === true,
     homeLineValue: numberOrNull(els.homeLineValue?.value),
     awayLineValue: numberOrNull(els.awayLineValue?.value),
-    homeRosterSize: numberOrNull(els.homeRosterSize?.value),
-    awayRosterSize: numberOrNull(els.awayRosterSize?.value),
+    homeAppearances: collectSideAppearances("home"),
+    awayAppearances: collectSideAppearances("away"),
     loanFees: collectLoanInputs(),
     valuationChanges: collectValuationInputs()
   };
@@ -444,9 +644,19 @@ function collectSettlement() {
 
 function updateTaxInputsState() {
   const disabled = els.taxExempt?.checked === true;
-  [els.homeLineValue, els.awayLineValue, els.homeRosterSize, els.awayRosterSize].forEach(el => {
+  document.querySelectorAll("[data-lineup-side] input, [data-lineup-side] select, [data-lineup-side] button").forEach(el => {
+    if (el.classList.contains("appearance-games")) {
+      const rosterRow = el.closest("[data-roster-appearance]");
+      const selected = !rosterRow || rosterRow.querySelector(".appearance-enabled")?.checked;
+      el.disabled = readOnly || disabled || !selected;
+      return;
+    }
+    el.disabled = readOnly || disabled;
+  });
+  [els.homeLineValue, els.awayLineValue].forEach(el => {
     if (el) el.disabled = readOnly || disabled;
   });
+  syncAllAdvantageTierStates();
 }
 
 function collectGames() {
@@ -598,7 +808,7 @@ function renderSettlementPreview(preview) {
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;">
       <div><strong>P币流水</strong>${renderPreviewList(ledgers.map(row => `${row.teamState || row.teamName} · ${row.type} · ${formatSigned(row.amount)}（${row.balanceBefore ?? "-"} → ${row.balanceAfter ?? "-"}）`))}</div>
       <div><strong>身价变化</strong>${renderPreviewList(valuations.map(row => `${row.playerName} · ${row.beforeValue} → ${row.afterValue}（${formatSigned((row.objectiveDelta || 0) + (row.subjectiveDelta || 0))}）`))}</div>
-      <div><strong>奢侈税</strong>${renderPreviewList(luxuryTaxes.map(row => `${row.teamState} · 超税线 ${row.taxable}P · 税费 ${row.tax}P`))}</div>
+      <div><strong>奢侈税</strong>${renderPreviewList(luxuryTaxes.map(row => `${row.teamState}${row.lineValue != null ? ` · 加权L ${formatLineValue(row.lineValue)}P` : ""} · 超税线 ${row.taxable}P · 税费 ${row.tax}P`))}</div>
       <div><strong>租借费</strong>${renderPreviewList(loanFees.map(row => `${row.playerName} · ${row.payingTeamState} 支付 ${row.fee}P · 原队 ${row.sourceTeamIncome}P`))}</div>
     </div>
   `;
@@ -655,11 +865,13 @@ async function loadPublishedSettlementData() {
     ledgers.forEach(row => {
       if (row.type === "luxury_tax") {
         const reason = row.reason || "";
-        // 奢侈税原因格式：奢侈税：L=xxx，人数=xxx，修正L=xxx，税线=xxx，应税=xxx
+        // 奢侈税原因格式：奢侈税：加权L=xxx，税线=xxx，应税=xxx
+        const lineValueMatch = reason.match(/(?:加权)?L[=＝：:]([\d.]+)/);
         const taxableMatch = reason.match(/应税[=＝：:](\d+)/);
         const taxable = taxableMatch ? parseInt(taxableMatch[1]) : 0;
         preview.luxuryTaxes.push({
           teamState: row.teamState,
+          lineValue: lineValueMatch ? Number(lineValueMatch[1]) : null,
           taxable: taxable,
           tax: -row.amount
         });
@@ -761,6 +973,60 @@ function onScoreInput() {
   if (readOnly) return;
   const preserved = collectGames();
   renderGames(preserved);
+  updateAppearanceGameLimits();
+  schedulePreviewRefresh();
+}
+
+function addLoanAppearance(side) {
+  const config = sideConfig(side);
+  const existing = collectSideAppearances(side).filter(row => row.playerType === "loan");
+  existing.push({ playerType: "loan", gamesPlayed: currentTotalGames() || 1 });
+  renderLoanAppearances(side, existing);
+  updateTaxInputsState();
+  syncLineupValue(side);
+}
+
+function wireLineupEvents(side) {
+  const config = sideConfig(side);
+  config.section?.addEventListener("click", event => {
+    const remove = event.target.closest(".remove-loan-appearance");
+    if (!remove) return;
+    const index = Number(remove.dataset.index);
+    const remaining = collectSideAppearances(side)
+      .filter(row => row.playerType === "loan")
+      .filter((_, rowIndex) => rowIndex !== index);
+    renderLoanAppearances(side, remaining);
+    updateTaxInputsState();
+    syncLineupValue(side);
+    schedulePreviewRefresh();
+  });
+  config.section?.addEventListener("change", event => {
+    const enabled = event.target.closest(".appearance-enabled");
+    if (enabled) {
+      const row = enabled.closest("[data-roster-appearance]");
+      const games = row?.querySelector(".appearance-games");
+      if (games) {
+        games.disabled = !enabled.checked || readOnly || els.taxExempt?.checked === true;
+        if (enabled.checked && !games.value) {
+          games.value = String(currentTotalGames() || 1);
+        }
+      }
+    }
+    const playerSelect = event.target.closest(".appearance-player");
+    if (playerSelect) {
+      const row = playerSelect.closest("[data-loan-appearance]");
+      const player = players.find(candidate => String(candidate.id) === String(playerSelect.value));
+      if (row) row.dataset.playerValue = String(player?.value ?? 0);
+    }
+    syncAdvantageTierState(event.target.closest("[data-roster-appearance], [data-loan-appearance]"));
+    syncLineupValue(side);
+    schedulePreviewRefresh();
+  });
+  config.section?.addEventListener("input", event => {
+    if (!event.target.closest(".appearance-games")) return;
+    syncLineupValue(side);
+    schedulePreviewRefresh();
+  });
 }
 
 function wireEvents() {
@@ -779,10 +1045,10 @@ function wireEvents() {
   els.cancelWithdrawBtn?.addEventListener("click", () => els.withdrawDialog.close());
   els.confirmWithdrawBtn?.addEventListener("click", doWithdraw);
   els.taxExempt?.addEventListener("change", () => { updateTaxInputsState(); schedulePreviewRefresh(); });
-  els.homeLineValue?.addEventListener("input", schedulePreviewRefresh);
-  els.awayLineValue?.addEventListener("input", schedulePreviewRefresh);
-  els.homeRosterSize?.addEventListener("input", schedulePreviewRefresh);
-  els.awayRosterSize?.addEventListener("input", schedulePreviewRefresh);
+  els.addHomeLoanAppearanceBtn?.addEventListener("click", () => addLoanAppearance("home"));
+  els.addAwayLoanAppearanceBtn?.addEventListener("click", () => addLoanAppearance("away"));
+  wireLineupEvents("home");
+  wireLineupEvents("away");
   els.addLoanBtn?.addEventListener("click", () => {
     const rows = collectLoanInputs();
     rows.push({ sourceType: "original_team" });
@@ -797,7 +1063,6 @@ function wireEvents() {
     if (!e.target.closest(".remove-loan")) return;
     const index = Number(e.target.closest(".remove-loan").dataset.index);
     renderLoanInputs(collectLoanInputs().filter((_, i) => i !== index));
-    syncLineValuesFromLoans();
     schedulePreviewRefresh();
   });
   els.loanInputs?.addEventListener("change", e => {
@@ -805,7 +1070,6 @@ function wireEvents() {
     if (payingTeamSelect) {
       const row = payingTeamSelect.closest("[data-loan-row]");
       refreshReplacedPlayerOptions(row);
-      syncLineValuesFromLoans();
       schedulePreviewRefresh();
       return;
     }
@@ -814,13 +1078,11 @@ function wireEvents() {
     if (playerSelect) {
       const row = playerSelect.closest("[data-loan-row]");
       syncLoanPlayerFields(row);
-      syncLineValuesFromLoans();
       schedulePreviewRefresh();
       return;
     }
 
     if (e.target.closest(".loan-replaced-player")) {
-      syncLineValuesFromLoans();
       schedulePreviewRefresh();
       return;
     }
@@ -828,9 +1090,6 @@ function wireEvents() {
     schedulePreviewRefresh();
   });
   els.loanInputs?.addEventListener("input", e => {
-    if (e.target.closest(".loan-value")) {
-      syncLineValuesFromLoans();
-    }
     schedulePreviewRefresh();
   });
   els.valuationInputs?.addEventListener("click", e => {

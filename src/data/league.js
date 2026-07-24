@@ -7,10 +7,16 @@ export const leagueStats = [
 
 export const announcements = [
   {
+    date: "2026.07.24",
+    title: "奢侈税改为按出场局数加权",
+    content: "取消在职人数修正因子；选手按出场局数加权计入总身价。使用身价差优势时，可勾选1000至3000档位，勾选项数不超过赛制总局数。",
+    active: true
+  },
+  {
     date: "2026.05.25",
     title: "多人名单奢侈税修正规则",
     content: "队伍可以拥有超过5名在职人数（包括教练），但队伍人数越多，最终奢侈税越高；临时租借选手不计入队伍在职人数。",
-    active: true
+    active: false
   },
   {
     date: "2026.05.24",
@@ -138,18 +144,16 @@ export const rules = [
   {
     title: "2. 多人名单奢侈税修正规则",
     content: `
-      <p>队伍可以拥有超过5名在职人数（包括教练），但队伍在职人数越多，最终奢侈税越高。本场基础奢侈税仍按照实际出场5人的总身价L计算；若队伍在职人数超过5人，则用于奢侈税计算的总身价L乘以修正因子。</p>
-      <table class="rule-table">
-        <thead><tr><th>在职人数</th><th>修正因子</th></tr></thead>
-        <tbody><tr><td>5人</td><td>×1.00</td></tr><tr><td>6人</td><td>×1.10</td></tr><tr><td>7人</td><td>×1.25</td></tr><tr><td>8人</td><td>×1.45</td></tr><tr><td>9人</td><td>×1.70</td></tr><tr><td>10人及以上</td><td>×2.00</td></tr></tbody>
-      </table>
-      <p class="note">租借选手临时出场不计入队伍在职人数；若正式登记进入队伍名单，则计入在职人数。</p>
+      <p>奢侈税不再按队伍在职人数乘修正因子，而是按本轮每名实际出场选手的出场局数计算。</p>
+      <p>若一名选手在本轮共n局比赛中出场m局，则该选手计入出场总身价L的金额为：选手身价×m÷n。主队、客队的本队选手和租借选手均按此公式累计。</p>
+      <p>若某选手使用身价差优势规则，可从1000、1500、2000、2500、3000档位中勾选，勾选项数不得超过赛制总局数（BO2=2、BO3=3、BO5=5）。该选手本场折算身价=原始身价−勾选档位之和÷赛制总局数，再按实际出场局数计入L。</p>
+      <p class="note">租借选手的加权身价计入使用队伍，同时仍需按租借规则登记租借费。</p>
     `
   },
   {
     title: "3. 奢侈税分段税率",
     content: `
-      <p>应税部分X=max(0，修正后的L−0.92R)，其中R=所有在战队选手的身价平均值×5（目前31位）。</p>
+      <p>应税部分X=max(0，按出场局数加权的L−0.92R)，其中R=所有在战队选手的身价平均值×5（目前31位）。</p>
       <div class="two-col">
         <table class="rule-table"><thead><tr><th colspan="2">周内BO2</th></tr></thead><tbody><tr><td>0-1000P</td><td>×0.8</td></tr><tr><td>1001-2000P</td><td>×1.1</td></tr><tr><td>2001-3000P</td><td>×1.4</td></tr><tr><td>3001-4000P</td><td>×1.8</td></tr><tr><td>4000P以上</td><td>×2.3</td></tr></tbody></table>
         <table class="rule-table"><thead><tr><th colspan="2">周末BO3</th></tr></thead><tbody><tr><td>0-1000P</td><td>×1.0</td></tr><tr><td>1001-2000P</td><td>×1.3</td></tr><tr><td>2001-3000P</td><td>×1.7</td></tr><tr><td>3001-4000P</td><td>×2.2</td></tr><tr><td>4000P以上</td><td>×2.8</td></tr></tbody></table>

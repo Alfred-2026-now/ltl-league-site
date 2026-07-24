@@ -3,6 +3,7 @@ package com.ltl.league.entity;
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -34,13 +35,9 @@ public class MatchResult {
 
     private Integer taxExempt;
 
-    private Integer homeLineValue;
+    private BigDecimal homeLineValue;
 
-    private Integer awayLineValue;
-
-    private Integer homeRosterSize;
-
-    private Integer awayRosterSize;
+    private BigDecimal awayLineValue;
 
     private LocalDateTime publishedAt;
 
