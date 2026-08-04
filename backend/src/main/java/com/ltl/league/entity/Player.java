@@ -1,6 +1,7 @@
 package com.ltl.league.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -37,6 +38,7 @@ public class Player {
 
     private Integer role;
 
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
     @TableField(fill = FieldFill.INSERT)
