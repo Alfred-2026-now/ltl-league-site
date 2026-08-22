@@ -27,10 +27,10 @@
       <div class="panel" style="padding:1rem;">
         <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.75rem;">
           <label class="field"><span class="field-label">队伍</span><select class="input" id="filterTeam"></select></label>
-          <label class="field"><span class="field-label">类型</span><select class="input" id="filterType"><option value="">全部</option><option value="match_reward">比赛奖励</option><option value="luxury_tax">奢侈税</option><option value="loan_fee">租借费</option><option value="player_donation">选手赠与</option><option value="player_sign_loss">买入损耗</option><option value="player_release_loss">解约损耗</option><option value="salary_deduct">工资扣除</option></select></label>
+          <label class="field"><span class="field-label">类型</span><select class="input" id="filterType"><option value="">全部</option><option value="match_reward">比赛奖励</option><option value="luxury_tax">奢侈税</option><option value="loan_fee">租借费</option><option value="player_donation">选手赠与</option><option value="player_sign_loss">买入损耗</option><option value="player_release_loss">解约损耗</option><option value="salary_deduct">工资扣除</option><option value="population_subsidy">人口补贴</option></select></label>
           <label class="field"><span class="field-label">状态</span><select class="input" id="filterVoided"><option value="0">未作废</option><option value="1">已作废</option><option value="">全部</option></select></label>
           <label class="field"><span class="field-label">比赛ID</span><input class="input" id="filterMatchId" type="number" /></label>
-          <label class="field"><span class="field-label">来源</span><select class="input" id="filterSource"><option value="">全部</option><option value="match_result">赛果结算</option><option value="manual_admin">管理员</option></select></label>
+          <label class="field"><span class="field-label">来源</span><select class="input" id="filterSource"><option value="">全部</option><option value="match_result">赛果结算</option><option value="manual_admin">管理员</option><option value="population_subsidy">人口补贴</option></select></label>
         </div>
         <div style="display:flex;gap:.5rem;margin-top:.75rem;"><button class="btn primary" id="refreshBtn" type="button">刷新</button></div>
       </div>
@@ -41,6 +41,40 @@
           <label class="field"><span class="field-label">金额</span><input class="input" id="addAmount" type="number" /></label>
           <label class="field"><span class="field-label">原因</span><input class="input" id="addReason" /></label>
           <button class="btn primary" id="addBtn" type="button">添加</button>
+        </div>
+      </div>
+
+      <div class="panel" style="padding:1rem;margin-top:1rem;">
+        <h3 style="margin:0 0 .5rem 0;">一键发放人口补贴</h3>
+        <p class="muted" style="margin:0 0 1rem;">补贴收入 = 当前在职队员人数（不含队长）× 每人补贴金额。请先预览，确认明细无误后再发放。</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:1rem;align-items:start;">
+          <fieldset style="border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:.75rem;margin:0;min-width:0;">
+            <legend class="field-label" style="padding:0 .35rem;">目标队伍</legend>
+            <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.65rem;font-weight:600;">
+              <input id="subsidySelectAll" type="checkbox" />
+              <span>全选当前赛季队伍</span>
+            </label>
+            <div id="subsidyTeamOptions" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr));gap:.5rem;"></div>
+          </fieldset>
+          <div>
+            <label class="field">
+              <span class="field-label">每人补贴金额（P）</span>
+              <input class="input" id="subsidyPerPlayerAmount" type="number" value="500" min="1" step="1" inputmode="numeric" />
+            </label>
+            <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.75rem;">
+              <button class="btn primary" id="subsidyPreviewBtn" type="button">预览补贴</button>
+              <button class="btn" id="subsidyApplyBtn" type="button" disabled>确认并一键发放</button>
+            </div>
+          </div>
+        </div>
+        <div id="subsidyPreviewPanel" style="margin-top:1rem;display:none;">
+          <p id="subsidyPreviewSummary" style="margin:.25rem 0 .75rem;font-weight:600;"></p>
+          <div style="overflow:auto;">
+            <table class="admin-table" style="width:100%;border-collapse:collapse;">
+              <thead><tr><th style="text-align:left;padding:.65rem .75rem;">队伍</th><th style="text-align:right;padding:.65rem .75rem;">非队长人数</th><th style="text-align:right;padding:.65rem .75rem;">每人补贴</th><th style="text-align:right;padding:.65rem .75rem;">队伍收入</th><th style="text-align:right;padding:.65rem .75rem;">发放后余额</th></tr></thead>
+              <tbody id="subsidyPreviewBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 

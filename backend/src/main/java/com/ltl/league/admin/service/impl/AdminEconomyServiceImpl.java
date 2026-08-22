@@ -6,6 +6,9 @@ import com.ltl.league.admin.dto.AdminValuationChangeVO;
 import com.ltl.league.admin.dto.DeductTeamPCoinsRequest;
 import com.ltl.league.admin.dto.ManualPLedgerRequest;
 import com.ltl.league.admin.dto.ManualValuationAdjustRequest;
+import com.ltl.league.admin.dto.PopulationSubsidyRequest;
+import com.ltl.league.admin.dto.PopulationSubsidyResultVO;
+import com.ltl.league.admin.dto.PopulationSubsidyTeamVO;
 import com.ltl.league.admin.service.AdminAssetService;
 import com.ltl.league.admin.service.AdminEconomyService;
 import com.ltl.league.admin.service.RuleParameterService;
@@ -22,7 +25,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -428,6 +437,172 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
             // 更新队伍P币
             team.setPCoins(newPCoins);
             teamMapper.updateById(team);
+        }
+    }
+
+    @Override
+    public PopulationSubsidyResultVO previewPopulationSubsidy(PopulationSubsidyRequest request) {
+        return buildPopulationSubsidyResult(request, false);
+    }
+
+    @Override
+    @Transactional
+    public PopulationSubsidyResultVO applyPopulationSubsidy(PopulationSubsidyRequest request) {
+        if (request == null || request.getPreviewToken() == null || request.getPreviewToken().isBlank()) {
+            throw new BusinessException(400, "请先预览人口补贴后再确认发放");
+        }
+
+        PopulationSubsidyResultVO result = buildPopulationSubsidyResult(request, true);
+        if (!Objects.equals(request.getPreviewToken(), result.getPreviewToken())) {
+            throw new BusinessException(409, "队伍成员或P币余额已变化，请重新预览后再发放");
+        }
+        if (result.getTotalAmount() <= 0) {
+            throw new BusinessException(400, "所选队伍没有可发放补贴的非队长在职成员");
+        }
+
+        String batchId = "POPULATION_SUBSIDY_" + System.currentTimeMillis();
+        for (PopulationSubsidyTeamVO item : result.getTeams()) {
+            if (item.getSubsidyAmount() <= 0) {
+                continue;
+            }
+
+            PLedger ledger = new PLedger();
+            ledger.setTeamId(item.getTeamId());
+            ledger.setMatchId(null);
+            ledger.setResultId(null);
+            ledger.setType("population_subsidy");
+            ledger.setAmount(item.getSubsidyAmount());
+            ledger.setReason("人口补贴：" + item.getEligiblePlayerCount() + "名非队长队员 × "
+                    + item.getPerPlayerAmount() + "P [" + batchId + "]");
+            ledger.setVersion(null);
+            ledger.setSource("population_subsidy");
+            ledger.setBalanceBefore(item.getBalanceBefore());
+            ledger.setBalanceAfter(item.getBalanceAfter());
+            ledger.setIsVoided(0);
+            pLedgerMapper.insert(ledger);
+
+            Team team = new Team();
+            team.setId(item.getTeamId());
+            team.setPCoins(item.getBalanceAfter());
+            teamMapper.updateById(team);
+        }
+
+        result.setBatchId(batchId);
+        result.setApplied(true);
+        return result;
+    }
+
+    private PopulationSubsidyResultVO buildPopulationSubsidyResult(
+            PopulationSubsidyRequest request,
+            boolean lockTeams) {
+        List<Long> teamIds = validatePopulationSubsidyRequest(request);
+        List<Team> selectedTeams = loadPopulationSubsidyTeams(teamIds, lockTeams);
+
+        List<Player> eligiblePlayers = playerMapper.selectList(new LambdaQueryWrapper<Player>()
+                .in(Player::getTeamId, teamIds)
+                .eq(Player::getStatus, 1)
+                .eq(Player::getDeleted, 0))
+                .stream()
+                .filter(player -> player.getRole() == null || (player.getRole() & ROLE_CAPTAIN) == 0)
+                .sorted(Comparator.comparing(Player::getId))
+                .collect(Collectors.toList());
+        Map<Long, List<Player>> playersByTeam = eligiblePlayers.stream()
+                .collect(Collectors.groupingBy(Player::getTeamId));
+
+        List<PopulationSubsidyTeamVO> items = new ArrayList<>();
+        int totalPlayers = 0;
+        int totalAmount = 0;
+        try {
+            for (Team team : selectedTeams) {
+                List<Player> teamPlayers = playersByTeam.getOrDefault(team.getId(), Collections.emptyList());
+                int playerCount = teamPlayers.size();
+                int subsidyAmount = Math.multiplyExact(playerCount, request.getPerPlayerAmount());
+                int balanceBefore = team.getPCoins() != null ? team.getPCoins() : 0;
+                int balanceAfter = Math.addExact(balanceBefore, subsidyAmount);
+
+                PopulationSubsidyTeamVO item = new PopulationSubsidyTeamVO();
+                item.setTeamId(team.getId());
+                item.setTeamState(team.getState());
+                item.setTeamName(team.getName());
+                item.setEligiblePlayerCount(playerCount);
+                item.setPerPlayerAmount(request.getPerPlayerAmount());
+                item.setSubsidyAmount(subsidyAmount);
+                item.setBalanceBefore(balanceBefore);
+                item.setBalanceAfter(balanceAfter);
+                items.add(item);
+
+                totalPlayers = Math.addExact(totalPlayers, playerCount);
+                totalAmount = Math.addExact(totalAmount, subsidyAmount);
+            }
+        } catch (ArithmeticException ex) {
+            throw new BusinessException(400, "补贴金额过大，超出系统可处理范围");
+        }
+
+        PopulationSubsidyResultVO result = new PopulationSubsidyResultVO();
+        result.setTeams(items);
+        result.setSelectedTeamCount(items.size());
+        result.setAffectedTeamCount((int) items.stream().filter(item -> item.getSubsidyAmount() > 0).count());
+        result.setEligiblePlayerCount(totalPlayers);
+        result.setPerPlayerAmount(request.getPerPlayerAmount());
+        result.setTotalAmount(totalAmount);
+        result.setPreviewToken(createPopulationSubsidyToken(request.getPerPlayerAmount(), selectedTeams, playersByTeam));
+        result.setApplied(false);
+        return result;
+    }
+
+    private List<Long> validatePopulationSubsidyRequest(PopulationSubsidyRequest request) {
+        if (request == null || request.getTeamIds() == null || request.getTeamIds().isEmpty()) {
+            throw new BusinessException(400, "请至少选择一个目标队伍");
+        }
+        if (request.getTeamIds().stream().anyMatch(Objects::isNull)) {
+            throw new BusinessException(400, "目标队伍不能为空");
+        }
+        if (request.getPerPlayerAmount() == null || request.getPerPlayerAmount() <= 0) {
+            throw new BusinessException(400, "每人补贴金额必须为大于 0 的整数");
+        }
+        return request.getTeamIds().stream().distinct().sorted().collect(Collectors.toList());
+    }
+
+    private List<Team> loadPopulationSubsidyTeams(List<Long> teamIds, boolean lockTeams) {
+        Map<Long, Team> teamsById;
+        if (lockTeams) {
+            teamsById = teamIds.stream()
+                    .map(teamMapper::selectByIdForUpdate)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toMap(Team::getId, Function.identity()));
+        } else {
+            teamsById = teamMapper.selectBatchIds(teamIds).stream()
+                    .collect(Collectors.toMap(Team::getId, Function.identity()));
+        }
+
+        List<Team> selectedTeams = new ArrayList<>();
+        for (Long teamId : teamIds) {
+            Team team = teamsById.get(teamId);
+            if (team == null || !Objects.equals(currentSeason, team.getSeason())
+                    || Objects.equals(team.getDeleted(), 1)) {
+                throw new BusinessException(400, "只能给当前赛季的有效队伍发放人口补贴");
+            }
+            selectedTeams.add(team);
+        }
+        return selectedTeams;
+    }
+
+    private String createPopulationSubsidyToken(
+            Integer perPlayerAmount,
+            List<Team> teams,
+            Map<Long, List<Player>> playersByTeam) {
+        StringBuilder raw = new StringBuilder(currentSeason).append('|').append(perPlayerAmount);
+        for (Team team : teams) {
+            raw.append('|').append(team.getId()).append(':').append(team.getPCoins() != null ? team.getPCoins() : 0);
+            for (Player player : playersByTeam.getOrDefault(team.getId(), Collections.emptyList())) {
+                raw.append(':').append(player.getId());
+            }
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(raw.toString().getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 is not available", ex);
         }
     }
 

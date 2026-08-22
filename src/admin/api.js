@@ -256,6 +256,22 @@ export async function voidDeductAllTeamsSalary() {
   });
 }
 
+export async function previewPopulationSubsidy(payload) {
+  return request("/admin/p-ledger/population-subsidy/preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function applyPopulationSubsidy(payload) {
+  return request("/admin/p-ledger/population-subsidy/apply", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function getAssetOverview(days = 14) {
   return request(`/admin/assets/overview?days=${encodeURIComponent(days)}`);
 }

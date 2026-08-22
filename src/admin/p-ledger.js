@@ -1,6 +1,16 @@
-import { getCurrentTeams, listPLedgers, manualAddPLedger, voidPLedger, deductAllTeamsSalary, voidDeductAllTeamsSalary } from "./api.js";
+import {
+  applyPopulationSubsidy,
+  deductAllTeamsSalary,
+  getCurrentTeams,
+  listPLedgers,
+  manualAddPLedger,
+  previewPopulationSubsidy,
+  voidDeductAllTeamsSalary,
+  voidPLedger
+} from "./api.js";
 
 let teams = [];
+let subsidyPreview = null;
 const els = {};
 
 function bindEls() {
@@ -23,6 +33,25 @@ function bindEls() {
   els.deductSalaryPreview = document.getElementById("deductSalaryPreview");
   els.deductSalaryBtn = document.getElementById("deductSalaryBtn");
   els.voidDeductSalaryBtn = document.getElementById("voidDeductSalaryBtn");
+
+  // 人口补贴相关元素
+  els.subsidySelectAll = document.getElementById("subsidySelectAll");
+  els.subsidyTeamOptions = document.getElementById("subsidyTeamOptions");
+  els.subsidyPerPlayerAmount = document.getElementById("subsidyPerPlayerAmount");
+  els.subsidyPreviewBtn = document.getElementById("subsidyPreviewBtn");
+  els.subsidyApplyBtn = document.getElementById("subsidyApplyBtn");
+  els.subsidyPreviewPanel = document.getElementById("subsidyPreviewPanel");
+  els.subsidyPreviewSummary = document.getElementById("subsidyPreviewSummary");
+  els.subsidyPreviewBody = document.getElementById("subsidyPreviewBody");
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function renderTeamOptions() {
@@ -30,6 +59,15 @@ function renderTeamOptions() {
   const addTeamOpts = `<option value="">选择队伍</option>${teams.map(t => `<option value="${t.id}">${t.state} · ${t.name}</option>`).join("")}`;
   els.filterTeam.innerHTML = teamOpts;
   els.addTeam.innerHTML = addTeamOpts;
+  els.subsidyTeamOptions.innerHTML = teams.length
+    ? teams.map(t => `
+      <label style="display:flex;align-items:center;gap:.5rem;padding:.5rem .6rem;border:1px solid rgba(255,255,255,.1);border-radius:6px;">
+        <input type="checkbox" data-subsidy-team-id="${t.id}" />
+        <span>${escapeHtml(t.state)} · ${escapeHtml(t.name)}</span>
+      </label>
+    `).join("")
+    : '<span class="muted">当前赛季暂无可选队伍。</span>';
+  syncSubsidySelectAll();
 }
 
 function collectFilters() {
@@ -57,9 +95,120 @@ function getTypeText(type) {
     player_sign_loss: "买入损耗",
     player_release_loss: "解约损耗",
     salary_deduct: "工资扣除",
+    population_subsidy: "人口补贴",
     manual_admin: "管理员调整"
   };
   return typeMap[type] || type;
+}
+
+function getSubsidyTeamCheckboxes() {
+  return Array.from(els.subsidyTeamOptions.querySelectorAll("[data-subsidy-team-id]"));
+}
+
+function getSelectedSubsidyTeamIds() {
+  return getSubsidyTeamCheckboxes()
+    .filter(input => input.checked)
+    .map(input => Number(input.dataset.subsidyTeamId));
+}
+
+function syncSubsidySelectAll() {
+  const inputs = getSubsidyTeamCheckboxes();
+  const checkedCount = inputs.filter(input => input.checked).length;
+  els.subsidySelectAll.checked = inputs.length > 0 && checkedCount === inputs.length;
+  els.subsidySelectAll.indeterminate = checkedCount > 0 && checkedCount < inputs.length;
+  els.subsidySelectAll.disabled = inputs.length === 0;
+}
+
+function invalidateSubsidyPreview() {
+  subsidyPreview = null;
+  els.subsidyApplyBtn.disabled = true;
+  els.subsidyPreviewPanel.style.display = "none";
+  els.subsidyPreviewBody.innerHTML = "";
+  els.subsidyPreviewSummary.textContent = "";
+}
+
+function getSubsidyInput() {
+  const teamIds = getSelectedSubsidyTeamIds();
+  const perPlayerAmount = Number(els.subsidyPerPlayerAmount.value);
+  if (!teamIds.length) {
+    throw new Error("请至少勾选一个目标队伍");
+  }
+  if (!Number.isInteger(perPlayerAmount) || perPlayerAmount <= 0) {
+    throw new Error("每人补贴金额必须为大于 0 的整数");
+  }
+  return { teamIds, perPlayerAmount };
+}
+
+function renderSubsidyPreview(result) {
+  subsidyPreview = result;
+  els.subsidyPreviewSummary.textContent = `共选择 ${result.selectedTeamCount} 支队伍，`
+    + `其中 ${result.affectedTeamCount} 支有补贴收入；涉及 ${result.eligiblePlayerCount} 名非队长在职队员，`
+    + `合计发放 ${result.totalAmount}P。`;
+  els.subsidyPreviewBody.innerHTML = result.teams.map(item => `
+    <tr>
+      <td style="padding:.65rem .75rem;">${escapeHtml(item.teamState)} · ${escapeHtml(item.teamName)}</td>
+      <td style="padding:.65rem .75rem;text-align:right;">${item.eligiblePlayerCount}</td>
+      <td style="padding:.65rem .75rem;text-align:right;">${item.perPlayerAmount}P</td>
+      <td style="padding:.65rem .75rem;text-align:right;color:#7CFFB2;">+${item.subsidyAmount}P</td>
+      <td style="padding:.65rem .75rem;text-align:right;">${item.balanceBefore}P → ${item.balanceAfter}P</td>
+    </tr>
+  `).join("");
+  els.subsidyPreviewPanel.style.display = "block";
+  els.subsidyApplyBtn.disabled = !result.previewToken || result.totalAmount <= 0;
+}
+
+async function submitPopulationSubsidyPreview() {
+  const originalText = els.subsidyPreviewBtn.textContent;
+  try {
+    const payload = getSubsidyInput();
+    els.subsidyPreviewBtn.disabled = true;
+    els.subsidyPreviewBtn.textContent = "预览中…";
+    renderSubsidyPreview(await previewPopulationSubsidy(payload));
+  } catch (e) {
+    invalidateSubsidyPreview();
+    alert(`预览失败：${e.message}`);
+  } finally {
+    els.subsidyPreviewBtn.disabled = false;
+    els.subsidyPreviewBtn.textContent = originalText;
+  }
+}
+
+async function submitPopulationSubsidy() {
+  if (!subsidyPreview?.previewToken) {
+    alert("请先预览人口补贴");
+    return;
+  }
+  let payload;
+  try {
+    payload = getSubsidyInput();
+  } catch (e) {
+    invalidateSubsidyPreview();
+    alert(e.message);
+    return;
+  }
+  const message = `确认发放人口补贴？\n目标队伍：${subsidyPreview.selectedTeamCount} 支`
+    + `\n非队长在职队员：${subsidyPreview.eligiblePlayerCount} 人`
+    + `\n每人补贴：${subsidyPreview.perPlayerAmount}P`
+    + `\n合计发放：${subsidyPreview.totalAmount}P`;
+  if (!confirm(message)) return;
+
+  const originalText = els.subsidyApplyBtn.textContent;
+  try {
+    els.subsidyApplyBtn.disabled = true;
+    els.subsidyApplyBtn.textContent = "发放中…";
+    const result = await applyPopulationSubsidy({
+      ...payload,
+      previewToken: subsidyPreview.previewToken
+    });
+    alert(`人口补贴已发放：${result.affectedTeamCount} 支队伍，共 ${result.totalAmount}P。`);
+    invalidateSubsidyPreview();
+    await refresh();
+  } catch (e) {
+    invalidateSubsidyPreview();
+    alert(`发放失败：${e.message}`);
+  } finally {
+    els.subsidyApplyBtn.textContent = originalText;
+  }
 }
 
 function renderRows(rows) {
@@ -193,6 +342,21 @@ async function init() {
   els.deductSalaryBtn.addEventListener("click", submitDeductSalary);
   els.voidDeductSalaryBtn.addEventListener("click", submitVoidDeductSalary);
   els.deductSalaryRate.addEventListener("input", updateDeductSalaryPreview);
+  els.subsidySelectAll.addEventListener("change", () => {
+    getSubsidyTeamCheckboxes().forEach(input => {
+      input.checked = els.subsidySelectAll.checked;
+    });
+    syncSubsidySelectAll();
+    invalidateSubsidyPreview();
+  });
+  els.subsidyTeamOptions.addEventListener("change", event => {
+    if (!event.target.matches("[data-subsidy-team-id]")) return;
+    syncSubsidySelectAll();
+    invalidateSubsidyPreview();
+  });
+  els.subsidyPerPlayerAmount.addEventListener("input", invalidateSubsidyPreview);
+  els.subsidyPreviewBtn.addEventListener("click", submitPopulationSubsidyPreview);
+  els.subsidyApplyBtn.addEventListener("click", submitPopulationSubsidy);
   els.ledgerBody.addEventListener("click", handleVoidClick);
   await refresh();
 }
