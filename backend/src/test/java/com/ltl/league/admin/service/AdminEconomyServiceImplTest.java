@@ -2,9 +2,12 @@ package com.ltl.league.admin.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ltl.league.admin.service.impl.AdminEconomyServiceImpl;
+import com.ltl.league.admin.dto.PopulationSubsidyRequest;
+import com.ltl.league.admin.dto.PopulationSubsidyResultVO;
 import com.ltl.league.entity.PLedger;
 import com.ltl.league.entity.Player;
 import com.ltl.league.entity.Team;
+import com.ltl.league.exception.BusinessException;
 import com.ltl.league.mapper.PLedgerMapper;
 import com.ltl.league.mapper.PlayerMapper;
 import com.ltl.league.mapper.TeamMapper;
@@ -19,6 +22,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -99,6 +106,152 @@ class AdminEconomyServiceImplTest {
                 null,
                 null,
                 "system");
+    }
+
+    @Test
+    void previewPopulationSubsidyExcludesCaptainRolesAndShowsEverySelectedTeam() {
+        AdminEconomyServiceImpl service = service();
+        Team firstTeam = team(10L, 1000);
+        firstTeam.setState("京");
+        firstTeam.setName("第一队");
+        Team secondTeam = team(20L, 800);
+        secondTeam.setState("沪");
+        secondTeam.setName("第二队");
+        when(teamMapper.selectBatchIds(any())).thenReturn(List.of(firstTeam, secondTeam));
+        when(playerMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(
+                player(1L, 10L, 0, 1000),
+                player(2L, 10L, 1, 1000),
+                player(3L, 10L, 2, 1000),
+                player(4L, 10L, 3, 1000),
+                player(5L, 20L, 2, 1000)));
+
+        PopulationSubsidyResultVO result = service.previewPopulationSubsidy(
+                subsidyRequest(List.of(20L, 10L), 500, null));
+
+        assertEquals(2, result.getSelectedTeamCount());
+        assertEquals(1, result.getAffectedTeamCount());
+        assertEquals(2, result.getEligiblePlayerCount());
+        assertEquals(1000, result.getTotalAmount());
+        assertEquals(10L, result.getTeams().get(0).getTeamId());
+        assertEquals(2, result.getTeams().get(0).getEligiblePlayerCount());
+        assertEquals(1000, result.getTeams().get(0).getSubsidyAmount());
+        assertEquals(2000, result.getTeams().get(0).getBalanceAfter());
+        assertEquals(0, result.getTeams().get(1).getSubsidyAmount());
+        assertNotNull(result.getPreviewToken());
+        assertFalse(result.getApplied());
+    }
+
+    @Test
+    void applyPopulationSubsidyRecalculatesAndCreatesAuthoritativeLedgers() {
+        AdminEconomyServiceImpl service = service();
+        Team firstTeam = team(10L, 1000);
+        Team secondTeam = team(20L, 800);
+        List<Player> players = List.of(
+                player(1L, 10L, 0, 1000),
+                player(2L, 10L, 1, 1000),
+                player(3L, 20L, 0, 1000),
+                player(4L, 20L, 2, 1000));
+        when(teamMapper.selectBatchIds(any())).thenReturn(List.of(firstTeam, secondTeam));
+        when(teamMapper.selectByIdForUpdate(10L)).thenReturn(firstTeam);
+        when(teamMapper.selectByIdForUpdate(20L)).thenReturn(secondTeam);
+        when(playerMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(players, players);
+
+        PopulationSubsidyRequest request = subsidyRequest(List.of(10L, 20L), 500, null);
+        PopulationSubsidyResultVO preview = service.previewPopulationSubsidy(request);
+        request.setPreviewToken(preview.getPreviewToken());
+        PopulationSubsidyResultVO applied = service.applyPopulationSubsidy(request);
+
+        ArgumentCaptor<PLedger> ledgerCaptor = ArgumentCaptor.forClass(PLedger.class);
+        verify(pLedgerMapper, times(2)).insert(ledgerCaptor.capture());
+        List<PLedger> ledgers = ledgerCaptor.getAllValues();
+        assertEquals(List.of(10L, 20L), ledgers.stream().map(PLedger::getTeamId).toList());
+        assertEquals(List.of(1000, 500), ledgers.stream().map(PLedger::getAmount).toList());
+        assertTrue(ledgers.stream().allMatch(row -> "population_subsidy".equals(row.getType())));
+        assertTrue(ledgers.stream().allMatch(row -> "population_subsidy".equals(row.getSource())));
+
+        ArgumentCaptor<Team> teamCaptor = ArgumentCaptor.forClass(Team.class);
+        verify(teamMapper, times(2)).updateById(teamCaptor.capture());
+        assertEquals(List.of(2000, 1300), teamCaptor.getAllValues().stream().map(Team::getPCoins).toList());
+        assertEquals(1500, applied.getTotalAmount());
+        assertEquals(2, applied.getAffectedTeamCount());
+        assertNotNull(applied.getBatchId());
+        assertTrue(applied.getApplied());
+    }
+
+    @Test
+    void applyPopulationSubsidyRejectsStalePreview() {
+        AdminEconomyServiceImpl service = service();
+        Team previewTeam = team(10L, 1000);
+        Team changedTeam = team(10L, 1200);
+        List<Player> players = List.of(player(1L, 10L, 0, 1000));
+        when(teamMapper.selectBatchIds(any())).thenReturn(List.of(previewTeam));
+        when(teamMapper.selectByIdForUpdate(10L)).thenReturn(changedTeam);
+        when(playerMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(players, players);
+
+        PopulationSubsidyRequest request = subsidyRequest(List.of(10L), 500, null);
+        request.setPreviewToken(service.previewPopulationSubsidy(request).getPreviewToken());
+        BusinessException error = assertThrows(
+                BusinessException.class,
+                () -> service.applyPopulationSubsidy(request));
+
+        assertEquals(409, error.getCode());
+        assertTrue(error.getMessage().contains("重新预览"));
+    }
+
+    @Test
+    void previewPopulationSubsidyRejectsNonCurrentSeasonTeam() {
+        AdminEconomyServiceImpl service = service();
+        Team oldTeam = team(10L, 1000);
+        oldTeam.setSeason("s1");
+        when(teamMapper.selectBatchIds(any())).thenReturn(List.of(oldTeam));
+
+        BusinessException error = assertThrows(
+                BusinessException.class,
+                () -> service.previewPopulationSubsidy(subsidyRequest(List.of(10L), 500, null)));
+
+        assertEquals(400, error.getCode());
+        assertTrue(error.getMessage().contains("当前赛季"));
+    }
+
+    @Test
+    void previewPopulationSubsidyRejectsAmountOverflow() {
+        AdminEconomyServiceImpl service = service();
+        Team selectedTeam = team(10L, 1000);
+        when(teamMapper.selectBatchIds(any())).thenReturn(List.of(selectedTeam));
+        when(playerMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(
+                player(1L, 10L, 0, 1000),
+                player(2L, 10L, 0, 1000)));
+
+        BusinessException error = assertThrows(
+                BusinessException.class,
+                () -> service.previewPopulationSubsidy(
+                        subsidyRequest(List.of(10L), Integer.MAX_VALUE, null)));
+
+        assertEquals(400, error.getCode());
+        assertTrue(error.getMessage().contains("金额过大"));
+    }
+
+    private AdminEconomyServiceImpl service() {
+        AdminEconomyServiceImpl service = new AdminEconomyServiceImpl(
+                pLedgerMapper,
+                valuationChangeMapper,
+                teamMapper,
+                playerMapper,
+                ruleParameterService,
+                adminAssetService);
+        ReflectionTestUtils.setField(service, "currentSeason", "s2");
+        return service;
+    }
+
+    private static PopulationSubsidyRequest subsidyRequest(
+            List<Long> teamIds,
+            Integer perPlayerAmount,
+            String previewToken) {
+        PopulationSubsidyRequest request = new PopulationSubsidyRequest();
+        request.setTeamIds(teamIds);
+        request.setPerPlayerAmount(perPlayerAmount);
+        request.setPreviewToken(previewToken);
+        return request;
     }
 
     private static Team team(Long id, Integer pCoins) {

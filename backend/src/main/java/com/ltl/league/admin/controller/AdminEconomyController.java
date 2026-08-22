@@ -9,6 +9,8 @@ import com.ltl.league.admin.dto.ManualPLedgerRequest;
 import com.ltl.league.admin.dto.ManualValuationAdjustRequest;
 import com.ltl.league.admin.dto.DeductTeamPCoinsRequest;
 import com.ltl.league.admin.dto.SalaryRequest;
+import com.ltl.league.admin.dto.PopulationSubsidyRequest;
+import com.ltl.league.admin.dto.PopulationSubsidyResultVO;
 import com.ltl.league.admin.service.AdminAssetService;
 import com.ltl.league.admin.service.AdminEconomyService;
 import com.ltl.league.common.Result;
@@ -99,6 +101,18 @@ public class AdminEconomyController {
         String reason = payload != null ? payload.get("reason") : null;
         adminEconomyService.voidDeductAllTeamsSalary(reason);
         return Result.success();
+    }
+
+    @PostMapping("/p-ledger/population-subsidy/preview")
+    public Result<PopulationSubsidyResultVO> previewPopulationSubsidy(
+            @RequestBody PopulationSubsidyRequest request) {
+        return Result.success(adminEconomyService.previewPopulationSubsidy(request));
+    }
+
+    @PostMapping("/p-ledger/population-subsidy/apply")
+    public Result<PopulationSubsidyResultVO> applyPopulationSubsidy(
+            @RequestBody PopulationSubsidyRequest request) {
+        return Result.success(adminEconomyService.applyPopulationSubsidy(request));
     }
 
     @GetMapping("/assets/overview")

@@ -5,6 +5,8 @@ import com.ltl.league.admin.dto.AdminValuationChangeVO;
 import com.ltl.league.admin.dto.ManualPLedgerRequest;
 import com.ltl.league.admin.dto.ManualValuationAdjustRequest;
 import com.ltl.league.admin.dto.DeductTeamPCoinsRequest;
+import com.ltl.league.admin.dto.PopulationSubsidyRequest;
+import com.ltl.league.admin.dto.PopulationSubsidyResultVO;
 
 import java.util.List;
 
@@ -27,4 +29,8 @@ public interface AdminEconomyService {
     void deductAllTeamsSalary(Integer rate);
 
     void voidDeductAllTeamsSalary(String reason);
+
+    PopulationSubsidyResultVO previewPopulationSubsidy(PopulationSubsidyRequest request);
+
+    PopulationSubsidyResultVO applyPopulationSubsidy(PopulationSubsidyRequest request);
 }
