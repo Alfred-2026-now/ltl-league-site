@@ -83,20 +83,17 @@
         return `<a href="${item.href}"${isActive}${style}>${item.text}</a>`;
       }).join("");
 
-      if (isHomePage) {
-        // 首页：LOGO + 导航链接居中，登录区右对齐
-        navLinksContainer.innerHTML =
-          `<div class="nav-center"><img class="nav-inline-logo" src="assets/ltl-logo.webp" alt="LTL联赛" />${linksHtml}</div>` +
-          `<div class="nav-right"></div>`;
+      const homeLogo = isHomePage
+        ? `<img class="nav-inline-logo" src="assets/ltl-logo.webp" alt="LTL联赛" />`
+        : "";
 
-        const rightGroup = navLinksContainer.querySelector('.nav-right');
-        buildUserSection(currentUser).forEach(el => rightGroup.appendChild(el));
-      } else {
-        // 其他页面：原有布局
-        navLinksContainer.innerHTML = linksHtml;
+      // 所有前台页面使用同一布局：标签组居中，登录/账号区右对齐。
+      navLinksContainer.innerHTML =
+        `<div class="nav-center">${homeLogo}${linksHtml}</div>` +
+        `<div class="nav-right"></div>`;
 
-        buildUserSection(currentUser).forEach(el => navLinksContainer.appendChild(el));
-      }
+      const rightGroup = navLinksContainer.querySelector('.nav-right');
+      buildUserSection(currentUser).forEach(el => rightGroup.appendChild(el));
 
       // 立即绑定导航事件
       toggle.addEventListener("click", function(e) {
