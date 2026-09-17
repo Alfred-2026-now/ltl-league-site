@@ -65,6 +65,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  position: relative;
 }
 .brand {
   display: flex;
@@ -100,8 +101,24 @@ a {
   font-size: 14px;
   flex: 1 1 auto;
   min-width: 0;
-  overflow-x: auto;
+  overflow: visible;
   scrollbar-width: none;
+}
+.nav-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+.nav-right {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 .nav-links::-webkit-scrollbar {
   display: none;
@@ -2207,19 +2224,24 @@ code {
   }
   .nav-links.show {
     display: flex;
-  }
-  body.home-page .nav-links.show {
     flex-direction: column;
     align-items: stretch;
   }
-  body.home-page .nav-center {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  body.home-page .nav-right {
+  .nav-center {
     position: static;
     transform: none;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+  .nav-right {
+    position: static;
+    transform: none;
+    flex-direction: column;
+    align-items: stretch;
     margin-top: 8px;
+    margin-left: 0;
+    width: 100%;
   }
   .nav-links a {
     padding: 12px 14px;
@@ -2519,28 +2541,7 @@ body.home-page .site-header {
 body.home-page .nav {
   padding: 10px 22px;
   max-width: none;
-}
-body.home-page .nav-links {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  flex: 1 1 auto;
-}
-body.home-page .nav-center {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-wrap: nowrap;
-}
-body.home-page .nav-right {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  flex: 0 0 auto;
+  min-height: 60px;
 }
 .nav-inline-logo {
   height: 40px;
