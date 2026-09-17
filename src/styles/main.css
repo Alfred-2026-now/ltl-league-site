@@ -118,6 +118,17 @@ a {
   color: #fff;
   background: rgba(25, 168, 255, 0.18);
 }
+/* 个人赛准备期：首页暂时隐藏战队赛入口，保留页面、导航和战队卡片代码。
+   同时覆盖初始 HTML 与登录后注入的导航；恢复时移除此规则即可。 */
+body.home-page .nav-links a[href="standings.html"],
+body.home-page .nav-links a[href="teams.html"],
+body.home-page .nav-links a[href="tools.html"],
+body.home-page .nav-links a[href="schedule.html"],
+body.home-page .nav-links a[href="match-history.html"],
+body.home-page .nav-links a[href="captain.html"],
+body.home-page .home-teams {
+  display: none;
+}
 .nav-divider {
   flex: 0 0 auto;
 }
