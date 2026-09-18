@@ -20,6 +20,28 @@ public class Player {
 
     private Integer value;
 
+    private Integer topValue;
+
+    private Integer jugValue;
+
+    private Integer midValue;
+
+    private Integer botValue;
+
+    private Integer supValue;
+
+    private Integer topActive;
+
+    private Integer jugActive;
+
+    private Integer midActive;
+
+    private Integer botActive;
+
+    private Integer supActive;
+
+    private Integer maxValue;
+
     private String position;
 
     private String gameAccount;
@@ -35,6 +57,8 @@ public class Player {
     private Integer status;
 
     private Integer deposit;
+
+    private Integer bounty;
 
     private Integer role;
 

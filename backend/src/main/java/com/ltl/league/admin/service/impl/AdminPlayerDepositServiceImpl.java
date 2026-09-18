@@ -80,6 +80,31 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
 
     @Override
     @Transactional
+    public void adjustPlayerBounty(AdjustPlayerBountyRequest request) {
+        if (request == null || request.getPlayerId() == null || request.getAmount() == null) {
+            throw new BusinessException(400, "选手ID和金额不能为空");
+        }
+        if (request.getAmount() == 0) {
+            throw new BusinessException(400, "调整金额不能为0");
+        }
+
+        Player player = playerMapper.selectById(request.getPlayerId());
+        if (player == null) {
+            throw new BusinessException(404, "选手不存在");
+        }
+
+        Integer currentBounty = player.getBounty() != null ? player.getBounty() : 0;
+        Integer newBounty = currentBounty + request.getAmount();
+        if (newBounty < 0) {
+            throw new BusinessException(400, "赏金币不能为负数");
+        }
+
+        player.setBounty(newBounty);
+        playerMapper.updateById(player);
+    }
+
+    @Override
+    @Transactional
     public void addLoanFeeToPlayer(Long playerId, Integer amount) {
         if (playerId == null || amount == null || amount <= 0) {
             throw new BusinessException(400, "选手ID和金额不能为空且金额必须大于0");
@@ -141,6 +166,17 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         player.setTeamId(request.getTeamId());
         player.setName(request.getName().trim());
         player.setValue(request.getValue());
+        player.setTopValue(request.getValue());
+        player.setJugValue(request.getValue());
+        player.setMidValue(request.getValue());
+        player.setBotValue(request.getValue());
+        player.setSupValue(request.getValue());
+        player.setTopActive(0);
+        player.setJugActive(0);
+        player.setMidActive(0);
+        player.setBotActive(0);
+        player.setSupActive(0);
+        player.setMaxValue(request.getValue());
         player.setPosition(request.getPosition());
         player.setGameAccount(request.getGameAccount());
         player.setPuuid(request.getPuuid());
@@ -149,6 +185,7 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         player.setLoanTeamId(null);
         player.setStatus(request.getStatus());
         player.setDeposit(0);
+        player.setBounty(0);
 
         playerMapper.insert(player);
         return player;

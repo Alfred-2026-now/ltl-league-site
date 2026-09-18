@@ -22,6 +22,12 @@ public class AdminPlayerDepositController {
         return Result.success();
     }
 
+    @PostMapping("/players/bounty")
+    public Result<Void> adjustPlayerBounty(@RequestBody AdjustPlayerBountyRequest request) {
+        adminPlayerDepositService.adjustPlayerBounty(request);
+        return Result.success();
+    }
+
     @PostMapping("/players")
     public Result<Player> createPlayer(@RequestBody CreatePlayerRequest request) {
         return Result.success(adminPlayerDepositService.createPlayer(request));

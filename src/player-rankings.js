@@ -92,12 +92,11 @@ const els = {};
 function bindEls() {
   els.showValueRankings = document.getElementById("showValueRankings");
   els.showDepositRankings = document.getElementById("showDepositRankings");
+  els.showBountyRankings = document.getElementById("showBountyRankings");
   els.showReviewRankings = document.getElementById("showReviewRankings");
   els.reviewSortControls = document.getElementById("reviewSortControls");
   els.rankingTitle = document.getElementById("rankingTitle");
-  els.valueHeader = document.getElementById("valueHeader");
-  els.depositHeader = document.getElementById("depositHeader");
-  els.reviewExtraHeader = document.getElementById("reviewExtraHeader");
+  els.rankingHead = document.getElementById("rankingHead");
   els.rankingBody = document.getElementById("rankingBody");
   els.rankingCards = document.getElementById("rankingCards");
   els.reviewDetail = document.getElementById("reviewDetail");
@@ -107,6 +106,7 @@ function setMode(mode) {
   currentMode = mode;
   els.showValueRankings.classList.toggle("primary", mode === "value");
   els.showDepositRankings.classList.toggle("primary", mode === "deposit");
+  els.showBountyRankings.classList.toggle("primary", mode === "bounty");
   els.showReviewRankings.classList.toggle("primary", mode === "reviews");
   els.reviewSortControls.style.display = mode === "reviews" ? "flex" : "none";
   els.reviewDetail.style.display = mode === "reviews" ? "block" : "none";
@@ -136,7 +136,29 @@ function rankStyle(rank) {
 }
 
 function teamText(team) {
-  return team ? `${team.state} · ${team.name}` : "自由人";
+  return team ? team.name : "自由人";
+}
+
+const POSITION_COLS = [
+  { key: "topValue", activeKey: "topActive", label: "上路" },
+  { key: "jugValue", activeKey: "jugActive", label: "打野" },
+  { key: "midValue", activeKey: "midActive", label: "中路" },
+  { key: "botValue", activeKey: "botActive", label: "下路" },
+  { key: "supValue", activeKey: "supActive", label: "辅助" }
+];
+
+function renderRankingHead() {
+  const th = (text) => `<th style="text-align:left;padding:.75rem 1rem;color:#79e7ff;font-weight:600;">${text}</th>`;
+  let cols;
+  if (currentMode === "value") {
+    cols = `${th("排名")}${th("选手")}${th("所属小组")}${th("最高身价(P)")}` +
+      POSITION_COLS.map(c => th(c.label + "身价")).join("");
+  } else if (currentMode === "bounty") {
+    cols = `${th("排名")}${th("选手")}${th("所属小组")}${th("赏金 🪙")}`;
+  } else {
+    cols = `${th("排名")}${th("选手")}${th("所属小组")}${th("积分(P)")}`;
+  }
+  els.rankingHead.innerHTML = `<tr style="background:linear-gradient(90deg, rgba(25, 168, 255, 0.15), rgba(140, 92, 255, 0.15));border-bottom:2px solid rgba(121, 231, 255, 0.3);">${cols}</tr>`;
 }
 
 function renderRankings() {
@@ -147,25 +169,32 @@ function renderRankings() {
 
   els.reviewDetail.innerHTML = "";
   if (!players.length) {
-    els.rankingBody.innerHTML = `<tr><td colspan="5" style="padding:1rem;" class="muted">暂无选手数据。</td></tr>`;
+    els.rankingHead.innerHTML = "";
+    els.rankingBody.innerHTML = `<tr><td style="padding:1rem;" class="muted">暂无选手数据。</td></tr>`;
     els.rankingCards.innerHTML = "";
     return;
   }
 
+  renderRankingHead();
+
   const teamMap = new Map(teams.map(team => [team.id, team]));
   const rankedPlayers = [...players].sort((a, b) => {
     if (currentMode === "value") {
-      return (b.value || 0) - (a.value || 0);
+      return (b.maxValue ?? b.value ?? 0) - (a.maxValue ?? a.value ?? 0);
+    }
+    if (currentMode === "bounty") {
+      return (b.bounty || 0) - (a.bounty || 0);
     }
     return (b.deposit || 0) - (a.deposit || 0);
   });
 
-  els.rankingTitle.textContent = currentMode === "value" ? "选手身价排行榜" : "选手积分排行榜";
-  els.valueHeader.textContent = currentMode === "value" ? "身价(P)" : "身价(P)";
-  els.depositHeader.textContent = currentMode === "value" ? "积分(P)" : "积分(P)";
-  els.valueHeader.style.display = currentMode === "value" ? "" : "none";
-  els.depositHeader.style.display = currentMode === "deposit" ? "" : "none";
-  els.reviewExtraHeader.style.display = "none";
+  if (currentMode === "value") {
+    els.rankingTitle.textContent = "选手身价排行榜";
+  } else if (currentMode === "bounty") {
+    els.rankingTitle.textContent = "选手赏金排行榜";
+  } else {
+    els.rankingTitle.textContent = "选手积分排行榜";
+  }
 
   els.rankingBody.innerHTML = rankedPlayers.map((player, index) => {
     const rank = index + 1;
@@ -173,15 +202,45 @@ function renderRankings() {
     const isFreeAgent = player.status === 3;
     const statusText = isFreeAgent ? ' <span class="ranking-badge danger">自由人</span>' : "";
     const substituteText = player.isSubstitute ? ' <span class="ranking-badge">替补</span>' : "";
-    const metric = currentMode === "value" ? player.value : player.deposit;
-    const metricColor = currentMode === "value" ? "#7cffb2" : "#ffd700";
+
+    if (currentMode === "value") {
+      const maxValue = player.maxValue ?? player.value ?? 0;
+      const posCells = POSITION_COLS.map(col => {
+        const val = player[col.key] ?? player.value ?? 0;
+        const active = player[col.activeKey] === 1;
+        const badge = active
+          ? '<span class="ranking-badge" style="background:rgba(124,255,178,0.15);color:#7cffb2;">已激活</span>'
+          : '<span class="ranking-badge" style="background:rgba(168,182,214,0.15);color:#a8b6d6;">未激活</span>';
+        return `<td style="padding:.75rem .5rem;color:#f3f8ff;">${val}P ${badge}</td>`;
+      }).join("");
+      return `
+        <tr class="ranking-row">
+          <td style="padding:.75rem 1rem;font-weight:bold;${rankStyle(rank)}">${rankDisplay(rank)}</td>
+          <td style="padding:.75rem 1rem;color:#f3f8ff;">${escapeHtml(player.name || "-")}${statusText}${substituteText}</td>
+          <td style="padding:.75rem 1rem;color:#a8b6d6;">${escapeHtml(teamText(team))}</td>
+          <td style="padding:.75rem 1rem;color:#7cffb2;font-weight:600;">${maxValue || 0}P</td>
+          ${posCells}
+        </tr>
+      `;
+    }
+
+    if (currentMode === "bounty") {
+      return `
+        <tr class="ranking-row">
+          <td style="padding:.75rem 1rem;font-weight:bold;${rankStyle(rank)}">${rankDisplay(rank)}</td>
+          <td style="padding:.75rem 1rem;color:#f3f8ff;">${escapeHtml(player.name || "-")}${statusText}${substituteText}</td>
+          <td style="padding:.75rem 1rem;color:#a8b6d6;">${escapeHtml(teamText(team))}</td>
+          <td style="padding:.75rem 1rem;color:#ffd700;font-weight:600;">🪙 ${player.bounty || 0}</td>
+        </tr>
+      `;
+    }
+
     return `
       <tr class="ranking-row">
         <td style="padding:.75rem 1rem;font-weight:bold;${rankStyle(rank)}">${rankDisplay(rank)}</td>
         <td style="padding:.75rem 1rem;color:#f3f8ff;">${escapeHtml(player.name || "-")}${statusText}${substituteText}</td>
         <td style="padding:.75rem 1rem;color:#a8b6d6;">${escapeHtml(teamText(team))}</td>
-        <td style="padding:.75rem 1rem;${currentMode === "value" ? "" : "display:none;"}color:${metricColor};font-weight:600;">${metric || 0}P</td>
-        <td style="padding:.75rem 1rem;${currentMode === "deposit" ? "" : "display:none;"}color:${metricColor};font-weight:600;">${metric || 0}P</td>
+        <td style="padding:.75rem 1rem;color:#ffd700;font-weight:600;">${player.deposit || 0}P</td>
       </tr>
     `;
   }).join("");
@@ -189,8 +248,17 @@ function renderRankings() {
   els.rankingCards.innerHTML = rankedPlayers.map((player, index) => {
     const rank = index + 1;
     const team = teamMap.get(player.teamId);
-    const metricLabel = currentMode === "value" ? "身价" : "积分";
-    const metricValue = currentMode === "value" ? player.value : player.deposit;
+    let metricLabel, metricValue;
+    if (currentMode === "value") {
+      metricLabel = "最高身价";
+      metricValue = `${player.maxValue ?? player.value ?? 0}P`;
+    } else if (currentMode === "bounty") {
+      metricLabel = "赏金";
+      metricValue = `🪙 ${player.bounty || 0}`;
+    } else {
+      metricLabel = "积分";
+      metricValue = `${player.deposit || 0}P`;
+    }
     return `
       <button class="ranking-card" type="button">
         <span class="ranking-card-rank" style="${rankStyle(rank)}">${rankDisplay(rank)}</span>
@@ -198,7 +266,7 @@ function renderRankings() {
           <strong>${escapeHtml(player.name || "-")}</strong>
           <small>${escapeHtml(teamText(team))}</small>
         </span>
-        <span class="ranking-card-metric">${metricLabel}<strong>${metricValue || 0}P</strong></span>
+        <span class="ranking-card-metric">${metricLabel}<strong>${metricValue}</strong></span>
       </button>
     `;
   }).join("");
@@ -206,12 +274,8 @@ function renderRankings() {
 
 function renderReviewRankings() {
   els.rankingTitle.textContent = "选手评价";
-  els.valueHeader.textContent = "身价(P)";
-  els.depositHeader.textContent = "点评数";
-  els.reviewExtraHeader.textContent = "总人气";
-  els.valueHeader.style.display = "";
-  els.depositHeader.style.display = "";
-  els.reviewExtraHeader.style.display = "";
+  const th = (text) => `<th style="text-align:left;padding:.75rem 1rem;color:#79e7ff;font-weight:600;">${text}</th>`;
+  els.rankingHead.innerHTML = `<tr style="background:linear-gradient(90deg, rgba(25, 168, 255, 0.15), rgba(140, 92, 255, 0.15));border-bottom:2px solid rgba(121, 231, 255, 0.3);">${th("排名")}${th("选手")}${th("所属小组")}${th("身价(P)")}${th("点评数")}${th("总人气")}</tr>`;
   [...els.reviewSortControls.querySelectorAll("[data-review-sort]")].forEach(button => {
     button.classList.toggle("primary", button.dataset.reviewSort === reviewSort);
   });
@@ -421,6 +485,11 @@ function bindEvents() {
 
   els.showDepositRankings.addEventListener("click", () => {
     setMode("deposit");
+    renderRankings();
+  });
+
+  els.showBountyRankings.addEventListener("click", () => {
+    setMode("bounty");
     renderRankings();
   });
 

@@ -13,6 +13,7 @@
       { href: "admin-reward-rules.html", text: "规则参数调整" },
       { href: "admin-players.html", text: "选手管理" },
       { href: "admin-player-deposit-ledger.html", text: "选手积分" },
+      { href: "admin-player-bounty.html", text: "选手赏金" },
       { href: "admin-prize-mgmt.html", text: "奖品兑换" },
       { href: "admin-announcements.html", text: "公告" },
       { href: "admin-rules.html", text: "规则" },

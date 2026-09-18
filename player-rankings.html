@@ -35,6 +35,7 @@
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-bottom:1rem;">
         <button class="btn primary" id="showValueRankings">身价排行</button>
         <button class="btn" id="showDepositRankings">积分排行</button>
+        <button class="btn" id="showBountyRankings">赏金排行</button>
         <button class="btn" id="showReviewRankings">选手评价</button>
       </div>
 
@@ -47,7 +48,7 @@
           </div>
         </div>
         <table class="admin-table ranking-table" style="width:100%;border-collapse:collapse;background:rgba(10, 15, 35, 0.6);border-radius:12px;overflow:hidden;">
-          <thead><tr style="background:linear-gradient(90deg, rgba(25, 168, 255, 0.15), rgba(140, 92, 255, 0.15));border-bottom:2px solid rgba(121, 231, 255, 0.3);"><th style="text-align:left;padding:.75rem 1rem;color:#79e7ff;font-weight:600;">排名</th><th style="text-align:left;padding:.75rem 1rem;color:#79e7ff;font-weight:600;">选手</th><th style="text-align:left;padding:.75rem 1rem;color:#79e7ff;font-weight:600;">队伍</th><th style="text-align:left;padding:.75rem 1rem;color:#79e7ff;font-weight:600;" id="valueHeader">身价(P)</th><th style="text-align:left;padding:.75rem 1rem;color:#79e7ff;font-weight:600;" id="depositHeader">积分(P)</th><th style="text-align:left;padding:.75rem 1rem;color:#79e7ff;font-weight:600;display:none;" id="reviewExtraHeader">总人气</th></tr></thead>
+          <thead id="rankingHead"></thead>
           <tbody id="rankingBody"></tbody>
         </table>
         <div class="ranking-cards" id="rankingCards"></div>

@@ -8,6 +8,8 @@ import java.util.List;
 public interface AdminPlayerDepositService {
     void adjustPlayerDeposit(AdjustPlayerDepositRequest request);
 
+    void adjustPlayerBounty(AdjustPlayerBountyRequest request);
+
     void addLoanFeeToPlayer(Long playerId, Integer amount);
 
     Player createPlayer(CreatePlayerRequest request);
