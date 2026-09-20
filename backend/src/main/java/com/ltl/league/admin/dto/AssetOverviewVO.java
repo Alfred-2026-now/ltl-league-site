@@ -10,6 +10,7 @@ public class AssetOverviewVO {
     private Integer teamAssets;
     private Integer leagueAssets;
     private Integer playerAssets;
+    private Integer taskEscrowAssets;
     private Integer totalAssets;
     private List<AssetChangeVO> changes = new ArrayList<>();
 }

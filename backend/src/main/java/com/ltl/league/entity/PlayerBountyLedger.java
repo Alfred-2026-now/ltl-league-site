@@ -6,48 +6,23 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("player_deposit_ledger")
-public class PlayerDepositLedger {
-
+@TableName("player_bounty_ledger")
+public class PlayerBountyLedger {
     @TableId(type = IdType.AUTO)
     private Long id;
-
     private Long playerId;
-
-    private Long matchId;
-
-    private Long resultId;
-
+    private String season;
+    private Long taskId;
+    private Long claimId;
+    private Long proofId;
     private String type;
-
     private Integer amount;
-
     private String reason;
-
     private Integer balanceBefore;
-
     private Integer balanceAfter;
-
-    private String source;
-
-    private String refTable;
-
-    private Long refId;
-
     private String operator;
-
-    private Integer isVoided;
-
-    private LocalDateTime voidedAt;
-
-    private String voidReason;
-
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
-
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updatedAt;
-
     @TableLogic
     private Integer deleted;
 }

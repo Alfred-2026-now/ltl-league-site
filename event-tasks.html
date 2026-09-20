@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LTL 赛事任务</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="index.html"><img class="brand-logo" src="assets/ltl-logo.webp" alt="LTL联赛" /></a>
+      <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+      <div class="nav-links" id="navLinks"></div>
+    </nav>
+  </header>
+
+  <main class="page-shell task-page">
+    <section class="section">
+      <div class="section-heading row">
+        <div>
+          <p class="eyebrow">EVENT TASKS</p>
+          <h1 class="page-title">赛事任务中心</h1>
+          <p class="muted">发布任务、接取挑战并提交完成证明。赏金积分仅用于赛季末排名。</p>
+        </div>
+      </div>
+
+      <div class="task-rule-banner">
+        <strong>接取与放弃规则</strong>
+        <span>接取后30分钟内主动放弃，全额退还接取费用；超过30分钟不退费。主动放弃都会返还名额，但不能再次接取同一任务。任务被管理员注销时不退接取费用。</span>
+      </div>
+
+      <div class="task-tabs" role="tablist" aria-label="任务视图">
+        <button class="btn primary" type="button" data-task-tab="hall">任务大厅</button>
+        <button class="btn" type="button" data-task-tab="publish">发布任务</button>
+        <button class="btn" type="button" data-task-tab="mine-published">我发布的</button>
+        <button class="btn" type="button" data-task-tab="mine-claimed">我接取的</button>
+      </div>
+
+      <p id="taskMessage" class="task-message" aria-live="polite"></p>
+      <div id="taskContent"></div>
+    </section>
+  </main>
+
+  <dialog id="taskEditDialog" class="task-dialog">
+    <form method="dialog" class="task-form" id="taskEditForm">
+      <div class="task-dialog-heading">
+        <h2>修改被打回的任务</h2>
+        <button class="btn ghost" value="cancel" type="submit">关闭</button>
+      </div>
+      <input type="hidden" id="editTaskId" />
+      <label class="field"><span class="field-label">任务标题</span><input class="input" id="editTaskTitle" maxlength="200" required /></label>
+      <label class="field"><span class="field-label">任务要求</span><textarea class="input" id="editTaskRequirements" rows="6" maxlength="10000" required></textarea></label>
+      <div class="task-form-grid">
+        <label class="field"><span class="field-label">每人P币奖励</span><input class="input" id="editTaskPReward" type="number" min="0" required /></label>
+        <label class="field"><span class="field-label">每人赏金积分</span><input class="input" id="editTaskBountyReward" type="number" min="0" required /></label>
+      </div>
+      <label class="field"><span class="field-label">最大预算备注（仅提示）</span><textarea class="input" id="editTaskBudgetNote" rows="2" maxlength="500"></textarea></label>
+      <button class="btn primary" id="saveTaskEditBtn" type="button">保存修改</button>
+    </form>
+  </dialog>
+
+  <script type="module" src="src/event-tasks.js"></script>
+  <script src="src/components/public-nav.js"></script>
+</body>
+</html>

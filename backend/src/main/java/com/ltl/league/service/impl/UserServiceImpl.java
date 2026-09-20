@@ -60,6 +60,7 @@ public class UserServiceImpl implements UserService {
                 .teamState(team != null ? team.getState() : null)
                 .value(player.getValue())
                 .deposit(player.getDeposit())
+                .bounty(player.getBounty())
                 .position(player.getPosition())
                 .isSubstitute(player.getIsSubstitute())
                 .build();

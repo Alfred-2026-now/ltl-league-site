@@ -137,7 +137,7 @@ export function updateNavForAuth() {
       // 如果是管理员，显示管理入口
       if (authApi.isAdmin(user)) {
         const adminLink = document.createElement('a');
-        adminLink.href = 'admin-matches.html';
+        adminLink.href = 'admin-event-tasks.html';
         adminLink.textContent = '管理后台';
         navLinks.appendChild(adminLink);
       }

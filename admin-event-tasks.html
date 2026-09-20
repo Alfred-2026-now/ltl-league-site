@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>LTL 管理 - 赛事任务</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+</head>
+<body>
+  <header class="site-header"><nav class="nav"><a class="brand" href="index.html"><img class="brand-logo" src="assets/ltl-logo.webp" alt="LTL联赛" /></a><button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button><div class="nav-links" id="navLinks"></div></nav></header>
+  <main class="page-shell task-page">
+    <section class="section">
+      <div class="section-heading row"><div><p class="eyebrow">ADMIN · EVENT TASKS</p><h1 class="page-title">赛事任务管理</h1><p class="muted">审核发布、完成证明、官方任务与任务注销。</p></div></div>
+      <p id="adminTaskMessage" class="task-message" aria-live="polite"></p>
+
+      <form class="panel task-form" id="officialTaskForm">
+        <h2>直接发布官方任务</h2>
+        <p class="muted">官方任务不扣管理员个人P币，奖励由系统发放。</p>
+        <div class="task-form-grid"><label class="field"><span class="field-label">标题</span><input class="input" name="title" maxlength="200" required /></label><label class="field"><span class="field-label">最大接取人数</span><input class="input" name="maxClaimants" type="number" min="1" max="100" required /></label></div>
+        <label class="field"><span class="field-label">任务要求</span><textarea class="input" name="requirements" rows="5" maxlength="10000" required></textarea></label>
+        <div class="task-form-grid"><label class="field"><span class="field-label">每人P币奖励</span><input class="input" name="pReward" type="number" min="0" value="0" required /></label><label class="field"><span class="field-label">每人赏金积分</span><input class="input" name="bountyReward" type="number" min="0" value="0" required /></label><label class="field"><span class="field-label">接取费用</span><input class="input" name="claimFee" type="number" min="0" value="0" required /></label></div>
+        <label class="field"><span class="field-label">备注</span><textarea class="input" name="budgetNote" rows="2" maxlength="500"></textarea></label>
+        <button class="btn primary" type="submit">发布官方任务</button>
+      </form>
+
+      <div class="task-admin-grid">
+        <section><h2>待审核发布</h2><div id="pendingTaskList" class="task-list"></div></section>
+        <section><h2>待审核完成证明</h2><div id="pendingProofList" class="task-list"></div></section>
+      </div>
+      <section style="margin-top:1.5rem;"><h2>进行中任务</h2><div id="publishedTaskList" class="task-list"></div></section>
+      <section style="margin-top:1.5rem;"><h2>完成任务历史</h2><p class="muted">展示本赛季已完成及已撤回的记录。撤回会扣回该选手获得的P币与赏金积分、返还一个接取名额，接取费不退。</p><div id="completedTaskList" class="task-list"></div></section>
+      <section style="margin-top:1.5rem;"><h2>最近已结束任务</h2><div id="closedTaskList" class="task-list"></div></section>
+    </section>
+  </main>
+  <script type="module" src="src/util/admin-auth.js"></script>
+  <script type="module" src="src/admin/event-tasks.js"></script>
+  <script src="src/components/admin-nav.js"></script>
+</body>
+</html>

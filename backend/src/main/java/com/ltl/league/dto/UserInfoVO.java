@@ -22,6 +22,7 @@ public class UserInfoVO {
 
     private Integer value;
     private Integer deposit;
+    private Integer bounty;
     private String position;
     private Integer isSubstitute;
 }

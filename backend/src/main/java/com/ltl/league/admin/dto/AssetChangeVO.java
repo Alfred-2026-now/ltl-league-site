@@ -8,5 +8,6 @@ public class AssetChangeVO {
     private Integer teamDelta;
     private Integer leagueDelta;
     private Integer playerDelta;
+    private Integer taskEscrowDelta;
     private Integer totalDelta;
 }
