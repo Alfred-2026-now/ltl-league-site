@@ -58,6 +58,7 @@
       { href: "tools.html", text: "计算器" },
       { href: "schedule.html", text: "赛程" },
       { href: "match-history.html", text: "战绩" },
+      { href: "event-tasks.html", text: "赛事任务", highlight: true },
       { href: "prize-exchange.html", text: "积分兑换", highlight: true }
     ];
 
@@ -65,7 +66,7 @@
 
     // 按角色添加专属入口（位掩码：1=管理员，2=队长，3=两者，两个 tab 独立显示）
     if (currentUser && (currentUser.role & 1)) {
-      navItems.push({ href: "admin-matches.html", text: "管理后台", highlight: true });
+      navItems.push({ href: "admin-event-tasks.html", text: "管理后台", highlight: true });
     }
     if (currentUser && (currentUser.role & 2)) {
       navItems.push({ href: "captain.html", text: "队长管理", highlight: true });

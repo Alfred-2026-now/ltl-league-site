@@ -42,7 +42,8 @@ function renderSummary(data) {
     ["队伍总资产", data.teamAssets, "所有队伍当前 P 币余额合计"],
     ["联盟总资产", data.leagueAssets, "损耗上交与福利支出的余额"],
     ["个人资产总和", data.playerAssets, "所有选手个人积分合计"],
-    ["总资产", data.totalAssets, "队伍、联盟、个人三项合计"]
+    ["任务悬赏托管", data.taskEscrowAssets, "进行中普通任务尚未发放的P币"],
+    ["总资产", data.totalAssets, "队伍、联盟、个人与任务托管合计"]
   ];
   els.summaryGrid.innerHTML = cards.map(([title, value, desc]) => `
     <div class="panel" style="padding:1rem;min-height:120px;">
@@ -57,7 +58,7 @@ function renderChanges(rows) {
   latestChanges = rows;
   renderChangeChart(els.changesChart, latestChanges, latestAssets);
   if (!rows.length) {
-    els.changesBody.innerHTML = `<tr><td colspan="5" style="padding:1rem;" class="muted">暂无变化。</td></tr>`;
+    els.changesBody.innerHTML = `<tr><td colspan="6" style="padding:1rem;" class="muted">暂无变化。</td></tr>`;
     return;
   }
   els.changesBody.innerHTML = rows.map(row => `
@@ -66,6 +67,7 @@ function renderChanges(rows) {
       <td style="padding:.75rem 1rem;">${formatDelta(row.teamDelta)}</td>
       <td style="padding:.75rem 1rem;">${formatDelta(row.leagueDelta)}</td>
       <td style="padding:.75rem 1rem;">${formatDelta(row.playerDelta)}</td>
+      <td style="padding:.75rem 1rem;">${formatDelta(row.taskEscrowDelta)}</td>
       <td style="padding:.75rem 1rem;">${formatDelta(row.totalDelta)}</td>
     </tr>
   `).join("");

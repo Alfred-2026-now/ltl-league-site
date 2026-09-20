@@ -2,25 +2,27 @@ import assert from "node:assert/strict";
 import { buildChangeChartModel, findNearestChartPoint } from "../src/admin/assets-chart.js";
 
 const rows = [
-  { date: "2026-06-01", teamDelta: -10, leagueDelta: 20, playerDelta: 5 },
-  { date: "2026-06-02", teamDelta: 30, leagueDelta: 0, playerDelta: -15 }
+  { date: "2026-06-01", teamDelta: -10, leagueDelta: 20, playerDelta: 5, taskEscrowDelta: 10 },
+  { date: "2026-06-02", teamDelta: 30, leagueDelta: 0, playerDelta: -15, taskEscrowDelta: -5 }
 ];
 
 const model = buildChangeChartModel(rows, {
   teamAssets: 100,
   leagueAssets: 200,
-  playerAssets: 300
+  playerAssets: 300,
+  taskEscrowAssets: 50
 });
 
-assert.equal(model.series.length, 3);
+assert.equal(model.series.length, 4);
 assert.equal(model.labels[0], "06-01");
 assert.equal(model.labels[1], "06-02");
-assert.equal(model.minValue, 70);
+assert.equal(model.minValue, 50);
 assert.equal(model.maxValue, 315);
 assert.equal(model.series[0].key, "teamDelta");
 assert.deepEqual(model.series[0].values, [70, 100]);
 assert.deepEqual(model.series[1].values, [200, 200]);
 assert.deepEqual(model.series[2].values, [315, 300]);
+assert.deepEqual(model.series[3].values, [55, 50]);
 
 const nearest = findNearestChartPoint([
   { x: 10, y: 10, label: "06-01", seriesLabel: "队伍资产", value: 70 },

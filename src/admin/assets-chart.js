@@ -1,7 +1,8 @@
 const SERIES = [
   { key: "teamDelta", assetKey: "teamAssets", label: "队伍资产", color: "#6EE7F9" },
   { key: "leagueDelta", assetKey: "leagueAssets", label: "联盟资产", color: "#A78BFA" },
-  { key: "playerDelta", assetKey: "playerAssets", label: "个人资产", color: "#FBBF24" }
+  { key: "playerDelta", assetKey: "playerAssets", label: "个人资产", color: "#FBBF24" },
+  { key: "taskEscrowDelta", assetKey: "taskEscrowAssets", label: "任务悬赏托管", color: "#34D399" }
 ];
 
 export function buildChangeChartModel(rows, currentAssets = {}) {

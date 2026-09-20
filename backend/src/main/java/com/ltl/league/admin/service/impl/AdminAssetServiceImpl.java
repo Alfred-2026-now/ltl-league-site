@@ -7,12 +7,14 @@ import com.ltl.league.admin.dto.LeagueAssetAdjustRequest;
 import com.ltl.league.admin.dto.LeagueAssetLedgerVO;
 import com.ltl.league.admin.service.AdminAssetService;
 import com.ltl.league.entity.LeagueAssetLedger;
+import com.ltl.league.entity.EventTask;
 import com.ltl.league.entity.PLedger;
 import com.ltl.league.entity.Player;
 import com.ltl.league.entity.PlayerDepositLedger;
 import com.ltl.league.entity.Team;
 import com.ltl.league.exception.BusinessException;
 import com.ltl.league.mapper.LeagueAssetLedgerMapper;
+import com.ltl.league.mapper.EventTaskMapper;
 import com.ltl.league.mapper.PLedgerMapper;
 import com.ltl.league.mapper.PlayerDepositLedgerMapper;
 import com.ltl.league.mapper.PlayerMapper;
@@ -35,18 +37,21 @@ public class AdminAssetServiceImpl implements AdminAssetService {
     private final PLedgerMapper pLedgerMapper;
     private final PlayerDepositLedgerMapper playerDepositLedgerMapper;
     private final LeagueAssetLedgerMapper leagueAssetLedgerMapper;
+    private final EventTaskMapper eventTaskMapper;
 
     public AdminAssetServiceImpl(
             TeamMapper teamMapper,
             PlayerMapper playerMapper,
             PLedgerMapper pLedgerMapper,
             PlayerDepositLedgerMapper playerDepositLedgerMapper,
-            LeagueAssetLedgerMapper leagueAssetLedgerMapper) {
+            LeagueAssetLedgerMapper leagueAssetLedgerMapper,
+            EventTaskMapper eventTaskMapper) {
         this.teamMapper = teamMapper;
         this.playerMapper = playerMapper;
         this.pLedgerMapper = pLedgerMapper;
         this.playerDepositLedgerMapper = playerDepositLedgerMapper;
         this.leagueAssetLedgerMapper = leagueAssetLedgerMapper;
+        this.eventTaskMapper = eventTaskMapper;
     }
 
     @Override
@@ -56,7 +61,8 @@ public class AdminAssetServiceImpl implements AdminAssetService {
         vo.setTeamAssets(sumTeamAssets());
         vo.setLeagueAssets(currentLeagueAssets());
         vo.setPlayerAssets(sumPlayerAssets());
-        vo.setTotalAssets(vo.getTeamAssets() + vo.getLeagueAssets() + vo.getPlayerAssets());
+        vo.setTaskEscrowAssets(sumTaskEscrowAssets());
+        vo.setTotalAssets(vo.getTeamAssets() + vo.getLeagueAssets() + vo.getPlayerAssets() + vo.getTaskEscrowAssets());
         vo.setChanges(buildChanges(normalizedDays));
         return vo;
     }
@@ -167,7 +173,8 @@ public class AdminAssetServiceImpl implements AdminAssetService {
             Long matchId,
             Long resultId,
             String operator) {
-        Integer before = currentLeagueAssets();
+        LeagueAssetLedger latest = leagueAssetLedgerMapper.selectLatestForUpdate();
+        Integer before = latest != null && latest.getBalanceAfter() != null ? latest.getBalanceAfter() : 0;
         Integer after = before + amount;
         if (after < 0) {
             throw new BusinessException(400, "联盟总资产不足，当前余额：" + before + "P，尝试扣除：" + Math.abs(amount) + "P");
@@ -228,6 +235,7 @@ public class AdminAssetServiceImpl implements AdminAssetService {
             row.setTeamDelta(0);
             row.setLeagueDelta(0);
             row.setPlayerDelta(0);
+            row.setTaskEscrowDelta(0);
             row.setTotalDelta(0);
             rows.put(date, row);
         }
@@ -242,15 +250,34 @@ public class AdminAssetServiceImpl implements AdminAssetService {
                         .ge(PlayerDepositLedger::getCreatedAt, startAt)
                         .eq(PlayerDepositLedger::getDeleted, 0)
                         .eq(PlayerDepositLedger::getIsVoided, 0))
-                .forEach(row -> addPlayerDelta(rows, row.getCreatedAt(), row.getAmount()));
+                .forEach(row -> {
+                    addPlayerDelta(rows, row.getCreatedAt(), row.getAmount());
+                    if ("task_reward_escrow".equals(row.getType())) {
+                        addTaskEscrowDelta(rows, row.getCreatedAt(), -safeAmount(row.getAmount()));
+                    } else if ("task_reward".equals(row.getType()) || "task_reward_escrow_refund".equals(row.getType())) {
+                        addTaskEscrowDelta(rows, row.getCreatedAt(), -safeAmount(row.getAmount()));
+                    }
+                });
 
         leagueAssetLedgerMapper.selectList(new LambdaQueryWrapper<LeagueAssetLedger>()
                         .ge(LeagueAssetLedger::getCreatedAt, startAt)
                         .eq(LeagueAssetLedger::getDeleted, 0))
                 .forEach(row -> addLeagueDelta(rows, row.getCreatedAt(), row.getAmount()));
 
-        rows.values().forEach(row -> row.setTotalDelta(row.getTeamDelta() + row.getLeagueDelta() + row.getPlayerDelta()));
+        rows.values().forEach(row -> row.setTotalDelta(
+                row.getTeamDelta() + row.getLeagueDelta() + row.getPlayerDelta() + row.getTaskEscrowDelta()));
         return List.copyOf(rows.values());
+    }
+
+    private Integer sumTaskEscrowAssets() {
+        return eventTaskMapper.selectList(new LambdaQueryWrapper<EventTask>()
+                        .eq(EventTask::getOfficial, 0)
+                        .eq(EventTask::getStatus, "PUBLISHED")
+                        .eq(EventTask::getDeleted, 0))
+                .stream()
+                .map(EventTask::getEscrowRemaining)
+                .mapToInt(this::safeAmount)
+                .sum();
     }
 
     private void addTeamDelta(Map<LocalDate, AssetChangeVO> rows, LocalDateTime createdAt, Integer amount) {
@@ -264,6 +291,13 @@ public class AdminAssetServiceImpl implements AdminAssetService {
         AssetChangeVO row = rowFor(rows, createdAt);
         if (row != null) {
             row.setPlayerDelta(row.getPlayerDelta() + safeAmount(amount));
+        }
+    }
+
+    private void addTaskEscrowDelta(Map<LocalDate, AssetChangeVO> rows, LocalDateTime createdAt, Integer amount) {
+        AssetChangeVO row = rowFor(rows, createdAt);
+        if (row != null) {
+            row.setTaskEscrowDelta(row.getTaskEscrowDelta() + safeAmount(amount));
         }
     }
 

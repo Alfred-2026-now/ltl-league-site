@@ -432,6 +432,10 @@
               <div class="info-value large accent" id="playerDeposit">-</div>
             </div>
             <div class="info-card">
+              <div class="info-label">本赛季赏金积分</div>
+              <div class="info-value large accent" id="playerBounty">-</div>
+            </div>
+            <div class="info-card">
               <div class="info-label">位置</div>
               <div class="info-value" id="playerPosition">-</div>
             </div>
@@ -616,6 +620,7 @@
         // 玩家数据
         document.getElementById('playerValue').textContent = (userInfo.value || 0) + ' P';
         document.getElementById('playerDeposit').textContent = (userInfo.deposit || 0) + ' 积分';
+        document.getElementById('playerBounty').textContent = '🪙 ' + (userInfo.bounty || 0);
         document.getElementById('playerPosition').textContent = formatPosition(userInfo.position);
 
         // 状态
