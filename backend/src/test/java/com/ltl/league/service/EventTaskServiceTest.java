@@ -2,6 +2,7 @@ package com.ltl.league.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ltl.league.admin.service.AdminAssetService;
+import com.ltl.league.admin.service.RuleParameterService;
 import com.ltl.league.dto.EventTaskDtos;
 import com.ltl.league.entity.*;
 import com.ltl.league.exception.BusinessException;
@@ -35,6 +36,7 @@ class EventTaskServiceTest {
     @Mock private PlayerDepositLedgerMapper depositLedgerMapper;
     @Mock private PlayerBountyLedgerMapper bountyLedgerMapper;
     @Mock private AdminAssetService adminAssetService;
+    @Mock private RuleParameterService ruleParameterService;
 
     private final Clock clock = Clock.fixed(Instant.parse("2026-09-20T04:00:00Z"), ZoneId.of("Asia/Shanghai"));
     private EventTaskService service;
@@ -42,7 +44,8 @@ class EventTaskServiceTest {
     @BeforeEach
     void setUp() {
         service = new EventTaskService(taskMapper, reviewMapper, claimMapper, proofMapper, proofImageMapper,
-                playerMapper, depositLedgerMapper, bountyLedgerMapper, adminAssetService, clock);
+                playerMapper, depositLedgerMapper, bountyLedgerMapper, adminAssetService, ruleParameterService, clock);
+        lenient().when(ruleParameterService.getInt("event_task.anonymous_fee_rate")).thenReturn(10);
         ReflectionTestUtils.setField(service, "currentSeason", "s2");
         ReflectionTestUtils.setField(service, "uploadDir", "build/test-task-uploads");
         ReflectionTestUtils.setField(service, "uploadUrlPrefix", "/uploads");
@@ -92,6 +95,53 @@ class EventTaskServiceTest {
     }
 
     @Test
+    void anonymousPublishChargesHigherPercentageFeeAndStoresRateSnapshot() {
+        EventTask task = task(10L, 1L, 201, 30, EventTaskService.TASK_PENDING);
+        task.setAnonymous(1);
+        Player publisher = player(1L, "发布者", 1106, 0);
+        Player admin = player(9L, "管理员", 0, 0);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(playerMapper.selectByIdForUpdate(1L)).thenReturn(publisher);
+        when(playerMapper.selectById(9L)).thenReturn(admin);
+        EventTaskDtos.AdminPublishRequest request = new EventTaskDtos.AdminPublishRequest();
+        request.setClaimFee(20);
+        request.setMaxClaimants(5);
+
+        service.publishTask(9L, 10L, request);
+
+        assertEquals(0, publisher.getDeposit());
+        assertEquals(10, task.getAnonymousFeeRateSnapshot());
+        assertEquals(101, task.getAnonymousFeeAmount());
+        ArgumentCaptor<PlayerDepositLedger> ledger = ArgumentCaptor.forClass(PlayerDepositLedger.class);
+        verify(depositLedgerMapper, times(2)).insert(ledger.capture());
+        assertEquals(List.of("task_reward_escrow", "task_anonymous_fee"),
+                ledger.getAllValues().stream().map(PlayerDepositLedger::getType).toList());
+        assertEquals(-101, ledger.getAllValues().get(1).getAmount());
+        verify(adminAssetService).recordIncome(eq(101), eq("task_anonymous_fee"), any(),
+                eq("event_task"), eq("event_tasks"), eq(10L), isNull(), isNull(), eq("管理员"));
+    }
+
+    @Test
+    void anonymousPublishUsesMinimumFeeAndRejectsCombinedInsufficientBalance() {
+        EventTask task = task(10L, 1L, 100, 0, EventTaskService.TASK_PENDING);
+        task.setAnonymous(1);
+        Player publisher = player(1L, "发布者", 249, 0);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(playerMapper.selectByIdForUpdate(1L)).thenReturn(publisher);
+        EventTaskDtos.AdminPublishRequest request = new EventTaskDtos.AdminPublishRequest();
+        request.setClaimFee(0);
+        request.setMaxClaimants(2);
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> service.publishTask(9L, 10L, request));
+
+        assertTrue(error.getMessage().contains("匿名发布费 50P"));
+        assertEquals(249, publisher.getDeposit());
+        verify(depositLedgerMapper, never()).insert(any());
+        verify(adminAssetService, never()).recordIncome(anyInt(), any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
     void officialTaskPublishesWithoutDebitingAdmin() {
         Player admin = player(9L, "管理员", 12, 0);
         when(playerMapper.selectById(9L)).thenReturn(admin);
@@ -129,6 +179,27 @@ class EventTaskServiceTest {
         assertNull(result.get(0).getBudgetNote());
         assertEquals(100, result.get(0).getPReward());
         assertEquals(20, result.get(0).getBountyReward());
+    }
+
+    @Test
+    void anonymousTaskRedactsPublisherPubliclyButAdminStillSeesIdentity() {
+        EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
+        task.setAnonymous(1);
+        task.setAnonymousFeeRateSnapshot(10);
+        task.setAnonymousFeeAmount(50);
+        Player admin = player(9L, "管理员", 0, 0);
+        when(taskMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(task));
+
+        EventTaskDtos.TaskVO publicTask = service.listPublic(null).get(0);
+        EventTaskDtos.TaskVO adminTask = service.listAdminTasks(null, admin).get(0);
+
+        assertEquals("匿名发布者", publicTask.getPublisherName());
+        assertNull(publicTask.getPublisherPlayerId());
+        assertNull(publicTask.getAnonymousFeeAmount());
+        assertEquals("发布者", adminTask.getPublisherName());
+        assertEquals(1L, adminTask.getPublisherPlayerId());
+        assertTrue(adminTask.getAnonymous());
+        assertEquals(50, adminTask.getAnonymousFeeAmount());
     }
 
     @Test
@@ -387,6 +458,7 @@ class EventTaskServiceTest {
         task.setPublisherPlayerId(publisherId);
         task.setPublisherNameSnapshot("发布者");
         task.setOfficial(0);
+        task.setAnonymous(0);
         task.setTitle("测试任务");
         task.setRequirements("完成指定目标并截图");
         task.setPReward(pReward);

@@ -14,11 +14,14 @@ public class EventTask {
     private Long publisherPlayerId;
     private String publisherNameSnapshot;
     private Integer official;
+    private Integer anonymous;
     private String title;
     private String requirements;
     private Integer pReward;
     private Integer bountyReward;
     private String budgetNote;
+    private Integer anonymousFeeRateSnapshot;
+    private Integer anonymousFeeAmount;
     private Integer claimFee;
     private Integer maxClaimants;
     private Integer claimedCount;

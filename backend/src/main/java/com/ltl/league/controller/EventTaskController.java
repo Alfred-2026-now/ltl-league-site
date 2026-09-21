@@ -22,6 +22,11 @@ public class EventTaskController {
         this.currentPlayerService = currentPlayerService;
     }
 
+    @GetMapping("/event-tasks/settings")
+    public Result<EventTaskDtos.TaskPublicSettingsVO> settings() {
+        return Result.success(taskService.getPublicSettings());
+    }
+
     @GetMapping("/event-tasks")
     public Result<List<EventTaskDtos.TaskVO>> list(
             @CookieValue(value = COOKIE_NAME, required = false) String token) {

@@ -5,7 +5,7 @@
 
 ## 1. 目标
 
-为 LTL 站点增加赛事任务系统。已登录选手可以提交任务，管理员审核通过后公开；选手支付个人 P 币接取任务并上传截图证明，管理员审核完成后自动发放个人 P 币和赏金积分奖励。
+为 LTL 站点增加赛事任务系统。已登录选手可以提交任务并选择匿名公开，管理员审核通过后公开；选手支付个人 P 币接取任务并上传截图证明，管理员审核完成后自动发放个人 P 币和赏金积分奖励。
 
 赏金积分是独立的新型赛季积分，只用于赛季末排名，不可兑换、消费、转赠或提现。
 
@@ -48,6 +48,7 @@ flowchart TD
 - **官方任务**：由管理员专用接口直接发布，不扣管理员个人 P 币；P 币奖励来源标记为系统，赏金积分同样由系统发放。
 - **最大预算备注**：只作为文字提示，不参与校验或公式计算。
 - **接取费用**：接取时从选手个人 P 币扣除并计入联盟资产；符合无损放弃规则时同步冲销。
+- **匿名发布费**：普通任务选择匿名时，在审核通过发布时额外收取 `max(50P, 每人P币奖励 × 最大接取人数 × 后台费率)`；百分比金额向上取整，默认费率 10%，收取后不退。
 
 ## 3. 权限
 
@@ -61,19 +62,21 @@ flowchart TD
 
 ### 4.1 普通任务
 
-1. 发布者填写标题、任务要求、每位完成者的 P 币奖励、每位完成者的赏金积分、备注。
+1. 发布者填写标题、任务要求、每位完成者的 P 币奖励、每位完成者的赏金积分、备注，并可勾选匿名发布。
 2. 提交后状态为 `PENDING_REVIEW`，不公开、不扣款。
 3. 管理员可以：
    - 打回：必须填写修改意见，状态变为 `RETURNED`。
    - 通过：设置接取费用和最大接取人数。
 4. 审核通过操作在同一事务内：
    - 锁定任务和发布者账户；
-   - 校验发布者余额；
+   - 校验发布者余额；匿名任务需同时覆盖冻结悬赏和匿名发布费；
    - 冻结 `每人P币奖励 × 最大接取人数`；
    - 写入 `task_reward_escrow` 个人 P 币流水；
+   - 匿名任务另写入 `task_anonymous_fee` 个人 P 币与联盟资产流水，并保存发布时费率和金额快照；
    - 任务状态直接变为 `PUBLISHED`。
 5. 余额不足时整笔事务失败，任务继续保持待审核状态，管理员可以调整人数或打回。
 6. 被打回的发布者可以修改后重新投送，或标记为 `ABANDONED`。
+7. 匿名只影响公开展示和公开接口：公开端返回“匿名发布者”且不返回发布者 ID；发布者本人和管理后台始终可见实名，后台在姓名后标注“（匿名）”。
 
 ### 4.2 官方任务
 
@@ -166,7 +169,7 @@ flowchart TD
 
 ## 9. 数据结构
 
-- `event_tasks`：任务内容、赛季、发布者、奖励、接取费、名额、冻结/发放/退款金额、状态和审核信息。
+- `event_tasks`：任务内容、赛季、发布者、匿名标记、匿名费率/金额快照、奖励、接取费、名额、冻结/发放/退款金额、状态和审核信息。
 - `event_task_reviews`：任务发布审核历史。
 - `event_task_claims`：接取、费用快照、奖励快照、状态和时间；`task_id + player_id` 唯一。
 - `event_task_proofs`：每次证明提交及审核结果。
@@ -183,7 +186,7 @@ flowchart TD
 
 主要接口：
 
-- 公开/选手：`GET /event-tasks`、`GET /event-tasks/{id}`、`POST /event-tasks`、`PUT /event-tasks/{id}`、`POST /event-tasks/{id}/resubmit`、`POST /event-tasks/{id}/abandon-publication`、`POST /event-tasks/{id}/claims`、`POST /event-task-claims/{id}/abandon`、`POST /event-task-claims/{id}/proofs`。
+- 公开/选手：`GET /event-tasks/settings`、`GET /event-tasks`、`GET /event-tasks/{id}`、`POST /event-tasks`、`PUT /event-tasks/{id}`、`POST /event-tasks/{id}/resubmit`、`POST /event-tasks/{id}/abandon-publication`、`POST /event-tasks/{id}/claims`、`POST /event-task-claims/{id}/abandon`、`POST /event-task-claims/{id}/proofs`。
 - 管理员：`GET /admin/event-tasks`、`POST /admin/event-tasks/{id}/return`、`POST /admin/event-tasks/{id}/publish`、`POST /admin/event-tasks/official`、`POST /admin/event-task-proofs/{id}/return`、`POST /admin/event-task-proofs/{id}/approve`、`POST /admin/event-task-claims/{id}/revoke-completion`、`POST /admin/event-tasks/{id}/close`。
 
 ## 11. 并发与幂等
@@ -195,10 +198,12 @@ flowchart TD
 - 重复发奖：接取状态检查、唯一流水约束和同一事务三层防护。
 - 撤回完成：任务、接取和选手依次加锁；状态门禁和反向唯一流水阻止重复扣回。撤回仅允许进行中的任务，保证返还的接取名额立即可用。
 - 金额乘法使用 `Math.multiplyExact`，溢出返回业务错误。
+- 匿名费与悬赏冻结合计使用溢出校验；费率只允许后台配置为 0% 至 100%，每个已发布任务保留实际费率快照。
 
 ## 12. 验收重点
 
 - 普通任务审核发布、余额不足失败、打回重投和放弃。
+- 匿名任务公开端不泄露姓名或发布者 ID，后台显示实名与匿名标记；验证 50P 最低收费、百分比收费、向上取整和余额不足回滚。
 - 官方任务无个人扣款且只能由管理员发布。
 - 最后一个名额并发时只成功一次。
 - 30 分钟边界内退款、边界外不退款，两种情况均返还名额。
@@ -211,7 +216,8 @@ flowchart TD
 ## 13. 部署步骤
 
 1. 备份生产数据库，并确认应用当前使用的数据库名称。
-2. 在该数据库中执行一次 `backend/src/main/resources/db/migration_event_tasks.sql`。该迁移包含现有 P 币流水表变更，不能跳过，也不要重复执行。
-3. 部署后端和前端资源，确认后端上传根目录可写；证明截图会保存到现有上传目录下的 `tasks/` 子目录。
-4. 重启后检查公开任务页、管理任务页和资产总览，依次完成“普通任务发布—审核—接取—上传—通过”和“官方任务发布”冒烟验证。
-5. 生产验证通过前不要对外开放入口；如迁移或启动失败，使用数据库和应用备份回滚。
+2. 首次安装先执行一次 `backend/src/main/resources/db/migration_event_tasks.sql`；已安装赛事任务系统的环境不要重复执行。
+3. 执行一次增量迁移 `backend/src/main/resources/db/migration_event_task_anonymous.sql`，增加匿名字段和默认费率参数。
+4. 部署后端和前端资源，确认后端上传根目录可写；证明截图会保存到现有上传目录下的 `tasks/` 子目录。
+5. 重启后检查公开任务页、管理任务页、规则参数页和资产总览，完成匿名与非匿名任务的发布审核冒烟验证。
+6. 生产验证通过前不要对外开放入口；如迁移或启动失败，使用数据库和应用备份回滚。

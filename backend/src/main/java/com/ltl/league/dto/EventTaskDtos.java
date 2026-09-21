@@ -18,6 +18,7 @@ public final class EventTaskDtos {
         private Integer pReward;
         private Integer bountyReward;
         private String budgetNote;
+        private Boolean anonymous;
     }
 
     @Data
@@ -108,12 +109,15 @@ public final class EventTaskDtos {
         private Long publisherPlayerId;
         private String publisherName;
         private Boolean official;
+        private Boolean anonymous;
         private String title;
         private String requirements;
         @JsonProperty("pReward")
         private Integer pReward;
         private Integer bountyReward;
         private String budgetNote;
+        private Integer anonymousFeeRateSnapshot;
+        private Integer anonymousFeeAmount;
         private Integer claimFee;
         private Integer maxClaimants;
         private Integer claimedCount;
@@ -133,5 +137,11 @@ public final class EventTaskDtos {
         private String viewerClaimStatus;
         private Long viewerClaimId;
         private List<ClaimVO> claims = Collections.emptyList();
+    }
+
+    @Data
+    public static class TaskPublicSettingsVO {
+        private Integer anonymousMinimumFee;
+        private Integer anonymousFeeRate;
     }
 }
