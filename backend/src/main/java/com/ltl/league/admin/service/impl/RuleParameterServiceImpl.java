@@ -75,7 +75,7 @@ public class RuleParameterServiceImpl implements RuleParameterService {
         String oldValue = row.getValueText();
         Integer oldActive = row.getIsActive();
         String nextValue = request.getValueText() != null ? request.getValueText().trim() : row.getValueText();
-        validateValue(row.getValueType(), nextValue);
+        validateValue(row.getParamKey(), row.getValueType(), nextValue);
         row.setValueText(nextValue);
         row.setIsActive(request.getIsActive() != null ? normalizeActive(request.getIsActive()) : row.getIsActive());
         parameterMapper.updateById(row);
@@ -164,7 +164,7 @@ public class RuleParameterServiceImpl implements RuleParameterService {
         return row;
     }
 
-    private void validateValue(String valueType, String value) {
+    private void validateValue(String key, String valueType, String value) {
         if (value == null || value.isBlank()) {
             throw new BusinessException(400, "参数值不能为空");
         }
@@ -175,6 +175,9 @@ public class RuleParameterServiceImpl implements RuleParameterService {
             }
             if ("int".equalsIgnoreCase(valueType) && parsed != Math.rint(parsed)) {
                 throw new BusinessException(400, "该参数必须填写整数");
+            }
+            if ("event_task.anonymous_fee_rate".equals(key) && (parsed < 0 || parsed > 100)) {
+                throw new BusinessException(400, "匿名发布费率必须是0到100之间的整数");
             }
         } catch (NumberFormatException e) {
             throw new BusinessException(400, "参数值必须是数字");

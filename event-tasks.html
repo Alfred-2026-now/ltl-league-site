@@ -55,6 +55,10 @@
         <label class="field"><span class="field-label">每人P币奖励</span><input class="input" id="editTaskPReward" type="number" min="0" required /></label>
         <label class="field"><span class="field-label">每人赏金积分</span><input class="input" id="editTaskBountyReward" type="number" min="0" required /></label>
       </div>
+      <label class="task-anonymous-option">
+        <input id="editTaskAnonymous" type="checkbox" />
+        <span><strong>匿名发布</strong><small>公开页面隐藏发布者身份；管理员后台仍显示实名。匿名发布费在审核通过时计算并收取，收取后不退。</small></span>
+      </label>
       <label class="field"><span class="field-label">最大预算备注（仅提示）</span><textarea class="input" id="editTaskBudgetNote" rows="2" maxlength="500"></textarea></label>
       <button class="btn primary" id="saveTaskEditBtn" type="button">保存修改</button>
     </form>

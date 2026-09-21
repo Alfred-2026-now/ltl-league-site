@@ -2,6 +2,7 @@ package com.ltl.league.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.ltl.league.admin.service.AdminAssetService;
+import com.ltl.league.admin.service.RuleParameterService;
 import com.ltl.league.dto.EventTaskDtos;
 import com.ltl.league.entity.*;
 import com.ltl.league.exception.BusinessException;
@@ -46,6 +47,8 @@ public class EventTaskService {
 
     private static final int MAX_CLAIMANTS = 100;
     private static final int MAX_REWARD = 10_000_000;
+    private static final int ANONYMOUS_MINIMUM_FEE = 50;
+    private static final String ANONYMOUS_FEE_RATE_KEY = "event_task.anonymous_fee_rate";
     private static final long MAX_IMAGE_BYTES = 10L * 1024 * 1024;
 
     private final EventTaskMapper taskMapper;
@@ -57,6 +60,7 @@ public class EventTaskService {
     private final PlayerDepositLedgerMapper depositLedgerMapper;
     private final PlayerBountyLedgerMapper bountyLedgerMapper;
     private final AdminAssetService adminAssetService;
+    private final RuleParameterService ruleParameterService;
     private final Clock clock;
 
     @Value("${ltl.league.current-season:s1}")
@@ -78,6 +82,7 @@ public class EventTaskService {
             PlayerDepositLedgerMapper depositLedgerMapper,
             PlayerBountyLedgerMapper bountyLedgerMapper,
             AdminAssetService adminAssetService,
+            RuleParameterService ruleParameterService,
             Clock clock) {
         this.taskMapper = taskMapper;
         this.reviewMapper = reviewMapper;
@@ -88,7 +93,15 @@ public class EventTaskService {
         this.depositLedgerMapper = depositLedgerMapper;
         this.bountyLedgerMapper = bountyLedgerMapper;
         this.adminAssetService = adminAssetService;
+        this.ruleParameterService = ruleParameterService;
         this.clock = clock;
+    }
+
+    public EventTaskDtos.TaskPublicSettingsVO getPublicSettings() {
+        EventTaskDtos.TaskPublicSettingsVO settings = new EventTaskDtos.TaskPublicSettingsVO();
+        settings.setAnonymousMinimumFee(ANONYMOUS_MINIMUM_FEE);
+        settings.setAnonymousFeeRate(anonymousFeeRate());
+        return settings;
     }
 
     public List<EventTaskDtos.TaskVO> listPublic(Player viewer) {
@@ -138,6 +151,7 @@ public class EventTaskService {
         task.setPublisherNameSnapshot(publisher.getName());
         task.setOfficial(0);
         applyWrite(task, request);
+        task.setAnonymousFeeAmount(0);
         task.setClaimedCount(0);
         task.setCompletedCount(0);
         task.setEscrowTotal(0);
@@ -397,33 +411,57 @@ public class EventTaskService {
         } catch (ArithmeticException e) {
             throw new BusinessException(400, "P币悬赏总额过大");
         }
+        boolean anonymous = Integer.valueOf(1).equals(task.getAnonymous());
+        int anonymousRate = anonymous ? anonymousFeeRate() : 0;
+        int anonymousFee = anonymous ? calculateAnonymousFee(escrow, anonymousRate) : 0;
+        int required = checkedAdd(escrow, anonymousFee, "发布任务所需P币");
         Player publisher = playerMapper.selectByIdForUpdate(task.getPublisherPlayerId());
         if (publisher == null) {
             throw new BusinessException(404, "任务发布者不存在");
         }
         int before = safe(publisher.getDeposit());
-        if (before < escrow) {
-            throw new BusinessException(400, "发布者个人P币不足，当前 " + before + "P，需要冻结 " + escrow + "P");
+        if (before < required) {
+            String feeText = anonymousFee > 0 ? "并支付匿名发布费 " + anonymousFee + "P" : "";
+            throw new BusinessException(400, "发布者个人P币不足，当前 " + before + "P，需要冻结 " + escrow + "P" + feeText);
         }
+        int balance = before;
         if (escrow > 0) {
-            publisher.setDeposit(before - escrow);
-            playerMapper.updateById(publisher);
+            int afterEscrow = balance - escrow;
             addDepositLedger(publisher, "task_reward_escrow", -escrow,
-                    "任务悬赏冻结：" + task.getTitle(), before, before - escrow,
+                    "任务悬赏冻结：" + task.getTitle(), balance, afterEscrow,
                     "event_task", "event_tasks", task.getId(), playerName(adminId));
+            balance = afterEscrow;
+        }
+        if (anonymousFee > 0) {
+            int afterFee = balance - anonymousFee;
+            addDepositLedger(publisher, "task_anonymous_fee", -anonymousFee,
+                    "任务匿名发布服务费：" + task.getTitle(), balance, afterFee,
+                    "event_task", "event_tasks", task.getId(), playerName(adminId));
+            adminAssetService.recordIncome(anonymousFee, "task_anonymous_fee",
+                    "任务匿名发布服务费：" + task.getTitle(), "event_task", "event_tasks", task.getId(),
+                    null, null, playerName(adminId));
+            balance = afterFee;
+        }
+        if (required > 0) {
+            publisher.setDeposit(balance);
+            playerMapper.updateById(publisher);
         }
         LocalDateTime now = now();
         task.setClaimFee(request.getClaimFee());
         task.setMaxClaimants(request.getMaxClaimants());
         task.setEscrowTotal(escrow);
         task.setEscrowRemaining(escrow);
+        task.setAnonymousFeeRateSnapshot(anonymous ? anonymousRate : null);
+        task.setAnonymousFeeAmount(anonymousFee);
         task.setStatus(TASK_PUBLISHED);
         task.setLatestReviewComment(null);
         task.setReviewedByPlayerId(adminId);
         task.setReviewedAt(now);
         task.setPublishedAt(now);
         taskMapper.updateById(task);
-        addReview(taskId, "PUBLISH", adminId, "审核通过并发布", request.getClaimFee(), request.getMaxClaimants());
+        addReview(taskId, "PUBLISH", adminId,
+                anonymous ? "审核通过并发布；匿名发布费 " + anonymousFee + "P" : "审核通过并发布",
+                request.getClaimFee(), request.getMaxClaimants());
         return toTaskVO(task, playerMapper.selectById(adminId), true);
     }
 
@@ -439,6 +477,9 @@ public class EventTaskService {
         task.setPublisherNameSnapshot(admin.getName());
         task.setOfficial(1);
         applyWrite(task, request);
+        task.setAnonymous(0);
+        task.setAnonymousFeeRateSnapshot(null);
+        task.setAnonymousFeeAmount(0);
         task.setClaimFee(request.getClaimFee());
         task.setMaxClaimants(request.getMaxClaimants());
         task.setClaimedCount(0);
@@ -772,6 +813,7 @@ public class EventTaskService {
         task.setPReward(request.getPReward());
         task.setBountyReward(request.getBountyReward());
         task.setBudgetNote(trimToNull(request.getBudgetNote()));
+        task.setAnonymous(Boolean.TRUE.equals(request.getAnonymous()) ? 1 : 0);
     }
 
     private void addReview(Long taskId, String action, Long operatorId, String comment, Integer fee, Integer max) {
@@ -832,16 +874,21 @@ public class EventTaskService {
     private EventTaskDtos.TaskVO toTaskVO(EventTask task, Player viewer, boolean includeClaims) {
         EventTaskDtos.TaskVO vo = new EventTaskDtos.TaskVO();
         boolean owner = viewer != null && Objects.equals(viewer.getId(), task.getPublisherPlayerId());
+        boolean anonymous = Integer.valueOf(1).equals(task.getAnonymous());
+        boolean maySeePublisher = owner || includeClaims || !anonymous;
         vo.setId(task.getId());
         vo.setSeason(task.getSeason());
-        vo.setPublisherPlayerId(task.getPublisherPlayerId());
-        vo.setPublisherName(task.getPublisherNameSnapshot());
+        vo.setPublisherPlayerId(maySeePublisher ? task.getPublisherPlayerId() : null);
+        vo.setPublisherName(maySeePublisher ? task.getPublisherNameSnapshot() : "匿名发布者");
         vo.setOfficial(Integer.valueOf(1).equals(task.getOfficial()));
+        vo.setAnonymous(anonymous);
         vo.setTitle(task.getTitle());
         vo.setRequirements(task.getRequirements());
         vo.setPReward(safe(task.getPReward()));
         vo.setBountyReward(safe(task.getBountyReward()));
         vo.setBudgetNote(owner || includeClaims ? task.getBudgetNote() : null);
+        vo.setAnonymousFeeRateSnapshot(owner || includeClaims ? task.getAnonymousFeeRateSnapshot() : null);
+        vo.setAnonymousFeeAmount(owner || includeClaims ? safe(task.getAnonymousFeeAmount()) : null);
         vo.setClaimFee(task.getClaimFee());
         vo.setMaxClaimants(task.getMaxClaimants());
         vo.setClaimedCount(safe(task.getClaimedCount()));
@@ -1005,6 +1052,19 @@ public class EventTaskService {
         } catch (ArithmeticException ex) {
             throw new BusinessException(400, fieldName + "数值过大");
         }
+    }
+
+    private int anonymousFeeRate() {
+        int rate = ruleParameterService.getInt(ANONYMOUS_FEE_RATE_KEY);
+        if (rate < 0 || rate > 100) {
+            throw new BusinessException(409, "匿名发布费率配置异常，请联系管理员");
+        }
+        return rate;
+    }
+
+    private static int calculateAnonymousFee(int escrow, int rate) {
+        long percentageFee = ((long) escrow * rate + 99L) / 100L;
+        return (int) Math.max(ANONYMOUS_MINIMUM_FEE, percentageFee);
     }
 
     private static String trimToNull(String value) {
