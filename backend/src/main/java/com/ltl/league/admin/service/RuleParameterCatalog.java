@@ -12,6 +12,7 @@ public final class RuleParameterCatalog {
     public static final String GROUP_PLAYER_TRANSFER = "player_transfer";
     public static final String GROUP_SALARY = "salary";
     public static final String GROUP_DAILY_FEE = "daily_fee";
+    public static final String GROUP_EVENT_TASK = "event_task";
 
     private static final Map<String, Spec> SPECS = buildSpecs();
 
@@ -110,6 +111,10 @@ public final class RuleParameterCatalog {
                 "每位选手每日自动扣除的积分；开启后生效。", order++);
         add(specs, "daily_fee.min_balance", GROUP_DAILY_FEE, "每日维护费", "扣款门槛", "1000", "int", "P",
                 "选手当前积分低于本值时不扣款；等于或高于本值时按金额扣除。", order);
+
+        order = 700;
+        add(specs, "event_task.anonymous_fee_rate", GROUP_EVENT_TASK, "赛事任务", "匿名发布费率", "10", "int", "%",
+                "匿名发布费取 50P 与（每人P币奖励 × 最大接取人数 × 本费率）中的较高值，百分比结果向上取整。", order);
 
         return specs;
     }

@@ -2,6 +2,8 @@ import { getApiBase } from "../config/api.js";
 
 const API = getApiBase();
 const message = document.getElementById("adminTaskMessage");
+let taskSettings = { anonymousMinimumFee: 50, anonymousFeeRate: 10 };
+let taskById = new Map();
 
 async function request(path, options = {}) {
   const response = await fetch(`${API}${path}`, { credentials: "include", ...options });
@@ -18,8 +20,17 @@ function setMessage(text, error = false) {
   message.classList.toggle("error", error);
 }
 
+const publisherLabel = task => `${task.publisherName}${task.anonymous ? "（匿名）" : ""}`;
+const anonymousFee = (task, maxClaimants) => Math.max(
+  taskSettings.anonymousMinimumFee,
+  Math.ceil((Number(task.pReward) || 0) * maxClaimants * taskSettings.anonymousFeeRate / 100)
+);
+
 function pendingTask(task) {
-  return `<article class="panel task-card"><div class="task-card-heading"><div><span class="task-status">待审核</span><h3>${esc(task.title)}</h3><p class="muted">${esc(task.publisherName)} · ${time(task.createdAt)}</p></div><div class="task-rewards"><strong>${task.pReward}P</strong><strong>🪙 ${task.bountyReward}</strong></div></div><div class="task-requirements">${esc(task.requirements).replaceAll("\n", "<br>")}</div>${task.budgetNote ? `<p class="task-note">预算备注：${esc(task.budgetNote)}</p>` : ""}<div class="task-form-grid task-admin-config"><label class="field"><span class="field-label">接取费用</span><input class="input" type="number" min="0" value="0" data-fee="${task.id}" /></label><label class="field"><span class="field-label">最大接取人数</span><input class="input" type="number" min="1" max="100" value="1" data-max="${task.id}" /></label></div><div class="task-actions"><button class="btn primary" data-publish="${task.id}">通过并发布</button><button class="btn ghost" data-return-task="${task.id}">打回</button></div></article>`;
+  const privacy = task.anonymous
+    ? `<p class="task-review-comment"><strong>匿名发布：</strong>当前费率 ${taskSettings.anonymousFeeRate}%，最低 ${taskSettings.anonymousMinimumFee}P；按 1 个名额预计收取 <strong data-anonymous-preview="${task.id}">${anonymousFee(task, 1)}P</strong>，通过时从发布者账户扣除且不退。</p>`
+    : "";
+  return `<article class="panel task-card"><div class="task-card-heading"><div><span class="task-status">待审核</span><h3>${esc(task.title)}</h3><p class="muted">发布者：${esc(publisherLabel(task))} · ${time(task.createdAt)}</p></div><div class="task-rewards"><strong>${task.pReward}P</strong><strong>🪙 ${task.bountyReward}</strong></div></div><div class="task-requirements">${esc(task.requirements).replaceAll("\n", "<br>")}</div>${task.budgetNote ? `<p class="task-note">预算备注：${esc(task.budgetNote)}</p>` : ""}${privacy}<div class="task-form-grid task-admin-config"><label class="field"><span class="field-label">接取费用</span><input class="input" type="number" min="0" value="0" data-fee="${task.id}" /></label><label class="field"><span class="field-label">最大接取人数</span><input class="input" type="number" min="1" max="100" value="1" data-max="${task.id}" /></label></div><div class="task-actions"><button class="btn primary" data-publish="${task.id}">通过并发布</button><button class="btn ghost" data-return-task="${task.id}">打回</button></div></article>`;
 }
 
 function proofCard(proof, taskMap) {
@@ -30,11 +41,11 @@ function proofCard(proof, taskMap) {
 function publishedTask(task) {
   const unfinished = (task.claims || []).filter(claim => ["CLAIMED", "PROOF_PENDING", "PROOF_RETURNED"].includes(claim.status)).length;
   const pending = (task.claims || []).filter(claim => claim.status === "PROOF_PENDING").length;
-  return `<article class="panel task-card"><div class="task-card-heading"><div><span class="task-status">${task.official ? "官方任务" : "进行中"}</span><h3>${esc(task.title)}</h3><p class="muted">${esc(task.publisherName)} · ${time(task.publishedAt)}</p></div><div class="task-rewards"><strong>${task.pReward}P</strong><strong>🪙 ${task.bountyReward}</strong></div></div><div class="task-facts"><span>接取 ${task.claimedCount}/${task.maxClaimants}</span><span>完成 ${task.completedCount}</span><span>未完成 ${unfinished}</span><span>待审 ${pending}</span><span>剩余冻结 ${task.escrowRemaining}P</span></div><div class="task-actions"><button class="btn ghost" data-close-task="${task.id}" data-close-summary="未完成${unfinished}人、待审${pending}份、剩余冻结${task.escrowRemaining}P">注销任务</button></div></article>`;
+  return `<article class="panel task-card"><div class="task-card-heading"><div><span class="task-status">${task.official ? "官方任务" : "进行中"}</span><h3>${esc(task.title)}</h3><p class="muted">发布者：${esc(publisherLabel(task))} · ${time(task.publishedAt)}</p></div><div class="task-rewards"><strong>${task.pReward}P</strong><strong>🪙 ${task.bountyReward}</strong></div></div><div class="task-facts"><span>接取 ${task.claimedCount}/${task.maxClaimants}</span><span>完成 ${task.completedCount}</span><span>未完成 ${unfinished}</span><span>待审 ${pending}</span><span>剩余冻结 ${task.escrowRemaining}P</span>${task.anonymous ? `<span>匿名发布费 ${task.anonymousFeeAmount}P（费率快照 ${task.anonymousFeeRateSnapshot}%）</span>` : ""}</div><div class="task-actions"><button class="btn ghost" data-close-task="${task.id}" data-close-summary="未完成${unfinished}人、待审${pending}份、剩余冻结${task.escrowRemaining}P">注销任务</button></div></article>`;
 }
 
 function closedTask(task) {
-  return `<article class="panel task-card"><div class="task-card-heading"><div><span class="task-status">${task.status === "CLOSED" ? "已注销" : "已放弃"}</span><h3>${esc(task.title)}</h3><p class="muted">${time(task.closedAt || task.createdAt)}</p></div></div>${task.closeReason ? `<p class="task-note">注销原因：${esc(task.closeReason)}</p>` : ""}<div class="task-facts"><span>完成 ${task.completedCount}</span><span>剩余冻结 ${task.escrowRemaining}P</span></div></article>`;
+  return `<article class="panel task-card"><div class="task-card-heading"><div><span class="task-status">${task.status === "CLOSED" ? "已注销" : "已放弃"}</span><h3>${esc(task.title)}</h3><p class="muted">发布者：${esc(publisherLabel(task))} · ${time(task.closedAt || task.createdAt)}</p></div></div>${task.closeReason ? `<p class="task-note">注销原因：${esc(task.closeReason)}</p>` : ""}<div class="task-facts"><span>完成 ${task.completedCount}</span><span>剩余冻结 ${task.escrowRemaining}P</span>${task.anonymousFeeAmount ? `<span>匿名发布费 ${task.anonymousFeeAmount}P（不退）</span>` : ""}</div></article>`;
 }
 
 function completionHistoryCard(record) {
@@ -45,7 +56,7 @@ function completionHistoryCard(record) {
   const canRevoke = !revoked && task.status === "PUBLISHED";
   return `<article class="panel task-card">
     <div class="task-card-heading">
-      <div><span class="task-status">${revoked ? "完成已撤回" : "已完成"}</span><h3>${esc(task.title)}</h3><p class="muted">完成者：${esc(claim.playerName)} · 完成时间：${time(claim.completedAt)}</p></div>
+      <div><span class="task-status">${revoked ? "完成已撤回" : "已完成"}</span><h3>${esc(task.title)}</h3><p class="muted">发布者：${esc(publisherLabel(task))} · 完成者：${esc(claim.playerName)} · 完成时间：${time(claim.completedAt)}</p></div>
       <div class="task-rewards"><strong>${claim.pReward}P</strong><strong>🪙 ${claim.bountyReward}</strong></div>
     </div>
     <div class="task-facts"><span>接取记录 #${claim.id}</span><span>接取费 ${claim.feeAmount}P（撤回不退）</span><span>任务状态：${task.status === "PUBLISHED" ? "进行中" : "已结束"}</span></div>
@@ -57,8 +68,9 @@ function completionHistoryCard(record) {
 
 async function load() {
   try {
-    const [tasks, proofs] = await Promise.all([request("/admin/event-tasks"), request("/admin/event-task-proofs/pending")]);
-    const map = new Map(tasks.map(task => [task.id, task]));
+    const [tasks, proofs, settings] = await Promise.all([request("/admin/event-tasks"), request("/admin/event-task-proofs/pending"), request("/event-tasks/settings")]);
+    taskSettings = settings;
+    taskById = new Map(tasks.map(task => [task.id, task]));
     const pending = tasks.filter(task => task.status === "PENDING_REVIEW");
     const published = tasks.filter(task => task.status === "PUBLISHED");
     const closed = tasks.filter(task => ["CLOSED", "ABANDONED"].includes(task.status));
@@ -67,7 +79,7 @@ async function load() {
       .map(claim => ({ task, claim })))
       .sort((left, right) => new Date(right.claim.completedAt || 0) - new Date(left.claim.completedAt || 0));
     document.getElementById("pendingTaskList").innerHTML = pending.map(pendingTask).join("") || '<div class="panel task-empty">暂无待审核任务。</div>';
-    document.getElementById("pendingProofList").innerHTML = proofs.map(proof => proofCard(proof, map)).join("") || '<div class="panel task-empty">暂无待审核证明。</div>';
+    document.getElementById("pendingProofList").innerHTML = proofs.map(proof => proofCard(proof, taskById)).join("") || '<div class="panel task-empty">暂无待审核证明。</div>';
     document.getElementById("publishedTaskList").innerHTML = published.map(publishedTask).join("") || '<div class="panel task-empty">暂无进行中任务。</div>';
     document.getElementById("completedTaskList").innerHTML = completions.map(completionHistoryCard).join("") || '<div class="panel task-empty">暂无完成记录。</div>';
     document.getElementById("closedTaskList").innerHTML = closed.slice(0, 20).map(closedTask).join("") || '<div class="panel task-empty">暂无已结束任务。</div>';
@@ -93,7 +105,9 @@ document.addEventListener("click", async event => {
     const id = publish.dataset.publish;
     const claimFee = Number(document.querySelector(`[data-fee="${id}"]`).value);
     const maxClaimants = Number(document.querySelector(`[data-max="${id}"]`).value);
-    if (!confirm(`确认以接取费 ${claimFee}P、最多 ${maxClaimants} 人通过并直接发布？系统会立即冻结发布者足额P币。`)) return;
+    const task = taskById.get(Number(id));
+    const privacyText = task?.anonymous ? `，并收取匿名发布费 ${anonymousFee(task, maxClaimants)}P` : "";
+    if (!confirm(`确认以接取费 ${claimFee}P、最多 ${maxClaimants} 人通过并直接发布？系统会立即冻结发布者足额P币${privacyText}。`)) return;
     await act(() => request(`/admin/event-tasks/${id}/publish`, json({ claimFee, maxClaimants })), "任务已发布");
   }
   const returnTask = event.target.closest("[data-return-task]");
@@ -126,6 +140,17 @@ document.addEventListener("click", async event => {
     if (reason && confirm("确认注销该任务？此操作会终止全部未完成接取。")) {
       await act(() => request(`/admin/event-tasks/${close.dataset.closeTask}/close`, json({ reason })), "任务已注销");
     }
+  }
+});
+
+document.addEventListener("input", event => {
+  const input = event.target.closest("[data-max]");
+  if (!input) return;
+  const task = taskById.get(Number(input.dataset.max));
+  const preview = document.querySelector(`[data-anonymous-preview="${input.dataset.max}"]`);
+  const maxClaimants = Number(input.value);
+  if (task?.anonymous && preview && Number.isFinite(maxClaimants) && maxClaimants > 0) {
+    preview.textContent = `${anonymousFee(task, maxClaimants)}P`;
   }
 });
 

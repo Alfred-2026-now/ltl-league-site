@@ -10,6 +10,7 @@ const els = {
 let currentUser = null;
 let activeTab = "hall";
 let cachedPublished = [];
+let taskSettings = { anonymousMinimumFee: 50, anonymousFeeRate: 10 };
 
 async function request(path, options = {}) {
   const response = await fetch(`${API}${path}`, { credentials: "include", ...options });
@@ -71,6 +72,9 @@ function loginNotice() {
 }
 
 function taskCard(task, mode = "hall") {
+  const publisherName = task.official
+    ? "LTL官方"
+    : `${task.publisherName}${mode === "published" && task.anonymous ? "（匿名）" : ""}`;
   const claimButton = task.canClaim
     ? `<button class="btn primary" data-claim-task="${task.id}">支付 ${task.claimFee || 0}P 并接取</button>`
     : task.viewerClaimStatus
@@ -89,7 +93,7 @@ function taskCard(task, mode = "hall") {
       <div>
         <div class="task-meta"><span class="task-status">${escapeHtml(statusText[task.status] || task.status)}</span>${task.official ? '<span class="task-official">官方任务</span>' : ""}</div>
         <h2>${escapeHtml(task.title)}</h2>
-        <p class="muted">发布者：${escapeHtml(task.official ? "LTL官方" : task.publisherName)} · ${formatTime(task.publishedAt || task.createdAt)}</p>
+        <p class="muted">发布者：${escapeHtml(publisherName)} · ${formatTime(task.publishedAt || task.createdAt)}</p>
       </div>
       ${rewards}
     </div>
@@ -102,6 +106,7 @@ function taskCard(task, mode = "hall") {
       <span>已接取：${task.claimedCount || 0}${task.maxClaimants != null ? ` / ${task.maxClaimants}` : ""}</span>
       <span>剩余：${task.remainingSlots ?? "-"}</span>
       <span>已完成：${task.completedCount || 0}</span>
+      ${mode === "published" && task.anonymous ? `<span>匿名发布费：${task.status === "PUBLISHED" || task.status === "CLOSED" ? `${task.anonymousFeeAmount || 0}P` : "审核发布时计算"}</span>` : ""}
     </div>
     <div class="task-actions">${claimButton}${editActions}</div>
   </article>`;
@@ -125,6 +130,10 @@ function publishForm() {
       <label class="field"><span class="field-label">每位完成者P币奖励</span><input class="input" name="pReward" type="number" min="0" value="0" required /></label>
       <label class="field"><span class="field-label">每位完成者赏金积分</span><input class="input" name="bountyReward" type="number" min="0" value="0" required /></label>
     </div>
+    <label class="task-anonymous-option">
+      <input name="anonymous" type="checkbox" />
+      <span><strong>匿名发布</strong><small>公开页面仅显示“匿名发布者”。管理员仍可查看实名。审核通过时额外收取 ${taskSettings.anonymousMinimumFee}P 与任务P币奖励总额的 ${taskSettings.anonymousFeeRate}% 中较高的一项（百分比费用向上取整），此费用不退。</small></span>
+    </label>
     <label class="field"><span class="field-label">最大预算备注（仅供管理员参考，不参与计算）</span><textarea class="input" name="budgetNote" rows="2" maxlength="500"></textarea></label>
     <button class="btn primary" type="submit">提交管理员审核</button>
   </form>`;
@@ -196,7 +205,8 @@ function taskPayload(form) {
     requirements: String(data.get("requirements") || "").trim(),
     pReward: Number(data.get("pReward") || 0),
     bountyReward: Number(data.get("bountyReward") || 0),
-    budgetNote: String(data.get("budgetNote") || "").trim()
+    budgetNote: String(data.get("budgetNote") || "").trim(),
+    anonymous: data.get("anonymous") === "on"
   };
 }
 
@@ -231,7 +241,9 @@ document.addEventListener("click", async event => {
 document.addEventListener("submit", async event => {
   if (event.target.id === "publishTaskForm") {
     event.preventDefault();
-    await runAction(() => request("/event-tasks", jsonOptions("POST", taskPayload(event.target))), "任务已提交审核");
+    const payload = taskPayload(event.target);
+    if (payload.anonymous && !confirm(`确认匿名提交？管理员审核发布时将额外收取 ${taskSettings.anonymousMinimumFee}P 与任务P币奖励总额的 ${taskSettings.anonymousFeeRate}% 中较高的一项，匿名发布费不退。`)) return;
+    await runAction(() => request("/event-tasks", jsonOptions("POST", payload)), "任务已提交审核");
   }
   const claimId = event.target.dataset.proofForm;
   if (claimId) {
@@ -253,6 +265,7 @@ function openEdit(taskId) {
   document.getElementById("editTaskPReward").value = task.pReward;
   document.getElementById("editTaskBountyReward").value = task.bountyReward;
   document.getElementById("editTaskBudgetNote").value = task.budgetNote || "";
+  document.getElementById("editTaskAnonymous").checked = Boolean(task.anonymous);
   els.dialog.showModal();
 }
 
@@ -263,7 +276,8 @@ document.getElementById("saveTaskEditBtn").addEventListener("click", async () =>
     requirements: document.getElementById("editTaskRequirements").value.trim(),
     pReward: Number(document.getElementById("editTaskPReward").value || 0),
     bountyReward: Number(document.getElementById("editTaskBountyReward").value || 0),
-    budgetNote: document.getElementById("editTaskBudgetNote").value.trim()
+    budgetNote: document.getElementById("editTaskBudgetNote").value.trim(),
+    anonymous: document.getElementById("editTaskAnonymous").checked
   };
   await runAction(() => request(`/event-tasks/${id}`, jsonOptions("PUT", payload)), "修改已保存", false);
   els.dialog.close();
@@ -282,4 +296,5 @@ async function runAction(action, success, rerender = true) {
 }
 
 currentUser = await authApi.getCurrentUser();
+taskSettings = await request("/event-tasks/settings").catch(() => taskSettings);
 await renderActive();
