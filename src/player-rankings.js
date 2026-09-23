@@ -139,6 +139,13 @@ function teamText(team) {
   return team ? team.name : "自由人";
 }
 
+function teamColor(team) {
+  if (!team) return "#a8b6d6";
+  if (team.name === "登峰组") return "#7cffb2";
+  if (team.name === "涅槃组") return "#ff9f9f";
+  return "#a8b6d6";
+}
+
 const POSITION_COLS = [
   { key: "topValue", activeKey: "topActive", label: "上路" },
   { key: "jugValue", activeKey: "jugActive", label: "打野" },
@@ -199,8 +206,6 @@ function renderRankings() {
   els.rankingBody.innerHTML = rankedPlayers.map((player, index) => {
     const rank = index + 1;
     const team = teamMap.get(player.teamId);
-    const isFreeAgent = player.status === 3;
-    const statusText = isFreeAgent ? ' <span class="ranking-badge danger">自由人</span>' : "";
     const substituteText = player.isSubstitute ? ' <span class="ranking-badge">替补</span>' : "";
 
     if (currentMode === "value") {
@@ -216,8 +221,8 @@ function renderRankings() {
       return `
         <tr class="ranking-row">
           <td style="padding:.75rem 1rem;font-weight:bold;${rankStyle(rank)}">${rankDisplay(rank)}</td>
-          <td style="padding:.75rem 1rem;color:#f3f8ff;">${escapeHtml(player.name || "-")}${statusText}${substituteText}</td>
-          <td style="padding:.75rem 1rem;color:#a8b6d6;">${escapeHtml(teamText(team))}</td>
+          <td style="padding:.75rem 1rem;color:#f3f8ff;">${escapeHtml(player.name || "-")}${substituteText}</td>
+          <td style="padding:.75rem 1rem;color:${teamColor(team)};font-weight:600;">${escapeHtml(teamText(team))}</td>
           <td style="padding:.75rem 1rem;color:#7cffb2;font-weight:600;">${maxValue || 0}P</td>
           ${posCells}
         </tr>
@@ -228,8 +233,8 @@ function renderRankings() {
       return `
         <tr class="ranking-row">
           <td style="padding:.75rem 1rem;font-weight:bold;${rankStyle(rank)}">${rankDisplay(rank)}</td>
-          <td style="padding:.75rem 1rem;color:#f3f8ff;">${escapeHtml(player.name || "-")}${statusText}${substituteText}</td>
-          <td style="padding:.75rem 1rem;color:#a8b6d6;">${escapeHtml(teamText(team))}</td>
+          <td style="padding:.75rem 1rem;color:#f3f8ff;">${escapeHtml(player.name || "-")}${substituteText}</td>
+          <td style="padding:.75rem 1rem;color:${teamColor(team)};font-weight:600;">${escapeHtml(teamText(team))}</td>
           <td style="padding:.75rem 1rem;color:#ffd700;font-weight:600;">🪙 ${player.bounty || 0}</td>
         </tr>
       `;
@@ -238,8 +243,8 @@ function renderRankings() {
     return `
       <tr class="ranking-row">
         <td style="padding:.75rem 1rem;font-weight:bold;${rankStyle(rank)}">${rankDisplay(rank)}</td>
-        <td style="padding:.75rem 1rem;color:#f3f8ff;">${escapeHtml(player.name || "-")}${statusText}${substituteText}</td>
-        <td style="padding:.75rem 1rem;color:#a8b6d6;">${escapeHtml(teamText(team))}</td>
+        <td style="padding:.75rem 1rem;color:#f3f8ff;">${escapeHtml(player.name || "-")}${substituteText}</td>
+        <td style="padding:.75rem 1rem;color:${teamColor(team)};font-weight:600;">${escapeHtml(teamText(team))}</td>
         <td style="padding:.75rem 1rem;color:#ffd700;font-weight:600;">${player.deposit || 0}P</td>
       </tr>
     `;
