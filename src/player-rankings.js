@@ -136,12 +136,15 @@ function rankStyle(rank) {
 }
 
 function teamText(team) {
-  return team ? team.name : "自由人";
+  if (!team) return "自由人";
+  if (team.name === "登峰组") return "登峰";
+  if (team.name === "涅槃组") return "涅槃";
+  return team.name;
 }
 
 function teamColor(team) {
   if (!team) return "#a8b6d6";
-  if (team.name === "登峰组") return "#7cffb2";
+  if (team.name === "登峰组") return "#ffd700";
   if (team.name === "涅槃组") return "#ff9f9f";
   return "#a8b6d6";
 }

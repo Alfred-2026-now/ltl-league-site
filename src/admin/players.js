@@ -67,6 +67,11 @@ function bindEls() {
 
   els.formName = document.getElementById("formName");
   els.formValue = document.getElementById("formValue");
+  els.formTopValue = document.getElementById("formTopValue");
+  els.formJugValue = document.getElementById("formJugValue");
+  els.formMidValue = document.getElementById("formMidValue");
+  els.formBotValue = document.getElementById("formBotValue");
+  els.formSupValue = document.getElementById("formSupValue");
   els.formPosition = document.getElementById("formPosition");
   els.formGameAccount = document.getElementById("formGameAccount");
   els.formPuuid = document.getElementById("formPuuid");
@@ -153,6 +158,11 @@ function openCreateDialog() {
   els.dialogTitle.textContent = "创建选手";
   els.formName.value = "";
   els.formValue.value = "2000";
+  els.formTopValue.value = "";
+  els.formJugValue.value = "";
+  els.formMidValue.value = "";
+  els.formBotValue.value = "";
+  els.formSupValue.value = "";
   els.formPosition.value = "";
   els.formGameAccount.value = "";
   els.formPuuid.value = "";
@@ -173,6 +183,11 @@ function openEditDialog(player) {
   els.dialogTitle.textContent = "编辑选手";
   els.formName.value = player.name || "";
   els.formValue.value = player.value || 2000;
+  els.formTopValue.value = player.topValue ?? "";
+  els.formJugValue.value = player.jugValue ?? "";
+  els.formMidValue.value = player.midValue ?? "";
+  els.formBotValue.value = player.botValue ?? "";
+  els.formSupValue.value = player.supValue ?? "";
   els.formPosition.value = player.position || "";
   els.formGameAccount.value = player.gameAccount || "";
   els.formPuuid.value = player.puuid || "";
@@ -205,10 +220,20 @@ async function savePlayer() {
       return;
     }
 
+    const toOptionalNumber = (raw) => {
+      if (raw === "" || raw === null || raw === undefined) return undefined;
+      return Number(raw);
+    };
+
     const payload = {
       teamId: teamId,
       name: els.formName.value.trim(),
       value: Number(els.formValue.value),
+      topValue: toOptionalNumber(els.formTopValue.value),
+      jugValue: toOptionalNumber(els.formJugValue.value),
+      midValue: toOptionalNumber(els.formMidValue.value),
+      botValue: toOptionalNumber(els.formBotValue.value),
+      supValue: toOptionalNumber(els.formSupValue.value),
       position: els.formPosition.value || null,
       gameAccount: els.formGameAccount.value || null,
       puuid: els.formPuuid.value || null,

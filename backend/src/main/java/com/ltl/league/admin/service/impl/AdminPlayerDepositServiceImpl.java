@@ -209,6 +209,21 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         if (request.getValue() != null && request.getValue() >= 0) {
             player.setValue(request.getValue());
         }
+        if (request.getTopValue() != null) {
+            player.setTopValue(request.getTopValue());
+        }
+        if (request.getJugValue() != null) {
+            player.setJugValue(request.getJugValue());
+        }
+        if (request.getMidValue() != null) {
+            player.setMidValue(request.getMidValue());
+        }
+        if (request.getBotValue() != null) {
+            player.setBotValue(request.getBotValue());
+        }
+        if (request.getSupValue() != null) {
+            player.setSupValue(request.getSupValue());
+        }
         if (request.getPosition() != null) {
             player.setPosition(request.getPosition());
         }
@@ -248,6 +263,22 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         }
 
         player.setTeamId(newTeamId);
+
+        // 重新计算最高身价 = 五个位置身价中的最大值
+        int maxValue = Math.max(
+            player.getTopValue() != null ? player.getTopValue() : 0,
+            Math.max(
+                player.getJugValue() != null ? player.getJugValue() : 0,
+                Math.max(
+                    player.getMidValue() != null ? player.getMidValue() : 0,
+                    Math.max(
+                        player.getBotValue() != null ? player.getBotValue() : 0,
+                        player.getSupValue() != null ? player.getSupValue() : 0
+                    )
+                )
+            )
+        );
+        player.setMaxValue(maxValue);
 
         playerMapper.updateById(player);
         return player;
