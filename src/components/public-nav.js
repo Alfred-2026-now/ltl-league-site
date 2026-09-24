@@ -79,7 +79,8 @@
       const isHomePage = currentPage === 'index.html';
 
       const linksHtml = navItems.map(item => {
-        const isActive = item.href === currentPage ? ' class="active"' : "";
+        const isActive = item.href === currentPage || (currentPage === 'valuation-rules.html' && item.href === 'rules.html')
+          ? ' class="active"' : "";
         const style = item.highlight ? ' style="color: #667eea; font-weight: 600;"' : "";
         return `<a href="${item.href}"${isActive}${style}>${item.text}</a>`;
       }).join("");

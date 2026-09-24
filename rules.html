@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LTL规则手册</title>
+  <title>S3 赛季规则 | LTL 联赛</title>
   <link rel="stylesheet" href="src/styles/main.css" />
+  <link rel="stylesheet" href="src/styles/rules.css" />
 </head>
 <body>
   <header class="site-header">
@@ -12,26 +13,60 @@
       <a class="brand" href="index.html"><img class="brand-logo" src="assets/ltl-logo.webp" alt="LTL联赛" /></a>
       <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
       <div class="nav-links" id="navLinks">
-        <a href="announcements.html">公告</a>
-        <a href="standings.html">积分榜</a>
-        <a href="teams.html">队伍</a>
-        <a href="player-rankings.html">选手榜</a>
-        <a class="active" href="rules.html">规则</a>
-        <a href="tools.html">计算器</a>
-        <a href="schedule.html">赛程</a>
-        <a href="match-history.html">战绩</a>
+        <a href="announcements.html">公告</a><a href="standings.html">积分榜</a><a href="teams.html">队伍</a>
+        <a href="player-rankings.html">选手榜</a><a class="active" href="rules.html">规则</a>
+        <a href="tools.html">计算器</a><a href="schedule.html">赛程</a><a href="match-history.html">战绩</a>
       </div>
     </nav>
   </header>
 
-  <main class="page-shell">
-    <section class="section">
-      <div class="section-heading"><p class="eyebrow">RULEBOOK</p><h1 class="page-title">规则手册</h1></div>
-      <div class="accordion" id="rulebook"></div>
+  <main class="page-shell season-rules">
+    <div class="rules-hero">
+      <p class="eyebrow">LTL SEASON 3 · RULEBOOK</p>
+      <h1>S3 赏金猎人</h1>
+      <p>个人或组队接取赛季任务，支付任务所需 P 币，完成后获得对应 P 币奖励和任务赏金。比赛赏金另行累计；赛季结束时，按每位选手的任务赏金排名评出冠军及其他获奖者。</p>
+      <div class="rules-hero-links"><a href="event-tasks.html">查看赛事任务</a><a href="player-rankings.html">查看选手榜</a></div>
+    </div>
+
+    <nav class="rules-index" aria-label="本页规则目录">
+      <a href="#valuation">01 选手身价</a><a href="#maintenance">02 维护费</a><a href="#bounty">03 比赛赏金</a>
+    </nav>
+
+    <section class="rules-card" id="valuation" aria-labelledby="valuation-title">
+      <div class="rules-card-head"><span class="rules-number">01</span><div><p class="eyebrow">选手身价</p><h2 id="valuation-title">最高身价与五个位置身价</h2></div></div>
+      <p>原有的“选手身价”改为“最高身价”，并增加上路、打野、中路、下路、辅助五个位置身价。S3 初始时，最高身价及五个位置身价均沿用该选手当前身价。</p>
+      <ul class="rules-list">
+        <li>选手参加某个位置的 5v5 内战后，该位置身价才会激活；之后只调整实际出场位置的身价。</li>
+        <li>最高身价自动取五个位置身价的最大值，选手身价排行榜按最高身价排序。</li>
+        <li>已激活的位置若一段时间没有参赛，该位置身价会逐渐衰减。</li>
+      </ul>
+      <p class="rules-note">位置身价衰减的起算时间与幅度尚未在本次规则说明中给出。</p>
+      <a class="rules-detail-link" href="valuation-rules.html">查看身价动态调整规则详解 <span aria-hidden="true">→</span></a>
+    </section>
+
+    <section class="rules-card" id="maintenance" aria-labelledby="maintenance-title">
+      <div class="rules-card-head"><span class="rules-number">02</span><div><p class="eyebrow">维护费</p><h2 id="maintenance-title">取消 1000P 扣除下限</h2></div></div>
+      <p>为保障参与赛事筹备的小伙伴获得 P 币补贴，取消原先“低于 1000P 不扣维护费”的保护线。维护费不再因账户余额低于 1000P 而免扣。</p>
+    </section>
+
+    <section class="rules-card" id="bounty" aria-labelledby="bounty-title">
+      <div class="rules-card-head"><span class="rules-number">03</span><div><p class="eyebrow">比赛赏金</p><h2 id="bounty-title">按实际出场与赛果累计</h2></div></div>
+      <p>比赛赏金采用独立的累计体系。每局单独结算，只给实际进入该局比赛的选手发放；未出场的替补不获得该局赏金。</p>
+      <h3>普通比赛赏金</h3>
+      <p class="rules-table-unit">单位：赏金积分</p>
+      <div class="rules-table-scroll"><table class="rule-table rules-bounty-table">
+        <thead><tr><th scope="col">比赛组别</th><th scope="col">每局出场赏金</th><th scope="col">每局获胜额外赏金</th><th scope="col">输掉该局可得</th><th scope="col">赢下该局可得</th></tr></thead>
+        <tbody><tr><th scope="row">登峰组</th><td>6</td><td>+3</td><td>6</td><td>9</td></tr><tr><th scope="row">涅槃组</th><td>4</td><td>+2</td><td>4</td><td>6</td></tr></tbody>
+      </table></div>
+      <h3>升降级赛赏金</h3>
+      <p>升降级赛统一采用 BO3，按整轮系列赛结果一次结算，不按单局累加。下表金额发给对应一方的每名参赛选手。</p>
+      <div class="rules-table-scroll"><table class="rule-table rules-bounty-table">
+        <thead><tr><th scope="col">BO3 结果</th><th scope="col">获胜方每名参赛选手</th><th scope="col">失败方每名参赛选手</th></tr></thead>
+        <tbody><tr><th scope="row">2:0</th><td>18</td><td>8</td></tr><tr><th scope="row">2:1</th><td>16</td><td>8</td></tr></tbody>
+      </table></div>
     </section>
   </main>
 
-  <script type="module" src="src/main.js"></script>
   <script src="src/components/public-nav.js"></script>
 </body>
 </html>
