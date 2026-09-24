@@ -54,6 +54,15 @@ public final class EventTaskDtos {
     }
 
     @Data
+    public static class AdminEditRequest extends TaskWriteRequest {
+    }
+
+    @Data
+    public static class AdminCancelClaimRequest {
+        private String reason;
+    }
+
+    @Data
     public static class ImageVO {
         private Long id;
         private String label;
@@ -83,6 +92,8 @@ public final class EventTaskDtos {
         private Long playerId;
         private String playerName;
         private String taskTitle;
+        private String taskRequirements;
+        private String taskSeason;
         private String status;
         private Integer feeAmount;
         @JsonProperty("pReward")
@@ -97,6 +108,8 @@ public final class EventTaskDtos {
         private LocalDateTime completionRevokedAt;
         private String completionRevokeReason;
         private String completionRevokedByName;
+        private String adminCancelReason;
+        private LocalDateTime reclaimAvailableAt;
         private Boolean freeAbandonAvailable;
         private LocalDateTime freeAbandonUntil;
         private List<ProofVO> proofs = Collections.emptyList();
@@ -136,6 +149,7 @@ public final class EventTaskDtos {
         private Boolean canClaim;
         private String viewerClaimStatus;
         private Long viewerClaimId;
+        private LocalDateTime viewerReclaimAvailableAt;
         private List<ClaimVO> claims = Collections.emptyList();
     }
 

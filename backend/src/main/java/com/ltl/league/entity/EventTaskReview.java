@@ -16,6 +16,8 @@ public class EventTaskReview {
     private String comment;
     private Integer claimFeeSnapshot;
     private Integer maxClaimantsSnapshot;
+    private String beforeSnapshot;
+    private String afterSnapshot;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
     @TableLogic

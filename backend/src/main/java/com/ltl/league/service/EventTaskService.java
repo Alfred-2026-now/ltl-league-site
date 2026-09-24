@@ -1,6 +1,8 @@
 package com.ltl.league.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ltl.league.admin.service.AdminAssetService;
 import com.ltl.league.admin.service.RuleParameterService;
 import com.ltl.league.dto.EventTaskDtos;
@@ -38,6 +40,7 @@ public class EventTaskService {
     public static final String COMPLETION_REVOKED = "COMPLETION_REVOKED";
     public static final String CLAIM_ABANDONED = "ABANDONED";
     public static final String TERMINATED = "TERMINATED";
+    public static final String ADMIN_CANCELLED = "ADMIN_CANCELLED";
 
     public static final String PROOF_STATUS_PENDING = "PENDING";
     public static final String PROOF_STATUS_RETURNED = "RETURNED";
@@ -50,6 +53,7 @@ public class EventTaskService {
     private static final int ANONYMOUS_MINIMUM_FEE = 50;
     private static final String ANONYMOUS_FEE_RATE_KEY = "event_task.anonymous_fee_rate";
     private static final long MAX_IMAGE_BYTES = 10L * 1024 * 1024;
+    private static final ObjectMapper SNAPSHOT_MAPPER = new ObjectMapper();
 
     private final EventTaskMapper taskMapper;
     private final EventTaskReviewMapper reviewMapper;
@@ -213,12 +217,18 @@ public class EventTaskService {
         if (task.getMaxClaimants() == null || safe(task.getClaimedCount()) >= task.getMaxClaimants()) {
             throw new BusinessException(409, "任务接取名额已满");
         }
-        Long existing = claimMapper.selectCount(new LambdaQueryWrapper<EventTaskClaim>()
+        List<EventTaskClaim> previous = claimMapper.selectList(new LambdaQueryWrapper<EventTaskClaim>()
                 .eq(EventTaskClaim::getTaskId, taskId)
                 .eq(EventTaskClaim::getPlayerId, playerId)
-                .eq(EventTaskClaim::getDeleted, 0));
-        if (existing != null && existing > 0) {
-            throw new BusinessException(409, "你已经接取或放弃过该任务，不能重复接取");
+                .eq(EventTaskClaim::getDeleted, 0)
+                .orderByDesc(EventTaskClaim::getId));
+        for (EventTaskClaim old : previous) {
+            if (!ADMIN_CANCELLED.equals(old.getStatus())) {
+                throw new BusinessException(409, "你已经接取或放弃过该任务，不能重复接取");
+            }
+            if (old.getTerminatedAt() == null || now().isBefore(old.getTerminatedAt().plusHours(1))) {
+                throw new BusinessException(409, "管理员取消接取后需等待1小时才能再次接取");
+            }
         }
 
         Player player = playerMapper.selectByIdForUpdate(playerId);
@@ -239,6 +249,8 @@ public class EventTaskService {
         claim.setFeeAmount(fee);
         claim.setPRewardSnapshot(safe(task.getPReward()));
         claim.setBountyRewardSnapshot(safe(task.getBountyReward()));
+        claim.setTitleSnapshot(task.getTitle());
+        claim.setRequirementsSnapshot(task.getRequirements());
         claim.setClaimedAt(now);
         claim.setAbandonRefunded(0);
         claimMapper.insert(claim);
@@ -269,7 +281,7 @@ public class EventTaskService {
         if (claim == null || !Objects.equals(claim.getPlayerId(), playerId)) {
             throw new BusinessException(404, "接取记录不存在");
         }
-        if (COMPLETED.equals(claim.getStatus()) || TERMINATED.equals(claim.getStatus()) || CLAIM_ABANDONED.equals(claim.getStatus())) {
+        if (!List.of(CLAIMED, PROOF_PENDING, PROOF_RETURNED).contains(claim.getStatus())) {
             throw new BusinessException(409, "当前接取状态不能放弃");
         }
         if (task == null || !TASK_PUBLISHED.equals(task.getStatus())) {
@@ -373,6 +385,14 @@ public class EventTaskService {
                 .eq(status != null && !status.isBlank(), EventTask::getStatus, status)
                 .orderByDesc(EventTask::getCreatedAt);
         return toTaskVOs(taskMapper.selectList(query), admin, true);
+    }
+
+    public List<EventTaskDtos.ClaimVO> listAdminClaimHistory() {
+        return claimMapper.selectList(new LambdaQueryWrapper<EventTaskClaim>()
+                        .eq(EventTaskClaim::getDeleted, 0)
+                        .orderByDesc(EventTaskClaim::getClaimedAt)
+                        .orderByDesc(EventTaskClaim::getId))
+                .stream().map(claim -> toClaimVO(claim, false)).collect(Collectors.toList());
     }
 
     public List<EventTaskDtos.ProofVO> listPendingProofs() {
@@ -493,6 +513,132 @@ public class EventTaskService {
         taskMapper.insert(task);
         addReview(task.getId(), "OFFICIAL_PUBLISH", adminId, "管理员无成本发布官方任务", request.getClaimFee(), request.getMaxClaimants());
         return toTaskVO(task, admin, true);
+    }
+
+    @Transactional
+    public EventTaskDtos.TaskVO editPublished(Long adminId, Long taskId, EventTaskDtos.AdminEditRequest request) {
+        validateTaskWrite(request);
+        EventTask task = taskMapper.selectByIdForUpdate(taskId);
+        if (task == null || !TASK_PUBLISHED.equals(task.getStatus())) {
+            throw new BusinessException(409, "只有进行中的任务可以编辑");
+        }
+        List<EventTaskClaim> claims = claimMapper.selectList(new LambdaQueryWrapper<EventTaskClaim>()
+                .eq(EventTaskClaim::getTaskId, taskId)
+                .eq(EventTaskClaim::getDeleted, 0));
+        long completed = claims.stream().filter(claim -> COMPLETED.equals(claim.getStatus())).count();
+        long active = claims.stream().filter(claim -> List.of(CLAIMED, PROOF_PENDING, PROOF_RETURNED).contains(claim.getStatus())).count();
+        if (completed != safe(task.getCompletedCount()) || completed + active != safe(task.getClaimedCount())
+                || task.getMaxClaimants() == null || completed > task.getMaxClaimants()) {
+            throw new BusinessException(409, "任务接取人数记录异常，无法编辑");
+        }
+        int newRemaining;
+        try {
+            newRemaining = Math.multiplyExact(request.getPReward(), task.getMaxClaimants() - (int) completed);
+        } catch (ArithmeticException ex) {
+            throw new BusinessException(400, "P币悬赏总额过大");
+        }
+        int delta = newRemaining - safe(task.getEscrowRemaining());
+        int newTotal = checkedAdd(safe(task.getEscrowTotal()), delta, "任务冻结P币总额");
+        if (newTotal < newRemaining || newTotal < 0) {
+            throw new BusinessException(409, "任务冻结P币记录异常，无法编辑");
+        }
+        boolean official = Integer.valueOf(1).equals(task.getOfficial());
+        Player publisher = null;
+        if (!official && delta != 0) {
+            publisher = playerMapper.selectByIdForUpdate(task.getPublisherPlayerId());
+            if (publisher == null) {
+                throw new BusinessException(404, "任务发布者不存在");
+            }
+            if (delta > 0 && safe(publisher.getDeposit()) < delta) {
+                throw new BusinessException(400, "发布者个人P币不足，需要追加冻结 " + delta + "P");
+            }
+            checkedAdd(safe(publisher.getDeposit()), -delta, "发布者个人P币");
+        }
+
+        String before = taskSnapshot(task);
+        task.setTitle(request.getTitle().trim());
+        task.setRequirements(request.getRequirements().trim());
+        task.setBudgetNote(trimToNull(request.getBudgetNote()));
+        task.setPReward(request.getPReward());
+        task.setBountyReward(request.getBountyReward());
+        if (!official) {
+            task.setEscrowRemaining(newRemaining);
+            task.setEscrowTotal(newTotal);
+        }
+        EventTaskReview review = addReview(taskId, "EDIT", adminId, "管理员编辑已发布任务",
+                task.getClaimFee(), task.getMaxClaimants());
+        review.setBeforeSnapshot(before);
+        review.setAfterSnapshot(taskSnapshot(task));
+        reviewMapper.updateById(review);
+        if (publisher != null) {
+            int balanceBefore = safe(publisher.getDeposit());
+            int balanceAfter = balanceBefore - delta;
+            publisher.setDeposit(balanceAfter);
+            playerMapper.updateById(publisher);
+            addDepositLedger(publisher, delta > 0 ? "task_reward_escrow_adjust" : "task_reward_escrow_adjust_refund",
+                    -delta, "任务奖励调整：" + task.getTitle(), balanceBefore, balanceAfter,
+                    "event_task", "event_task_reviews", review.getId(), playerName(adminId));
+        }
+        for (EventTaskClaim claim : claims) {
+            if (List.of(CLAIMED, PROOF_PENDING, PROOF_RETURNED).contains(claim.getStatus())) {
+                claim.setPRewardSnapshot(request.getPReward());
+                claim.setBountyRewardSnapshot(request.getBountyReward());
+                claim.setTitleSnapshot(task.getTitle());
+                claim.setRequirementsSnapshot(task.getRequirements());
+                claimMapper.updateById(claim);
+            }
+        }
+        taskMapper.updateById(task);
+        return toTaskVO(task, playerMapper.selectById(adminId), true);
+    }
+
+    @Transactional
+    public EventTaskDtos.ClaimVO cancelClaim(Long adminId, Long claimId, EventTaskDtos.AdminCancelClaimRequest request) {
+        String reason = requireComment(request == null ? null : request.getReason());
+        EventTaskClaim snapshot = claimMapper.selectById(claimId);
+        if (snapshot == null) {
+            throw new BusinessException(404, "接取记录不存在");
+        }
+        EventTask task = taskMapper.selectByIdForUpdate(snapshot.getTaskId());
+        EventTaskClaim claim = claimMapper.selectByIdForUpdate(claimId);
+        if (task == null || !TASK_PUBLISHED.equals(task.getStatus())) {
+            throw new BusinessException(409, "只有进行中的任务可取消接取");
+        }
+        if (claim == null || !List.of(CLAIMED, PROOF_PENDING, PROOF_RETURNED).contains(claim.getStatus())) {
+            throw new BusinessException(409, "该接取已处理，不能重复取消或退款");
+        }
+        int fee = safe(claim.getFeeAmount());
+        if (fee > 0) {
+            Player player = playerMapper.selectByIdForUpdate(claim.getPlayerId());
+            if (player == null) {
+                throw new BusinessException(404, "接取者不存在，无法退款");
+            }
+            int before = safe(player.getDeposit());
+            int after = checkedAdd(before, fee, "接取费退款");
+            player.setDeposit(after);
+            playerMapper.updateById(player);
+            addDepositLedger(player, "task_claim_fee_admin_refund", fee,
+                    "管理员取消接取并退费：" + task.getTitle(), before, after,
+                    "event_task", "event_task_claims", claimId, playerName(adminId));
+            adminAssetService.recordReversal(fee, "task_claim_fee_admin_refund", "管理员取消接取，退还接取费",
+                    "event_task", "event_task_claims", claimId, null, null, playerName(adminId));
+        }
+        int claimedCount = safe(task.getClaimedCount());
+        if (claimedCount <= 0) {
+            throw new BusinessException(409, "任务接取人数记录异常，无法取消");
+        }
+        LocalDateTime now = now();
+        claim.setStatus(ADMIN_CANCELLED);
+        claim.setTerminatedAt(now);
+        claim.setAdminCancelReason(reason);
+        claim.setAbandonRefunded(1);
+        claimMapper.updateById(claim);
+        task.setClaimedCount(claimedCount - 1);
+        taskMapper.updateById(task);
+        voidPendingProofs(claimId, "管理员取消接取");
+        addReview(task.getId(), "CANCEL_CLAIM", adminId, "取消接取 #" + claimId,
+                task.getClaimFee(), task.getMaxClaimants());
+        return toClaimVO(claim, true);
     }
 
     @Transactional
@@ -636,13 +782,34 @@ public class EventTaskService {
                     -pReward, "撤回任务完成奖励：" + task.getTitle() + "；" + reason,
                     pBefore, winner.getDeposit(),
                     "event_task", "event_task_claims", claim.getId(), playerName(adminId));
-            if (!Integer.valueOf(1).equals(task.getOfficial())) {
-                int restoredEscrow = checkedAdd(safe(task.getEscrowRemaining()), pReward, "任务冻结P币");
-                if (restoredEscrow > safe(task.getEscrowTotal())) {
-                    throw new BusinessException(409, "任务冻结P币记录异常，无法自动撤回");
-                }
-                task.setEscrowRemaining(restoredEscrow);
+        }
+        if (!Integer.valueOf(1).equals(task.getOfficial())) {
+            int currentReward = safe(task.getPReward());
+            int restoredEscrow = checkedAdd(safe(task.getEscrowRemaining()), currentReward, "任务冻结P币");
+            int newTotal = checkedAdd(safe(task.getEscrowTotal()), currentReward - pReward, "任务冻结P币总额");
+            if (restoredEscrow > newTotal || newTotal < 0) {
+                throw new BusinessException(409, "任务冻结P币记录异常，无法自动撤回");
             }
+            int adjustment = currentReward - pReward;
+            if (adjustment != 0) {
+                Player publisher = playerMapper.selectByIdForUpdate(task.getPublisherPlayerId());
+                if (publisher == null) {
+                    throw new BusinessException(404, "任务发布者不存在，无法调整冻结P币");
+                }
+                int publisherBefore = safe(publisher.getDeposit());
+                if (adjustment > 0 && publisherBefore < adjustment) {
+                    throw new BusinessException(400, "发布者个人P币不足，撤回完成需追加冻结 " + adjustment + "P");
+                }
+                int publisherAfter = checkedAdd(publisherBefore, -adjustment, "发布者个人P币");
+                publisher.setDeposit(publisherAfter);
+                playerMapper.updateById(publisher);
+                addDepositLedger(publisher,
+                        adjustment > 0 ? "task_reward_revoke_extra_escrow" : "task_reward_revoke_escrow_refund",
+                        -adjustment, "撤回完成后按当前奖励调整冻结：" + task.getTitle(),
+                        publisherBefore, publisherAfter, "event_task", "event_task_claims", claimId, playerName(adminId));
+            }
+            task.setEscrowRemaining(restoredEscrow);
+            task.setEscrowTotal(newTotal);
         }
 
         int bountyReward = safe(claim.getBountyRewardSnapshot());
@@ -816,7 +983,7 @@ public class EventTaskService {
         task.setAnonymous(Boolean.TRUE.equals(request.getAnonymous()) ? 1 : 0);
     }
 
-    private void addReview(Long taskId, String action, Long operatorId, String comment, Integer fee, Integer max) {
+    private EventTaskReview addReview(Long taskId, String action, Long operatorId, String comment, Integer fee, Integer max) {
         EventTaskReview review = new EventTaskReview();
         review.setTaskId(taskId);
         review.setAction(action);
@@ -825,6 +992,21 @@ public class EventTaskService {
         review.setClaimFeeSnapshot(fee);
         review.setMaxClaimantsSnapshot(max);
         reviewMapper.insert(review);
+        return review;
+    }
+
+    private String taskSnapshot(EventTask task) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("title", task.getTitle());
+        snapshot.put("requirements", task.getRequirements());
+        snapshot.put("budgetNote", task.getBudgetNote());
+        snapshot.put("pReward", task.getPReward());
+        snapshot.put("bountyReward", task.getBountyReward());
+        try {
+            return SNAPSHOT_MAPPER.writeValueAsString(snapshot);
+        } catch (JsonProcessingException ex) {
+            throw new BusinessException(500, "无法记录任务编辑历史");
+        }
     }
 
     private void addDepositLedger(Player player, String type, int amount, String reason, int before, int after,
@@ -907,8 +1089,12 @@ public class EventTaskService {
         EventTaskClaim viewerClaim = viewer == null ? null : findClaim(task.getId(), viewer.getId());
         vo.setViewerClaimStatus(viewerClaim == null ? null : viewerClaim.getStatus());
         vo.setViewerClaimId(viewerClaim == null ? null : viewerClaim.getId());
+        LocalDateTime reclaimAt = viewerClaim != null && ADMIN_CANCELLED.equals(viewerClaim.getStatus())
+                && viewerClaim.getTerminatedAt() != null ? viewerClaim.getTerminatedAt().plusHours(1) : null;
+        vo.setViewerReclaimAvailableAt(reclaimAt);
         vo.setCanClaim(viewer != null && TASK_PUBLISHED.equals(task.getStatus()) && !owner
-                && viewerClaim == null && vo.getRemainingSlots() != null && vo.getRemainingSlots() > 0);
+                && (viewerClaim == null || reclaimAt != null && !now().isBefore(reclaimAt))
+                && vo.getRemainingSlots() != null && vo.getRemainingSlots() > 0);
         if (includeClaims) {
             vo.setClaims(claimMapper.selectList(new LambdaQueryWrapper<EventTaskClaim>()
                             .eq(EventTaskClaim::getTaskId, task.getId())
@@ -927,7 +1113,10 @@ public class EventTaskService {
         Player player = playerMapper.selectById(claim.getPlayerId());
         vo.setPlayerName(player == null ? "" : player.getName());
         EventTask task = taskMapper.selectById(claim.getTaskId());
-        vo.setTaskTitle(task == null ? "" : task.getTitle());
+        vo.setTaskTitle(claim.getTitleSnapshot() != null ? claim.getTitleSnapshot() : task == null ? "" : task.getTitle());
+        vo.setTaskRequirements(claim.getRequirementsSnapshot() != null ? claim.getRequirementsSnapshot()
+                : task == null ? "" : task.getRequirements());
+        vo.setTaskSeason(task == null ? "" : task.getSeason());
         vo.setStatus(claim.getStatus());
         vo.setFeeAmount(safe(claim.getFeeAmount()));
         vo.setPReward(safe(claim.getPRewardSnapshot()));
@@ -938,6 +1127,10 @@ public class EventTaskService {
         vo.setAbandonRefunded(Integer.valueOf(1).equals(claim.getAbandonRefunded()));
         vo.setCompletedAt(claim.getCompletedAt());
         vo.setTerminatedAt(claim.getTerminatedAt());
+        vo.setAdminCancelReason(claim.getAdminCancelReason());
+        if (ADMIN_CANCELLED.equals(claim.getStatus()) && claim.getTerminatedAt() != null) {
+            vo.setReclaimAvailableAt(claim.getTerminatedAt().plusHours(1));
+        }
         if (COMPLETION_REVOKED.equals(claim.getStatus())) {
             vo.setCompletionRevokedAt(claim.getTerminatedAt());
             EventTaskProof revokedProof = proofMapper.selectList(new LambdaQueryWrapper<EventTaskProof>()
@@ -1000,6 +1193,7 @@ public class EventTaskService {
                 .eq(EventTaskClaim::getTaskId, taskId)
                 .eq(EventTaskClaim::getPlayerId, playerId)
                 .eq(EventTaskClaim::getDeleted, 0)
+                .orderByDesc(EventTaskClaim::getId)
                 .last("LIMIT 1"));
     }
 
