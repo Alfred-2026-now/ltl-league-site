@@ -158,6 +158,7 @@ function openCreateDialog() {
   els.dialogTitle.textContent = "创建选手";
   els.formName.value = "";
   els.formValue.value = "2000";
+  els.formValue.disabled = false;
   els.formTopValue.value = "";
   els.formJugValue.value = "";
   els.formMidValue.value = "";
@@ -182,7 +183,8 @@ function openEditDialog(player) {
   currentEditingPlayer = player;
   els.dialogTitle.textContent = "编辑选手";
   els.formName.value = player.name || "";
-  els.formValue.value = player.value || 2000;
+  els.formValue.value = player.maxValue ?? player.value ?? 0;
+  els.formValue.disabled = true;
   els.formTopValue.value = player.topValue ?? "";
   els.formJugValue.value = player.jugValue ?? "";
   els.formMidValue.value = player.midValue ?? "";
@@ -228,7 +230,6 @@ async function savePlayer() {
     const payload = {
       teamId: teamId,
       name: els.formName.value.trim(),
-      value: Number(els.formValue.value),
       topValue: toOptionalNumber(els.formTopValue.value),
       jugValue: toOptionalNumber(els.formJugValue.value),
       midValue: toOptionalNumber(els.formMidValue.value),
@@ -241,6 +242,10 @@ async function savePlayer() {
       status: status,
       role: (els.formRoleAdmin.checked ? 1 : 0) | (els.formRoleCaptain.checked ? 2 : 0)
     };
+    // 创建时：用"选手身价"作为 5 个位置身价的初始值
+    if (!currentEditingPlayer) {
+      payload.value = Number(els.formValue.value);
+    }
 
     if (currentEditingPlayer) {
       await updatePlayer(currentEditingPlayer.id, payload);

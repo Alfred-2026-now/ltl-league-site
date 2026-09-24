@@ -226,7 +226,7 @@ function renderRankings() {
           <td style="padding:.75rem 1rem;font-weight:bold;${rankStyle(rank)}">${rankDisplay(rank)}</td>
           <td style="padding:.75rem 1rem;color:#f3f8ff;">${escapeHtml(player.name || "-")}${substituteText}</td>
           <td style="padding:.75rem 1rem;color:${teamColor(team)};font-weight:600;">${escapeHtml(teamText(team))}</td>
-          <td style="padding:.75rem 1rem;color:#7cffb2;font-weight:600;">${maxValue || 0}P</td>
+          <td style="padding:.75rem 1rem;color:#f59e0b;font-weight:600;">${maxValue || 0}P</td>
           ${posCells}
         </tr>
       `;

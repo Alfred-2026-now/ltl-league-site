@@ -206,9 +206,6 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         if (request.getName() != null && !request.getName().isBlank()) {
             player.setName(request.getName().trim());
         }
-        if (request.getValue() != null && request.getValue() >= 0) {
-            player.setValue(request.getValue());
-        }
         if (request.getTopValue() != null) {
             player.setTopValue(request.getTopValue());
         }
@@ -279,6 +276,7 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
             )
         );
         player.setMaxValue(maxValue);
+        player.setValue(maxValue);
 
         playerMapper.updateById(player);
         return player;
