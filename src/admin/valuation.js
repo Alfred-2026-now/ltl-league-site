@@ -6,6 +6,7 @@ const els = {};
 
 function bindEls() {
   els.adjustPlayer = document.getElementById("adjustPlayer");
+  els.adjustPosition = document.getElementById("adjustPosition");
   els.adjustAfterValue = document.getElementById("adjustAfterValue");
   els.adjustReason = document.getElementById("adjustReason");
   els.adjustBtn = document.getElementById("adjustBtn");
@@ -33,11 +34,26 @@ function renderOptions() {
   els.filterTeam.innerHTML = teamOptions();
 }
 
+function currentPositionValue(player, position) {
+  if (!player) return null;
+  switch (position) {
+    case "TOP": return player.topValue;
+    case "JUG": return player.jugValue;
+    case "MID": return player.midValue;
+    case "BOT": return player.botValue;
+    case "SUP": return player.supValue;
+    default: return player.value;
+  }
+}
+
 function updateCurrentValueHint() {
   const player = players.find(p => String(p.id) === String(els.adjustPlayer.value));
-  els.currentValueHint.textContent = player ? `当前身价：${player.value ?? 0}P` : "请选择选手。";
+  const position = els.adjustPosition.value;
+  const value = currentPositionValue(player, position);
+  const label = position === "" ? "总身价" : position;
+  els.currentValueHint.textContent = player ? `当前${label}身价：${value ?? 0}P` : "请选择选手。";
   if (player && !els.adjustAfterValue.value) {
-    els.adjustAfterValue.value = player.value ?? 0;
+    els.adjustAfterValue.value = value ?? 0;
   }
 }
 
@@ -57,6 +73,12 @@ function formatDelta(row) {
   return `${row.beforeValue} → ${row.afterValue}（${total > 0 ? "+" : ""}${total}P）`;
 }
 
+function positionLabel(position) {
+  if (!position) return "总身价";
+  const map = { TOP: "上路", JUG: "打野", MID: "中路", BOT: "下路", SUP: "辅助" };
+  return map[position] || position;
+}
+
 function renderRows(rows) {
   if (!rows.length) {
     els.valuationBody.innerHTML = `<tr><td colspan="8" style="padding:1rem;" class="muted">暂无身价变化。</td></tr>`;
@@ -68,6 +90,7 @@ function renderRows(rows) {
       <td style="padding:.75rem 1rem;">${row.playerName || "-"}${row.teamState ? ` · ${row.teamState}` : ""}</td>
       <td style="padding:.75rem 1rem;">${row.source || "-"}</td>
       <td style="padding:.75rem 1rem;">#${row.matchId || "-"} ${row.version || ""}</td>
+      <td style="padding:.75rem 1rem;">${positionLabel(row.position)}</td>
       <td style="padding:.75rem 1rem;">${formatDelta(row)}</td>
       <td style="padding:.75rem 1rem;"><span class="status-badge" data-tone="${row.isVoided ? "danger" : "success"}">${row.isVoided ? "已作废" : "有效"}</span></td>
       <td style="padding:.75rem 1rem;">${row.subjectiveReason || "-"}</td>
@@ -90,6 +113,7 @@ async function submitAdjustment() {
     await createManualValuationAdjustment({
       playerId: els.adjustPlayer.value ? Number(els.adjustPlayer.value) : null,
       afterValue: els.adjustAfterValue.value !== "" ? Number(els.adjustAfterValue.value) : null,
+      position: els.adjustPosition.value || null,
       reason: els.adjustReason.value
     });
     alert("身价已调整");
@@ -109,6 +133,7 @@ async function init() {
   renderOptions();
   updateCurrentValueHint();
   els.adjustPlayer.addEventListener("change", updateCurrentValueHint);
+  els.adjustPosition.addEventListener("change", updateCurrentValueHint);
   els.adjustBtn.addEventListener("click", submitAdjustment);
   els.refreshBtn.addEventListener("click", refresh);
   els.valuationBody.addEventListener("click", handleVoidClick);

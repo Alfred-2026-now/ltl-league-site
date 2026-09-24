@@ -6,5 +6,6 @@ import lombok.Data;
 public class ManualValuationAdjustRequest {
     private Long playerId;
     private Integer afterValue;
+    private String position;
     private String reason;
 }

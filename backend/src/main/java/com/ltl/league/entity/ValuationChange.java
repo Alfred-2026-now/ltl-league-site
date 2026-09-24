@@ -18,6 +18,8 @@ public class ValuationChange {
 
     private Long playerId;
 
+    private String position;
+
     private Integer beforeValue;
 
     private Integer objectiveDelta;

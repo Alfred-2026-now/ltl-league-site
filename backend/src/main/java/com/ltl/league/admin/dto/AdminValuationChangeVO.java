@@ -9,6 +9,7 @@ public class AdminValuationChangeVO {
     private Long resultId;
     private Long playerId;
     private String playerName;
+    private String position;
     private Long teamId;
     private String teamState;
     private Integer beforeValue;

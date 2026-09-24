@@ -144,8 +144,8 @@ function teamText(team) {
 
 function teamColor(team) {
   if (!team) return "#a8b6d6";
-  if (team.name === "登峰组") return "#ffd700";
-  if (team.name === "涅槃组") return "#ff9f9f";
+  if (team.name === "登峰组") return "#22c55e";
+  if (team.name === "涅槃组") return "#ef4444";
   return "#a8b6d6";
 }
 
@@ -248,7 +248,7 @@ function renderRankings() {
         <td style="padding:.75rem 1rem;font-weight:bold;${rankStyle(rank)}">${rankDisplay(rank)}</td>
         <td style="padding:.75rem 1rem;color:#f3f8ff;">${escapeHtml(player.name || "-")}${substituteText}</td>
         <td style="padding:.75rem 1rem;color:${teamColor(team)};font-weight:600;">${escapeHtml(teamText(team))}</td>
-        <td style="padding:.75rem 1rem;color:#ffd700;font-weight:600;">${player.deposit || 0}P</td>
+        <td style="padding:.75rem 1rem;color:#f59e0b;font-weight:600;">${player.deposit || 0}P</td>
       </tr>
     `;
   }).join("");
@@ -272,7 +272,7 @@ function renderRankings() {
         <span class="ranking-card-rank" style="${rankStyle(rank)}">${rankDisplay(rank)}</span>
         <span class="ranking-card-main">
           <strong>${escapeHtml(player.name || "-")}</strong>
-          <small>${escapeHtml(teamText(team))}</small>
+          <small style="color:${teamColor(team)};">${escapeHtml(teamText(team))}</small>
         </span>
         <span class="ranking-card-metric">${metricLabel}<strong>${metricValue}</strong></span>
       </button>

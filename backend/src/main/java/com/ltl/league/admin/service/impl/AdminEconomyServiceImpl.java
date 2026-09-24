@@ -118,13 +118,19 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
         if (player == null) {
             throw new BusinessException(404, "选手不存在");
         }
+
+        String position = request.getPosition();
+        // 定位当前该位置（或总身价）的值，作为 beforeValue
+        Integer before = positionValue(player, position);
+
         ValuationChange change = new ValuationChange();
         change.setMatchId(null);
         change.setResultId(null);
         change.setPlayerId(player.getId());
-        change.setBeforeValue(player.getValue());
+        change.setPosition(position);
+        change.setBeforeValue(before);
         change.setObjectiveDelta(0);
-        change.setSubjectiveDelta(request.getAfterValue() - player.getValue());
+        change.setSubjectiveDelta(request.getAfterValue() - before);
         change.setSubjectiveReason(request.getReason().trim());
         change.setAfterValue(request.getAfterValue());
         change.setVersion(null);
@@ -132,10 +138,61 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
         change.setOperator("admin");
         change.setIsVoided(0);
         valuationChangeMapper.insert(change);
-        player.setValue(request.getAfterValue());
+
+        // 写入对应位置身价，并重算最高身价
+        setPositionValue(player, position, request.getAfterValue());
+        recalcMaxValueAndSync(player);
         playerMapper.updateById(player);
+
         Team team = player.getTeamId() != null ? teamMapper.selectById(player.getTeamId()) : null;
         return toValuationVO(change, player, team == null ? Collections.emptyMap() : Map.of(team.getId(), team));
+    }
+
+    private Integer positionValue(Player player, String position) {
+        if (position == null || position.isBlank()) {
+            return player.getValue();
+        }
+        switch (position) {
+            case "TOP": return player.getTopValue();
+            case "JUG": return player.getJugValue();
+            case "MID": return player.getMidValue();
+            case "BOT": return player.getBotValue();
+            case "SUP": return player.getSupValue();
+            default: return player.getValue();
+        }
+    }
+
+    private void setPositionValue(Player player, String position, Integer value) {
+        if (position == null || position.isBlank()) {
+            player.setValue(value);
+            return;
+        }
+        switch (position) {
+            case "TOP": player.setTopValue(value); break;
+            case "JUG": player.setJugValue(value); break;
+            case "MID": player.setMidValue(value); break;
+            case "BOT": player.setBotValue(value); break;
+            case "SUP": player.setSupValue(value); break;
+            default: player.setValue(value);
+        }
+    }
+
+    private void recalcMaxValueAndSync(Player player) {
+        int max = Math.max(
+            player.getTopValue() != null ? player.getTopValue() : 0,
+            Math.max(
+                player.getJugValue() != null ? player.getJugValue() : 0,
+                Math.max(
+                    player.getMidValue() != null ? player.getMidValue() : 0,
+                    Math.max(
+                        player.getBotValue() != null ? player.getBotValue() : 0,
+                        player.getSupValue() != null ? player.getSupValue() : 0
+                    )
+                )
+            )
+        );
+        player.setMaxValue(max);
+        player.setValue(max);
     }
 
     private AdminPLedgerVO toPLedgerVO(PLedger row, Team team) {
@@ -166,6 +223,7 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
         vo.setResultId(row.getResultId());
         vo.setPlayerId(row.getPlayerId());
         vo.setPlayerName(player != null ? player.getName() : "");
+        vo.setPosition(row.getPosition());
         vo.setTeamId(player != null ? player.getTeamId() : null);
         vo.setTeamState(team != null ? team.getState() : "");
         vo.setBeforeValue(row.getBeforeValue());
@@ -315,7 +373,8 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
         // 将选手身价恢复到该变化之前的值
         Player player = playerMapper.selectById(change.getPlayerId());
         if (player != null) {
-            player.setValue(change.getBeforeValue());
+            setPositionValue(player, change.getPosition(), change.getBeforeValue());
+            recalcMaxValueAndSync(player);
             playerMapper.updateById(player);
         }
     }
