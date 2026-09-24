@@ -1,0 +1,240 @@
+.season-rules {
+  max-width: 1040px;
+}
+
+.rules-hero,
+.rules-card {
+  background: linear-gradient(145deg, rgba(20, 35, 76, .92), rgba(10, 18, 42, .92));
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.rules-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 26px;
+  padding: clamp(28px, 5vw, 52px);
+  margin-bottom: 22px;
+}
+
+.rules-hero::after {
+  content: "";
+  position: absolute;
+  width: 290px;
+  height: 290px;
+  right: -90px;
+  top: -100px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 207, 108, .18), transparent 68%);
+  pointer-events: none;
+}
+
+.rules-hero h1 {
+  margin: 0 0 16px;
+  font-size: clamp(32px, 5vw, 52px);
+  line-height: 1.18;
+}
+
+.rules-hero > p:not(.eyebrow) {
+  max-width: 780px;
+  margin: 0 0 14px;
+  color: var(--muted);
+  line-height: 1.85;
+}
+
+.rules-hero-links,
+.rules-index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.rules-hero-links {
+  margin-top: 25px;
+}
+
+.rules-hero-links a,
+.rules-index a,
+.rules-detail-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  border-radius: 999px;
+  padding: 8px 16px;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.rules-hero-links a {
+  color: #071326;
+  background: var(--gold);
+}
+
+.rules-hero-links a + a {
+  color: var(--cyan);
+  background: rgba(121, 231, 255, .12);
+  border: 1px solid rgba(121, 231, 255, .35);
+}
+
+.rules-index {
+  margin: 0 0 22px;
+}
+
+.rules-index a {
+  color: var(--muted);
+  background: rgba(20, 35, 76, .72);
+  border: 1px solid var(--line);
+}
+
+.rules-index a:hover,
+.rules-index a:focus-visible {
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
+
+.rules-card {
+  border-radius: 20px;
+  padding: clamp(24px, 4vw, 38px);
+  margin-bottom: 20px;
+  scroll-margin-top: 95px;
+}
+
+.rules-card-head {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.rules-card-head .eyebrow {
+  margin-bottom: 5px;
+}
+
+.rules-number {
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 900;
+  color: var(--gold);
+}
+
+.rules-card h2,
+.rules-card h3 {
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.rules-card h2 {
+  margin: 0 0 18px;
+  font-size: clamp(22px, 3vw, 30px);
+}
+
+.rules-card-head h2 {
+  margin: 0;
+}
+
+.rules-card h3 {
+  margin: 28px 0 10px;
+  font-size: 19px;
+}
+
+.rules-card p,
+.rules-list {
+  color: var(--muted);
+  line-height: 1.9;
+}
+
+.rules-card p {
+  margin: 0 0 16px;
+}
+
+.rules-card .rules-table-unit {
+  margin: -4px 0 8px;
+  font-size: 13px;
+}
+
+.rules-list {
+  margin: 0 0 16px;
+  padding-left: 1.5em;
+}
+
+.rules-list li + li {
+  margin-top: 7px;
+}
+
+.rules-card strong {
+  color: var(--text);
+}
+
+.rules-card .rules-note,
+.rules-hero .rules-source-note {
+  color: var(--gold) !important;
+}
+
+.rules-detail-link {
+  gap: 8px;
+  color: var(--cyan);
+  border: 1px solid rgba(121, 231, 255, .4);
+  background: rgba(121, 231, 255, .1);
+  margin-top: 4px;
+}
+
+.rules-detail-link:hover,
+.rules-detail-link:focus-visible {
+  background: rgba(121, 231, 255, .18);
+}
+
+.rules-table-scroll {
+  overflow-x: auto;
+  margin: 8px 0 22px;
+}
+
+.rules-table-scroll .rule-table {
+  margin: 0;
+  min-width: 540px;
+}
+
+.rules-table-scroll .rule-table th,
+.rules-table-scroll .rule-table td {
+  white-space: nowrap;
+}
+
+.rules-table-scroll .rule-table tbody th {
+  color: var(--text);
+  background: rgba(255, 255, 255, .035);
+}
+
+.rules-bounty-table td {
+  color: var(--gold);
+  font-weight: 800;
+}
+
+.rules-back {
+  display: inline-block;
+  margin: 0 0 18px;
+  color: var(--cyan);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.rules-back-bottom {
+  margin: 8px 0 0;
+}
+
+.valuation-detail .rules-card p {
+  overflow-wrap: anywhere;
+}
+
+.valuation-detail .rules-formula {
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: rgba(121, 231, 255, .08);
+  color: var(--text);
+}
+
+@media (max-width: 640px) {
+  .rules-card-head { gap: 12px; }
+  .rules-number { font-size: 25px; }
+  .rules-index a { font-size: 14px; }
+  .rules-table-scroll .rule-table th,
+  .rules-table-scroll .rule-table td { padding: 10px 12px; }
+}

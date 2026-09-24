@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>身价动态调整规则详解 | LTL 联赛</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+  <link rel="stylesheet" href="src/styles/rules.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="index.html"><img class="brand-logo" src="assets/ltl-logo.webp" alt="LTL联赛" /></a>
+      <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+      <div class="nav-links" id="navLinks">
+        <a href="announcements.html">公告</a><a href="standings.html">积分榜</a><a href="teams.html">队伍</a>
+        <a href="player-rankings.html">选手榜</a><a class="active" href="rules.html">规则</a>
+        <a href="tools.html">计算器</a><a href="schedule.html">赛程</a><a href="match-history.html">战绩</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="page-shell season-rules valuation-detail">
+    <a class="rules-back" href="rules.html#valuation">← 返回 S3 规则</a>
+    <div class="rules-hero">
+      <p class="eyebrow">VALUATION RULES · VERSION 3.3</p>
+      <h1>身价动态调整规则详解</h1>
+      <p>以下整理自《LTL 选手身价动态调整规则 v3.3》。在 S3，身价按实际出场位置分别调整；最高身价取五个位置身价的最大值。位置激活和衰减按 S3 规则执行。</p>
+      <p class="rules-source-note">原文标注为“规则草案”。其中指数参数 β 同时出现 1.2 和 1.0 两种写法，正式结算值尚待统一；本页保留这项差异。</p>
+    </div>
+
+    <nav class="rules-index" aria-label="身价规则目录">
+      <a href="#principles">核心原则</a><a href="#pool">胜率与转移池</a><a href="#performance">个人表现</a>
+      <a href="#matchup">英雄对位</a><a href="#distribution">队内分配</a><a href="#series">系列赛与示例</a>
+    </nav>
+
+    <section class="rules-card" id="principles">
+      <h2>一、核心原则与计算流程</h2>
+      <ul class="rules-list">
+        <li><strong>胜负决定方向：</strong>胜方所有参赛选手身价上涨，败方所有参赛选手身价下降，个人表现不改变方向。</li>
+        <li><strong>赛前实力决定总量：</strong>按两队五名选手赛前身价总和估算胜率；强队正常取胜的变动较小，弱队爆冷取胜的变动较大。</li>
+        <li><strong>局内表现决定分配：</strong>经济、战斗、稳定性、地图资源及英雄对位数据决定队内各人分到的涨跌幅。</li>
+        <li><strong>全场严格零和：</strong>胜方总涨幅等于败方总跌幅，ΣΔP<sub>win</sub> = −ΣΔP<sub>loss</sub>。</li>
+      </ul>
+      <p>结算顺序：计算双方团队赛前身价 → 赛前预期胜率 → 原始转移池 → 赛制上限 → 个人表现与英雄对位修正 → 超预期指数 → 指数权重分配。</p>
+    </section>
+
+    <section class="rules-card" id="pool">
+      <h2>二、团队胜率与身价转移池</h2>
+      <p>每队赛前总身价为五名出场选手身价之和，记为 T<sub>A</sub>、T<sub>B</sub>。赛前预期胜率：</p>
+      <p class="rules-formula">P<sub>A</sub> = 1 / {1 + exp[−(T<sub>A</sub> − T<sub>B</sub>) / σ]}；P<sub>B</sub> = 1 − P<sub>A</sub>；σ = 5000</p>
+      <p>实际获胜方的赛前胜率记为 P<sub>W</sub>，原始转移池 G<sub>raw</sub> = 2500 × (1 − P<sub>W</sub>) P。胜者赛前胜率为 90%、50%、10% 时，原始转移分别为 250P、1250P、2250P。</p>
+      <p>例如蓝方五人各 3000P、红方五人各 4000P，则两队总身价为 15000P、20000P，蓝方预期胜率约 26.9%，红方约 73.1%。</p>
+      <h3>系列赛队伍累计净变化上限</h3>
+      <div class="rules-table-scroll"><table class="rule-table"><thead><tr><th scope="col">赛制</th><th scope="col">单支队伍上限</th></tr></thead><tbody><tr><th scope="row">BO1</th><td>750P</td></tr><tr><th scope="row">BO2</th><td>1500P</td></tr><tr><th scope="row">BO3</th><td>2000P</td></tr><tr><th scope="row">BO5</th><td>2500P</td></tr></tbody></table></div>
+      <p>BO1 的实际转移池 G = min[2500 × (1 − P<sub>W</sub>), 750]。BO2、BO3、BO5 每局独立计算原始转移，同时检查整轮系列赛累计净变化。个人单局与系列赛不设 ±150P 等硬上限。</p>
+    </section>
+
+    <section class="rules-card" id="performance">
+      <h2>三、个人实际表现 A</h2>
+      <p>A<sub>i</sub> = w<sub>G</sub>G<sub>i</sub> + w<sub>C</sub>C<sub>i</sub> + w<sub>M</sub>M<sub>i</sub> + w<sub>S</sub>S<sub>i</sub>。四项分别为经济、战斗、地图资源与稳定性。</p>
+      <div class="rules-table-scroll"><table class="rule-table"><thead><tr><th scope="col">位置</th><th scope="col">经济 G</th><th scope="col">战斗 C</th><th scope="col">地图 M</th><th scope="col">稳定性 S</th></tr></thead><tbody>
+        <tr><th scope="row">上路</th><td>35%</td><td>35%</td><td>15%</td><td>15%</td></tr><tr><th scope="row">打野</th><td>20%</td><td>25%</td><td>40%</td><td>15%</td></tr><tr><th scope="row">中路</th><td>30%</td><td>35%</td><td>20%</td><td>15%</td></tr><tr><th scope="row">下路</th><td>35%</td><td>35%</td><td>15%</td><td>15%</td></tr><tr><th scope="row">辅助</th><td>10%</td><td>30%</td><td>40%</td><td>20%</td></tr>
+      </tbody></table></div>
+      <h3>经济与战斗</h3>
+      <p>同位置经济比较：G<sub>i</sub> = 100 × clip[2(Gold<sub>i</sub> − Gold<sub>j</sub>) / (Gold<sub>i</sub> + Gold<sub>j</sub>), −1, +1]。</p>
+      <p>战斗事件基础分：击杀 +1、助攻 +0.6、死亡 −1、完成单杀额外 +0.3、被单杀额外 −0.35。参团率 KP = (击杀 + 助攻) / 团队击杀。战斗分 C<sub>i</sub> = 70 × clip[(T<sub>i</sub> − T<sub>j</sub>) / 6] + 30 × clip[(KP<sub>i</sub> − KP<sub>j</sub>) / 0.4]；T 为完整击杀事件流计算的战斗事件值。</p>
+      <h3>稳定性</h3>
+      <p>以同位置双方的失误差标准化为 S<sub>i</sub>。被单杀记 1.0 单位；无收益死亡记 0.6；资源前死亡额外记 0.8；120 秒内再次死亡额外记 0.5；6 分钟内再次被同一对位选手单杀额外记 0.5。无收益死亡指死亡后 20 秒内己方没有击杀或重要资源；资源前死亡指死亡后 45 秒内敌方获取重要资源。</p>
+      <h3>地图资源</h3>
+      <p>基础价值：虚空巢虫 0.25、外塔 1.00、二塔 1.30、高地塔 1.60、小龙 1.00、峡谷先锋 1.20、纳什男爵 2.00、远古巨龙 2.50；第一座防御塔额外 +0.30。</p>
+      <div class="rules-table-scroll"><table class="rule-table"><thead><tr><th scope="col">资源</th><th scope="col">获得方：最终执行 / 前置创造 / 团队共享</th><th scope="col">丢失方：团队责任 / 关键死亡责任</th></tr></thead><tbody>
+        <tr><th scope="row">防御塔、小龙、峡谷先锋</th><td>20% / 30% / 50%</td><td>70% / 30%</td></tr>
+        <tr><th scope="row">虚空巢虫</th><td>10% / 20% / 70%</td><td>80% / 20%</td></tr>
+        <tr><th scope="row">纳什男爵、远古巨龙</th><td>15% / 35% / 50%</td><td>60% / 40%</td></tr>
+      </tbody></table></div>
+      <p>前置创造按击杀者 1.0、助攻者 0.6 加权，并考虑时间衰减与净人数优势。丢失方考虑关键死亡时间衰减、净人数差及多人责任分配。镀层金币已计入经济表现，不额外计入地图分。地图净贡献 R<sub>i</sub> = Σ资源获得 − Σ资源丢失；M<sub>i</sub> = 100 × clip(R<sub>i</sub> / 2, −1, +1)。</p>
+    </section>
+
+    <section class="rules-card" id="matchup">
+      <h2>四、英雄对位与超预期指数</h2>
+      <p>英雄对位参考 OP.GG 韩服翡翠及以上分段的最新数据，只参与队内个人分配，不参与团队赛前胜率。</p>
+      <p>上路、中路、下路、辅助：Q<sub>WR</sub> = (胜率 − 50%) / 5%；Q<sub>LK</sub> = (对线击杀率 − 50%) / 10%；Q<sub>KDA</sub> = [(KDA<sub>i</sub> / KDA<sub>j</sub>) − 1] / 0.30；对位指数 = 0.55Q<sub>WR</sub> + 0.30Q<sub>LK</sub> + 0.15Q<sub>KDA</sub>。</p>
+      <p>打野对位指数 = 0.65Q<sub>WR</sub> + 0.20Q<sub>KDA</sub> + 0.15Q<sub>KP</sub>。样本量修正 λ = n / (n + 200)；有效样本 n &lt; 50 时，对位修正 E<sub>2,i</sub> = 0。</p>
+      <p>个人超预期指数 Z<sub>i</sub> = clip[(A<sub>i</sub> − E<sub>2,i</sub>) / 100, −1, +1]。个人赛前身价差不再进入 Z，以免与团队胜率重复计算。</p>
+    </section>
+
+    <section class="rules-card" id="distribution">
+      <h2>五、指数权重与整数分配</h2>
+      <p>胜方权重 W<sub>i</sub> = exp(βZ<sub>i</sub>)，个人涨幅 ΔR<sub>i</sub> = G × W<sub>i</sub> / ΣW<sub>j</sub>；败方权重 W<sub>i</sub> = exp(−βZ<sub>i</sub>)，个人跌幅 ΔR<sub>i</sub> = −G × W<sub>i</sub> / ΣW<sub>j</sub>。指数权重始终大于 0，因此胜方每人上涨，败方每人下降；败方表现较差者承担更多跌幅。</p>
+      <p class="rules-note">来源文档在“指数化队内分配”处写 β = 1.2，但后续公式与软边界示例采用 β = 1.0。正式使用哪一个值需要明确。文档的软边界示例仅适用于 β = 1.0：权重范围为 e<sup>−1</sup> 至 e<sup>1</sup>，一人 Z = +1、其余四人 Z = −1 时，该人约分得 64.9% 的胜方转移池。</p>
+      <p>先把本局实际转移池 G 取整为 G<sub>int</sub>，再按权重计算理论小数份额，用最大余数法分配整数。这样胜方总涨幅为 G<sub>int</sub>，败方总跌幅为 −G<sub>int</sub>，整数化后仍严格零和。</p>
+    </section>
+
+    <section class="rules-card" id="series">
+      <h2>六、系列赛结算与文档示例</h2>
+      <p>每局独立计算并即时更新身价；下一局以更新后的身价重新计算预期胜率与转移池。整轮持续检查队伍累计净变化 |C| ≤ C<sub>max</sub>。同方向变化若触及上限，只执行至上限；向 0 回撤时可正常执行。</p>
+      <p>例如 BO3 的上限为 2000P，前两局某队累计 +1850P，第三局再赢且原始应 +500P，则只执行 +150P；若第三局输且应 −500P，则完整执行，累计变为 +1350P。</p>
+      <p>原文测试局：蓝方五人各 3000P、红方五人各 4000P，红方获胜。红方赛前胜率约 73.1%，G<sub>raw</sub> ≈ 672.4P，BO1 实际转移 672P。蓝方五人变化依次为 −123、−140、−157、−150、−102P；红方五人依次为 +121、+143、+155、+151、+102P，两边总额均为 672P。</p>
+    </section>
+    <a class="rules-back rules-back-bottom" href="rules.html#valuation">← 返回 S3 规则</a>
+  </main>
+  <script src="src/components/public-nav.js"></script>
+</body>
+</html>
