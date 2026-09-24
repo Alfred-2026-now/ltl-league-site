@@ -16,12 +16,15 @@ public class EventTaskClaim {
     private Integer feeAmount;
     private Integer pRewardSnapshot;
     private Integer bountyRewardSnapshot;
+    private String titleSnapshot;
+    private String requirementsSnapshot;
     private LocalDateTime claimedAt;
     private LocalDateTime proofSubmittedAt;
     private LocalDateTime abandonedAt;
     private Integer abandonRefunded;
     private LocalDateTime completedAt;
     private LocalDateTime terminatedAt;
+    private String adminCancelReason;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
     @TableField(fill = FieldFill.INSERT_UPDATE)

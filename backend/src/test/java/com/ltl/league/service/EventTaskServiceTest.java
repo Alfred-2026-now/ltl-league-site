@@ -223,7 +223,7 @@ class EventTaskServiceTest {
         task.setClaimedCount(0);
         Player claimant = player(2L, "接取者", 80, 0);
         when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
-        when(claimMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
         when(playerMapper.selectByIdForUpdate(2L)).thenReturn(claimant);
         when(playerMapper.selectById(2L)).thenReturn(claimant);
         when(taskMapper.selectById(10L)).thenReturn(task);
@@ -449,6 +449,217 @@ class EventTaskServiceTest {
         assertEquals(EventTaskService.TERMINATED, unfinished.getStatus());
         assertEquals(500, publisher.getDeposit());
         assertEquals(0, task.getEscrowRemaining());
+    }
+
+    @Test
+    void editPublishedUpdatesPendingButPreservesCompletedAndAdjustsEscrow() {
+        EventTask task = task(10L, 1L, 100, 25, EventTaskService.TASK_PUBLISHED);
+        task.setClaimedCount(2);
+        task.setCompletedCount(1);
+        task.setEscrowRemaining(200);
+        task.setAnonymousFeeAmount(50);
+        EventTaskClaim pending = claim(88L, 10L, 2L, LocalDateTime.of(2026, 9, 20, 11, 0));
+        pending.setStatus(EventTaskService.PROOF_PENDING);
+        EventTaskClaim completed = claim(89L, 10L, 3L, LocalDateTime.of(2026, 9, 20, 10, 0));
+        completed.setStatus(EventTaskService.COMPLETED);
+        completed.setTitleSnapshot("测试任务");
+        Player publisher = player(1L, "发布者", 500, 0);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(pending, completed));
+        when(playerMapper.selectByIdForUpdate(1L)).thenReturn(publisher);
+        when(taskMapper.selectById(10L)).thenReturn(task);
+        doAnswer(invocation -> { ((EventTaskReview) invocation.getArgument(0)).setId(123L); return 1; })
+                .when(reviewMapper).insert(any(EventTaskReview.class));
+        EventTaskDtos.AdminEditRequest request = editRequest(200, 40);
+        request.setTitle("更新后的任务");
+
+        service.editPublished(9L, 10L, request);
+
+        assertEquals(300, publisher.getDeposit());
+        assertEquals(400, task.getEscrowRemaining());
+        assertEquals(500, task.getEscrowTotal());
+        assertEquals(200, pending.getPRewardSnapshot());
+        assertEquals(40, pending.getBountyRewardSnapshot());
+        assertEquals("更新后的任务", pending.getTitleSnapshot());
+        assertEquals(100, completed.getPRewardSnapshot());
+        assertEquals("测试任务", completed.getTitleSnapshot());
+        assertEquals(50, task.getAnonymousFeeAmount());
+        ArgumentCaptor<EventTaskReview> review = ArgumentCaptor.forClass(EventTaskReview.class);
+        verify(reviewMapper).updateById(review.capture());
+        assertTrue(review.getValue().getBeforeSnapshot().contains("测试任务"));
+        assertTrue(review.getValue().getAfterSnapshot().contains("更新后的任务"));
+        ArgumentCaptor<PlayerDepositLedger> ledger = ArgumentCaptor.forClass(PlayerDepositLedger.class);
+        verify(depositLedgerMapper).insert(ledger.capture());
+        assertEquals(-200, ledger.getValue().getAmount());
+        assertEquals(123L, ledger.getValue().getRefId());
+    }
+
+    @Test
+    void editPublishedInsufficientBalanceChangesNothing() {
+        EventTask task = task(10L, 1L, 100, 25, EventTaskService.TASK_PUBLISHED);
+        Player publisher = player(1L, "发布者", 299, 0);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        when(playerMapper.selectByIdForUpdate(1L)).thenReturn(publisher);
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> service.editPublished(9L, 10L, editRequest(200, 25)));
+
+        assertTrue(error.getMessage().contains("追加冻结 300P"));
+        assertEquals(299, publisher.getDeposit());
+        assertEquals(100, task.getPReward());
+        assertEquals(300, task.getEscrowRemaining());
+        verify(reviewMapper, never()).insert(any());
+        verify(taskMapper, never()).updateById(any());
+    }
+
+    @Test
+    void reducingPublishedRewardRefundsExcessEscrow() {
+        EventTask task = task(10L, 1L, 100, 25, EventTaskService.TASK_PUBLISHED);
+        Player publisher = player(1L, "发布者", 100, 0);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        when(playerMapper.selectByIdForUpdate(1L)).thenReturn(publisher);
+
+        service.editPublished(9L, 10L, editRequest(50, 25));
+
+        assertEquals(250, publisher.getDeposit());
+        assertEquals(150, task.getEscrowRemaining());
+        assertEquals(150, task.getEscrowTotal());
+        ArgumentCaptor<PlayerDepositLedger> ledger = ArgumentCaptor.forClass(PlayerDepositLedger.class);
+        verify(depositLedgerMapper).insert(ledger.capture());
+        assertEquals(150, ledger.getValue().getAmount());
+    }
+
+    @Test
+    void officialPublishedEditNeverTouchesPublisherBalance() {
+        EventTask task = task(10L, 9L, 100, 25, EventTaskService.TASK_PUBLISHED);
+        task.setOfficial(1);
+        task.setEscrowRemaining(0);
+        task.setEscrowTotal(0);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+
+        service.editPublished(9L, 10L, editRequest(200, 30));
+
+        assertEquals(200, task.getPReward());
+        assertEquals(0, task.getEscrowRemaining());
+        verify(playerMapper, never()).selectByIdForUpdate(anyLong());
+        verify(depositLedgerMapper, never()).insert(any());
+    }
+
+    @Test
+    void revokeCompletedAfterEditReservesCurrentRewardAndRefundsDifference() {
+        EventTask task = task(10L, 1L, 50, 25, EventTaskService.TASK_PUBLISHED);
+        task.setClaimedCount(1);
+        task.setCompletedCount(1);
+        task.setEscrowTotal(150);
+        task.setEscrowRemaining(50);
+        EventTaskClaim completed = claim(88L, 10L, 2L, LocalDateTime.of(2026, 9, 20, 11, 0));
+        completed.setStatus(EventTaskService.COMPLETED);
+        EventTaskProof proof = new EventTaskProof();
+        proof.setId(99L);
+        proof.setStatus(EventTaskService.PROOF_STATUS_APPROVED);
+        Player winner = player(2L, "完成者", 100, 25);
+        Player publisher = player(1L, "发布者", 20, 0);
+        when(claimMapper.selectById(88L)).thenReturn(completed);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(claimMapper.selectByIdForUpdate(88L)).thenReturn(completed);
+        when(proofMapper.selectApprovedByClaimForUpdate(88L)).thenReturn(proof);
+        when(playerMapper.selectByIdForUpdate(2L)).thenReturn(winner);
+        when(playerMapper.selectByIdForUpdate(1L)).thenReturn(publisher);
+        when(taskMapper.selectById(10L)).thenReturn(task);
+        when(proofMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(proof));
+        EventTaskDtos.CompletionRevokeRequest request = new EventTaskDtos.CompletionRevokeRequest();
+        request.setReason("复核撤回");
+
+        service.revokeCompletion(9L, 88L, request);
+
+        assertEquals(0, winner.getDeposit());
+        assertEquals(70, publisher.getDeposit());
+        assertEquals(100, task.getEscrowRemaining());
+        assertEquals(100, task.getEscrowTotal());
+        assertEquals(EventTaskService.COMPLETION_REVOKED, completed.getStatus());
+    }
+
+    @Test
+    void cancelClaimRefundsOnceAndVoidsPendingProof() {
+        EventTask task = task(10L, 1L, 100, 25, EventTaskService.TASK_PUBLISHED);
+        task.setClaimedCount(1);
+        EventTaskClaim claim = claim(88L, 10L, 2L, LocalDateTime.of(2026, 9, 20, 11, 0));
+        claim.setStatus(EventTaskService.PROOF_PENDING);
+        EventTaskProof proof = new EventTaskProof();
+        proof.setId(99L);
+        proof.setStatus(EventTaskService.PROOF_STATUS_PENDING);
+        Player claimant = player(2L, "接取者", 10, 0);
+        when(claimMapper.selectById(88L)).thenReturn(claim);
+        when(claimMapper.selectByIdForUpdate(88L)).thenReturn(claim);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(playerMapper.selectByIdForUpdate(2L)).thenReturn(claimant);
+        when(proofMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(proof));
+        when(taskMapper.selectById(10L)).thenReturn(task);
+        EventTaskDtos.AdminCancelClaimRequest request = new EventTaskDtos.AdminCancelClaimRequest();
+        request.setReason("任务条件已变更");
+
+        EventTaskDtos.ClaimVO result = service.cancelClaim(9L, 88L, request);
+
+        assertEquals(60, claimant.getDeposit());
+        assertEquals(0, task.getClaimedCount());
+        assertEquals(EventTaskService.ADMIN_CANCELLED, result.getStatus());
+        assertEquals(LocalDateTime.of(2026, 9, 20, 13, 0), result.getReclaimAvailableAt());
+        assertEquals(EventTaskService.PROOF_STATUS_VOIDED, proof.getStatus());
+        verify(adminAssetService).recordReversal(eq(50), eq("task_claim_fee_admin_refund"), any(),
+                eq("event_task"), eq("event_task_claims"), eq(88L), isNull(), isNull(), any());
+        assertThrows(BusinessException.class, () -> service.cancelClaim(9L, 88L, request));
+        verify(depositLedgerMapper, times(1)).insert(any());
+    }
+
+    @Test
+    void adminCancelledClaimNeedsFullHourThenCreatesNewHistoryRow() {
+        EventTask task = task(10L, 1L, 150, 30, EventTaskService.TASK_PUBLISHED);
+        EventTaskClaim old = claim(88L, 10L, 2L, LocalDateTime.of(2026, 9, 20, 10, 0));
+        old.setStatus(EventTaskService.ADMIN_CANCELLED);
+        old.setTerminatedAt(LocalDateTime.of(2026, 9, 20, 11, 0, 1));
+        Player claimant = player(2L, "接取者", 100, 0);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(old));
+
+        assertThrows(BusinessException.class, () -> service.claim(2L, 10L));
+        verify(claimMapper, never()).insert(any());
+
+        old.setTerminatedAt(LocalDateTime.of(2026, 9, 20, 11, 0, 0));
+        when(playerMapper.selectByIdForUpdate(2L)).thenReturn(claimant);
+        when(taskMapper.selectById(10L)).thenReturn(task);
+        ArgumentCaptor<EventTaskClaim> inserted = ArgumentCaptor.forClass(EventTaskClaim.class);
+        service.claim(2L, 10L);
+
+        verify(claimMapper).insert(inserted.capture());
+        assertNotSame(old, inserted.getValue());
+        assertEquals(88L, old.getId());
+        assertEquals(EventTaskService.ADMIN_CANCELLED, old.getStatus());
+        assertEquals(150, inserted.getValue().getPRewardSnapshot());
+        assertEquals(50, claimant.getDeposit());
+    }
+
+    @Test
+    void voluntarilyAbandonedClaimStillCannotBeClaimedAgain() {
+        EventTask task = task(10L, 1L, 100, 25, EventTaskService.TASK_PUBLISHED);
+        EventTaskClaim old = claim(88L, 10L, 2L, LocalDateTime.of(2026, 9, 20, 10, 0));
+        old.setStatus(EventTaskService.CLAIM_ABANDONED);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(old));
+
+        assertThrows(BusinessException.class, () -> service.claim(2L, 10L));
+        verify(claimMapper, never()).insert(any());
+    }
+
+    private static EventTaskDtos.AdminEditRequest editRequest(int pReward, int bountyReward) {
+        EventTaskDtos.AdminEditRequest request = new EventTaskDtos.AdminEditRequest();
+        request.setTitle("测试任务");
+        request.setRequirements("完成指定目标并截图");
+        request.setPReward(pReward);
+        request.setBountyReward(bountyReward);
+        return request;
     }
 
     private static EventTask task(Long id, Long publisherId, int pReward, int bountyReward, String status) {

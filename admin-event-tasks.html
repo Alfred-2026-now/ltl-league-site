@@ -11,7 +11,7 @@
   <header class="site-header"><nav class="nav"><a class="brand" href="index.html"><img class="brand-logo" src="assets/ltl-logo.webp" alt="LTL联赛" /></a><button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button><div class="nav-links" id="navLinks"></div></nav></header>
   <main class="page-shell task-page">
     <section class="section">
-      <div class="section-heading row"><div><p class="eyebrow">ADMIN · EVENT TASKS</p><h1 class="page-title">赛事任务管理</h1><p class="muted">审核发布、完成证明、官方任务与任务注销。</p></div></div>
+      <div class="section-heading row"><div><p class="eyebrow">ADMIN · EVENT TASKS</p><h1 class="page-title">赛事任务管理</h1><p class="muted">审核发布、编辑任务、管理接取和完成证明。</p></div></div>
       <p id="adminTaskMessage" class="task-message" aria-live="polite"></p>
 
       <form class="panel task-form" id="officialTaskForm">
@@ -29,10 +29,32 @@
         <section><h2>待审核完成证明</h2><div id="pendingProofList" class="task-list"></div></section>
       </div>
       <section style="margin-top:1.5rem;"><h2>进行中任务</h2><div id="publishedTaskList" class="task-list"></div></section>
+      <section style="margin-top:1.5rem;">
+        <h2>接取记录</h2>
+        <p class="muted">保留各赛季的接取、取消、退款及完成记录。管理员取消未完成接取后全额退费，选手一小时后可重新接取。</p>
+        <div class="task-form-grid">
+          <label class="field"><span class="field-label">任务</span><select class="input" id="claimTaskFilter"><option value="">全部任务</option></select></label>
+          <label class="field"><span class="field-label">选手</span><input class="input" id="claimPlayerFilter" placeholder="姓名或选手ID" /></label>
+          <label class="field"><span class="field-label">状态</span><select class="input" id="claimStatusFilter"><option value="">全部状态</option><option value="CLAIMED">已接取</option><option value="PROOF_PENDING">证明待审</option><option value="PROOF_RETURNED">证明已打回</option><option value="COMPLETED">已完成</option><option value="ADMIN_CANCELLED">管理员已取消</option><option value="ABANDONED">已主动放弃</option><option value="TERMINATED">任务注销终止</option><option value="COMPLETION_REVOKED">完成已撤回</option></select></label>
+        </div>
+        <div id="claimHistoryList" class="task-list"></div>
+      </section>
       <section style="margin-top:1.5rem;"><h2>完成任务历史</h2><p class="muted">展示本赛季已完成及已撤回的记录。撤回会扣回该选手获得的P币与赏金积分、返还一个接取名额，接取费不退。</p><div id="completedTaskList" class="task-list"></div></section>
       <section style="margin-top:1.5rem;"><h2>最近已结束任务</h2><div id="closedTaskList" class="task-list"></div></section>
     </section>
   </main>
+  <dialog id="adminTaskEditDialog" class="task-dialog">
+    <form class="task-form" id="adminTaskEditForm">
+      <h2>编辑进行中任务</h2>
+      <p class="muted">新内容和奖励适用于未完成及之后接取的选手；已完成奖励不变。接取费、名额及已收匿名费不变。</p>
+      <input type="hidden" name="taskId" />
+      <label class="field"><span class="field-label">标题</span><input class="input" name="title" maxlength="200" required /></label>
+      <label class="field"><span class="field-label">任务要求</span><textarea class="input" name="requirements" rows="6" maxlength="10000" required></textarea></label>
+      <div class="task-form-grid"><label class="field"><span class="field-label">每人P币奖励</span><input class="input" name="pReward" type="number" min="0" max="10000000" required /></label><label class="field"><span class="field-label">每人赏金积分</span><input class="input" name="bountyReward" type="number" min="0" max="10000000" required /></label></div>
+      <label class="field"><span class="field-label">备注</span><textarea class="input" name="budgetNote" rows="2" maxlength="500"></textarea></label>
+      <div class="task-actions"><button class="btn primary" type="submit">保存修改</button><button class="btn ghost" type="button" id="cancelAdminTaskEdit">取消</button></div>
+    </form>
+  </dialog>
   <script type="module" src="src/util/admin-auth.js"></script>
   <script type="module" src="src/admin/event-tasks.js"></script>
   <script src="src/components/admin-nav.js"></script>

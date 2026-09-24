@@ -4,6 +4,14 @@ const API = getApiBase();
 const message = document.getElementById("adminTaskMessage");
 let taskSettings = { anonymousMinimumFee: 50, anonymousFeeRate: 10 };
 let taskById = new Map();
+let claimHistory = [];
+
+const claimStatusText = {
+  CLAIMED: "已接取", PROOF_PENDING: "证明待审", PROOF_RETURNED: "证明已打回",
+  COMPLETED: "已完成", ADMIN_CANCELLED: "管理员已取消", ABANDONED: "已主动放弃",
+  TERMINATED: "任务注销终止", COMPLETION_REVOKED: "完成已撤回"
+};
+const unfinishedStatuses = ["CLAIMED", "PROOF_PENDING", "PROOF_RETURNED"];
 
 async function request(path, options = {}) {
   const response = await fetch(`${API}${path}`, { credentials: "include", ...options });
@@ -39,9 +47,23 @@ function proofCard(proof, taskMap) {
 }
 
 function publishedTask(task) {
-  const unfinished = (task.claims || []).filter(claim => ["CLAIMED", "PROOF_PENDING", "PROOF_RETURNED"].includes(claim.status)).length;
+  const unfinished = (task.claims || []).filter(claim => unfinishedStatuses.includes(claim.status)).length;
   const pending = (task.claims || []).filter(claim => claim.status === "PROOF_PENDING").length;
-  return `<article class="panel task-card"><div class="task-card-heading"><div><span class="task-status">${task.official ? "官方任务" : "进行中"}</span><h3>${esc(task.title)}</h3><p class="muted">发布者：${esc(publisherLabel(task))} · ${time(task.publishedAt)}</p></div><div class="task-rewards"><strong>${task.pReward}P</strong><strong>🪙 ${task.bountyReward}</strong></div></div><div class="task-facts"><span>接取 ${task.claimedCount}/${task.maxClaimants}</span><span>完成 ${task.completedCount}</span><span>未完成 ${unfinished}</span><span>待审 ${pending}</span><span>剩余冻结 ${task.escrowRemaining}P</span>${task.anonymous ? `<span>匿名发布费 ${task.anonymousFeeAmount}P（费率快照 ${task.anonymousFeeRateSnapshot}%）</span>` : ""}</div><div class="task-actions"><button class="btn ghost" data-close-task="${task.id}" data-close-summary="未完成${unfinished}人、待审${pending}份、剩余冻结${task.escrowRemaining}P">注销任务</button></div></article>`;
+  return `<article class="panel task-card"><div class="task-card-heading"><div><span class="task-status">${task.official ? "官方任务" : "进行中"}</span><h3>${esc(task.title)}</h3><p class="muted">发布者：${esc(publisherLabel(task))} · ${time(task.publishedAt)}</p></div><div class="task-rewards"><strong>${task.pReward}P</strong><strong>🪙 ${task.bountyReward}</strong></div></div><div class="task-requirements">${esc(task.requirements).replaceAll("\n", "<br>")}</div>${task.budgetNote ? `<p class="task-note">备注：${esc(task.budgetNote)}</p>` : ""}<div class="task-facts"><span>接取 ${task.claimedCount}/${task.maxClaimants}</span><span>完成 ${task.completedCount}</span><span>未完成 ${unfinished}</span><span>待审 ${pending}</span><span>剩余冻结 ${task.escrowRemaining}P</span>${task.anonymous ? `<span>匿名发布费 ${task.anonymousFeeAmount}P（费率快照 ${task.anonymousFeeRateSnapshot}%）</span>` : ""}</div><div class="task-actions"><button class="btn" data-edit-published="${task.id}">编辑任务</button><button class="btn ghost" data-close-task="${task.id}" data-close-summary="未完成${unfinished}人、待审${pending}份、剩余冻结${task.escrowRemaining}P">注销任务</button></div></article>`;
+}
+
+function renderClaimHistory() {
+  const taskId = document.getElementById("claimTaskFilter").value;
+  const player = document.getElementById("claimPlayerFilter").value.trim().toLowerCase();
+  const status = document.getElementById("claimStatusFilter").value;
+  const rows = claimHistory.filter(claim => (!taskId || String(claim.taskId) === taskId)
+    && (!player || String(claim.playerId).includes(player) || claim.playerName.toLowerCase().includes(player))
+    && (!status || claim.status === status));
+  document.getElementById("claimHistoryList").innerHTML = rows.map(claim => {
+    const currentTask = taskById.get(claim.taskId);
+    const canCancel = currentTask?.status === "PUBLISHED" && unfinishedStatuses.includes(claim.status);
+    return `<article class="panel task-card"><div class="task-card-heading"><div><span class="task-status">${esc(claimStatusText[claim.status] || claim.status)}</span><h3>${esc(claim.taskTitle)} <small>(${esc(claim.taskSeason)})</small></h3><p class="muted">选手：${esc(claim.playerName)} (#${claim.playerId}) · 接取记录 #${claim.id}</p></div><div class="task-rewards"><strong>${claim.pReward}P</strong><strong>🪙 ${claim.bountyReward}</strong></div></div><div class="task-facts"><span>接取时间：${time(claim.claimedAt)}</span><span>接取费：${claim.feeAmount}P</span>${claim.completedAt ? `<span>完成：${time(claim.completedAt)}</span>` : ""}${claim.reclaimAvailableAt ? `<span>可再次接取：${time(claim.reclaimAvailableAt)}</span>` : ""}</div>${claim.adminCancelReason ? `<p class="task-note">管理员取消原因：${esc(claim.adminCancelReason)}；接取费已全额退还。</p>` : ""}${canCancel ? `<div class="task-actions"><button class="btn ghost" data-cancel-claim="${claim.id}" data-player-name="${esc(claim.playerName)}" data-fee-amount="${claim.feeAmount}">取消接取并退款</button></div>` : ""}</article>`;
+  }).join("") || '<div class="panel task-empty">没有符合条件的接取记录。</div>';
 }
 
 function closedTask(task) {
@@ -56,7 +78,7 @@ function completionHistoryCard(record) {
   const canRevoke = !revoked && task.status === "PUBLISHED";
   return `<article class="panel task-card">
     <div class="task-card-heading">
-      <div><span class="task-status">${revoked ? "完成已撤回" : "已完成"}</span><h3>${esc(task.title)}</h3><p class="muted">发布者：${esc(publisherLabel(task))} · 完成者：${esc(claim.playerName)} · 完成时间：${time(claim.completedAt)}</p></div>
+      <div><span class="task-status">${revoked ? "完成已撤回" : "已完成"}</span><h3>${esc(claim.taskTitle)}</h3><p class="muted">发布者：${esc(publisherLabel(task))} · 完成者：${esc(claim.playerName)} · 完成时间：${time(claim.completedAt)}</p></div>
       <div class="task-rewards"><strong>${claim.pReward}P</strong><strong>🪙 ${claim.bountyReward}</strong></div>
     </div>
     <div class="task-facts"><span>接取记录 #${claim.id}</span><span>接取费 ${claim.feeAmount}P（撤回不退）</span><span>任务状态：${task.status === "PUBLISHED" ? "进行中" : "已结束"}</span></div>
@@ -68,9 +90,15 @@ function completionHistoryCard(record) {
 
 async function load() {
   try {
-    const [tasks, proofs, settings] = await Promise.all([request("/admin/event-tasks"), request("/admin/event-task-proofs/pending"), request("/event-tasks/settings")]);
+    const [tasks, proofs, settings, claims] = await Promise.all([request("/admin/event-tasks"), request("/admin/event-task-proofs/pending"), request("/event-tasks/settings"), request("/admin/event-task-claims")]);
     taskSettings = settings;
     taskById = new Map(tasks.map(task => [task.id, task]));
+    claimHistory = claims;
+    const filter = document.getElementById("claimTaskFilter");
+    const selectedTask = filter.value;
+    const uniqueTasks = new Map(claims.map(claim => [claim.taskId, `${claim.taskTitle} (${claim.taskSeason})`]));
+    filter.innerHTML = '<option value="">全部任务</option>' + [...uniqueTasks].map(([id, title]) => `<option value="${id}">${esc(title)}</option>`).join("");
+    filter.value = selectedTask;
     const pending = tasks.filter(task => task.status === "PENDING_REVIEW");
     const published = tasks.filter(task => task.status === "PUBLISHED");
     const closed = tasks.filter(task => ["CLOSED", "ABANDONED"].includes(task.status));
@@ -83,6 +111,7 @@ async function load() {
     document.getElementById("publishedTaskList").innerHTML = published.map(publishedTask).join("") || '<div class="panel task-empty">暂无进行中任务。</div>';
     document.getElementById("completedTaskList").innerHTML = completions.map(completionHistoryCard).join("") || '<div class="panel task-empty">暂无完成记录。</div>';
     document.getElementById("closedTaskList").innerHTML = closed.slice(0, 20).map(closedTask).join("") || '<div class="panel task-empty">暂无已结束任务。</div>';
+    renderClaimHistory();
   } catch (error) {
     setMessage(error.message, true);
   }
@@ -100,6 +129,23 @@ async function act(action, success) {
 }
 
 document.addEventListener("click", async event => {
+  const editPublished = event.target.closest("[data-edit-published]");
+  if (editPublished) {
+    const task = taskById.get(Number(editPublished.dataset.editPublished));
+    const form = document.getElementById("adminTaskEditForm");
+    for (const field of ["title", "requirements", "pReward", "bountyReward", "budgetNote"]) form.elements[field].value = task[field] ?? "";
+    form.elements.taskId.value = task.id;
+    document.getElementById("adminTaskEditDialog").showModal();
+    return;
+  }
+  const cancelClaim = event.target.closest("[data-cancel-claim]");
+  if (cancelClaim) {
+    const reason = prompt(`请输入取消 ${cancelClaim.dataset.playerName} 接取的原因（将全额退还 ${cancelClaim.dataset.feeAmount}P）：`)?.trim();
+    if (reason && reason.length <= 500 && confirm("确认取消该接取？名额立即返还，待审证明作废；选手一小时后可重新接取。")) {
+      await act(() => request(`/admin/event-task-claims/${cancelClaim.dataset.cancelClaim}/cancel`, json({ reason })), "已取消接取并全额退费");
+    }
+    return;
+  }
   const publish = event.target.closest("[data-publish]");
   if (publish) {
     const id = publish.dataset.publish;
@@ -144,6 +190,10 @@ document.addEventListener("click", async event => {
 });
 
 document.addEventListener("input", event => {
+  if (event.target.id === "claimPlayerFilter") {
+    renderClaimHistory();
+    return;
+  }
   const input = event.target.closest("[data-max]");
   if (!input) return;
   const task = taskById.get(Number(input.dataset.max));
@@ -152,6 +202,35 @@ document.addEventListener("input", event => {
   if (task?.anonymous && preview && Number.isFinite(maxClaimants) && maxClaimants > 0) {
     preview.textContent = `${anonymousFee(task, maxClaimants)}P`;
   }
+});
+
+for (const id of ["claimTaskFilter", "claimStatusFilter"]) {
+  document.getElementById(id).addEventListener("change", renderClaimHistory);
+}
+
+document.getElementById("cancelAdminTaskEdit").addEventListener("click", () => document.getElementById("adminTaskEditDialog").close());
+document.getElementById("adminTaskEditForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const form = event.target;
+  const task = taskById.get(Number(form.elements.taskId.value));
+  const payload = {
+    title: form.elements.title.value.trim(),
+    requirements: form.elements.requirements.value.trim(),
+    pReward: Number(form.elements.pReward.value),
+    bountyReward: Number(form.elements.bountyReward.value),
+    budgetNote: form.elements.budgetNote.value.trim()
+  };
+  if (payload.pReward + payload.bountyReward <= 0) { setMessage("P币和赏金积分至少一项大于0", true); return; }
+  const delta = (payload.pReward - task.pReward) * (task.maxClaimants - task.completedCount);
+  const fundMessage = task.official ? "官方任务由系统发奖。" : delta > 0 ? `将从发布者余额追加冻结 ${delta}P。` : delta < 0 ? `将向发布者退还 ${-delta}P冻结额。` : "冻结额不变。";
+  if (!confirm(`确认修改“${task.title}”？未完成与未来接取将使用新内容和奖励；已完成记录不变。${fundMessage}匿名费不重算。`)) return;
+  try {
+    setMessage("处理中…");
+    await request(`/admin/event-tasks/${task.id}`, json(payload, "PUT"));
+    document.getElementById("adminTaskEditDialog").close();
+    setMessage("任务已更新并记录编辑历史");
+    await load();
+  } catch (error) { setMessage(error.message, true); }
 });
 
 document.getElementById("officialTaskForm").addEventListener("submit", async event => {

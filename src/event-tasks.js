@@ -54,6 +54,7 @@ const statusText = {
   PROOF_RETURNED: "证明已打回",
   COMPLETED: "已完成",
   COMPLETION_REVOKED: "完成已撤回",
+  ADMIN_CANCELLED: "管理员已取消（接取费已退）",
   TERMINATED: "因任务注销终止",
   PENDING: "待审核",
   APPROVED: "已通过",
@@ -77,6 +78,8 @@ function taskCard(task, mode = "hall") {
     : `${task.publisherName}${mode === "published" && task.anonymous ? "（匿名）" : ""}`;
   const claimButton = task.canClaim
     ? `<button class="btn primary" data-claim-task="${task.id}">支付 ${task.claimFee || 0}P 并接取</button>`
+    : task.viewerClaimStatus === "ADMIN_CANCELLED" && task.viewerReclaimAvailableAt
+      ? `<span class="task-status">${new Date() < new Date(task.viewerReclaimAvailableAt) ? "冷却中，可重新接取时间" : "可重新接取，等待空余名额"}：${formatTime(task.viewerReclaimAvailableAt)}</span>`
     : task.viewerClaimStatus
       ? `<span class="task-status">我的状态：${escapeHtml(statusText[task.viewerClaimStatus] || task.viewerClaimStatus)}</span>`
       : "";
@@ -166,7 +169,9 @@ function claimCard(claim) {
   const canUpload = ["CLAIMED", "PROOF_RETURNED"].includes(claim.status);
   return `<article class="panel task-card">
     <div class="task-card-heading"><div><span class="task-status">${escapeHtml(statusText[claim.status] || claim.status)}</span><h2>${escapeHtml(claim.taskTitle)}</h2></div><div class="task-rewards"><strong>${claim.pReward}P</strong><strong>🪙 ${claim.bountyReward}</strong></div></div>
-    <div class="task-facts"><span>接取费：${claim.feeAmount}P</span><span>接取时间：${formatTime(claim.claimedAt)}</span><span>无损放弃截止：${formatTime(claim.freeAbandonUntil)}</span></div>
+    ${claim.taskRequirements ? `<div class="task-requirements">${escapeHtml(claim.taskRequirements).replaceAll("\n", "<br>")}</div>` : ""}
+    <div class="task-facts"><span>接取费：${claim.feeAmount}P${claim.status === "ADMIN_CANCELLED" ? "（已全额退还）" : ""}</span><span>接取时间：${formatTime(claim.claimedAt)}</span>${active ? `<span>无损放弃截止：${formatTime(claim.freeAbandonUntil)}</span>` : ""}${claim.reclaimAvailableAt ? `<span>可再次接取：${formatTime(claim.reclaimAvailableAt)}</span>` : ""}</div>
+    ${claim.adminCancelReason ? `<p class="task-note">管理员取消原因：${escapeHtml(claim.adminCancelReason)}</p>` : ""}
     ${active ? `<div class="task-actions"><button class="btn ghost" data-abandon-claim="${claim.id}">${claim.freeAbandonAvailable ? "无损放弃并退费" : "放弃任务（费用不退）"}</button></div>` : ""}
     ${canUpload ? `<form class="task-proof-form" data-proof-form="${claim.id}"><label class="field"><span class="field-label">完成说明</span><textarea class="input" name="description" rows="3" maxlength="5000"></textarea></label><label class="field"><span class="field-label">证明截图（1至5张，单张≤10MB）</span><input class="input" type="file" name="files" accept="image/jpeg,image/png,image/webp" multiple required /></label><button class="btn primary" type="submit">提交完成证明</button></form>` : ""}
     ${proofHistory(claim.proofs)}

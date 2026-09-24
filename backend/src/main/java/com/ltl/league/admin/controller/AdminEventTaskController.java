@@ -30,6 +30,13 @@ public class AdminEventTaskController {
         return Result.success(taskService.listAdminTasks(status, admin));
     }
 
+    @GetMapping("/event-task-claims")
+    public Result<List<EventTaskDtos.ClaimVO>> claimHistory(
+            @CookieValue(value = COOKIE_NAME, required = false) String token) {
+        currentPlayerService.requireAdmin(token);
+        return Result.success(taskService.listAdminClaimHistory());
+    }
+
     @GetMapping("/event-task-proofs/pending")
     public Result<List<EventTaskDtos.ProofVO>> pendingProofs(
             @CookieValue(value = COOKIE_NAME, required = false) String token) {
@@ -62,6 +69,24 @@ public class AdminEventTaskController {
             @CookieValue(value = COOKIE_NAME, required = false) String token) {
         Player admin = currentPlayerService.requireAdmin(token);
         return Result.success(taskService.publishOfficial(admin.getId(), request));
+    }
+
+    @PutMapping("/event-tasks/{taskId}")
+    public Result<EventTaskDtos.TaskVO> editPublished(
+            @PathVariable Long taskId,
+            @RequestBody EventTaskDtos.AdminEditRequest request,
+            @CookieValue(value = COOKIE_NAME, required = false) String token) {
+        Player admin = currentPlayerService.requireAdmin(token);
+        return Result.success(taskService.editPublished(admin.getId(), taskId, request));
+    }
+
+    @PostMapping("/event-task-claims/{claimId}/cancel")
+    public Result<EventTaskDtos.ClaimVO> cancelClaim(
+            @PathVariable Long claimId,
+            @RequestBody EventTaskDtos.AdminCancelClaimRequest request,
+            @CookieValue(value = COOKIE_NAME, required = false) String token) {
+        Player admin = currentPlayerService.requireAdmin(token);
+        return Result.success(taskService.cancelClaim(admin.getId(), claimId, request));
     }
 
     @PostMapping("/event-task-proofs/{proofId}/return")
