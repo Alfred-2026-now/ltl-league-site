@@ -43,13 +43,21 @@ class AdminPlayerDepositServiceImplTest {
     @Mock
     private RuleParameterService ruleParameterService;
 
+    @Mock
+    private com.ltl.league.mapper.ValuationChangeMapper valuationChangeMapper;
+
+    @Mock
+    private com.ltl.league.service.PlayerDecayService playerDecayService;
+
     @Test
     void adjustPlayerDepositAllowsAdminBalanceToBecomeNegative() {
         AdminPlayerDepositServiceImpl service = new AdminPlayerDepositServiceImpl(
                 playerMapper,
                 depositLedgerMapper,
                 teamMapper,
-                ruleParameterService);
+                ruleParameterService,
+                valuationChangeMapper,
+                playerDecayService);
 
         Player player = new Player();
         player.setId(7L);
@@ -82,7 +90,9 @@ class AdminPlayerDepositServiceImplTest {
                 playerMapper,
                 depositLedgerMapper,
                 teamMapper,
-                ruleParameterService);
+                ruleParameterService,
+                valuationChangeMapper,
+                playerDecayService);
 
         Player player = new Player();
         player.setId(9L);
@@ -110,7 +120,9 @@ class AdminPlayerDepositServiceImplTest {
                 playerMapper,
                 depositLedgerMapper,
                 teamMapper,
-                ruleParameterService);
+                ruleParameterService,
+                valuationChangeMapper,
+                playerDecayService);
 
         when(ruleParameterService.getInt("salary.min_rate")).thenReturn(1);
         when(ruleParameterService.getInt("salary.max_rate")).thenReturn(100);
@@ -148,7 +160,9 @@ class AdminPlayerDepositServiceImplTest {
                 playerMapper,
                 depositLedgerMapper,
                 teamMapper,
-                ruleParameterService);
+                ruleParameterService,
+                valuationChangeMapper,
+                playerDecayService);
 
         when(ruleParameterService.getInt("salary.min_rate")).thenReturn(1);
         when(ruleParameterService.getInt("salary.max_rate")).thenReturn(100);

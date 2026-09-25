@@ -52,6 +52,9 @@ class AdminEconomyServiceImplTest {
     @Mock
     private AdminAssetService adminAssetService;
 
+    @Mock
+    private com.ltl.league.service.PlayerDecayService playerDecayService;
+
     @Test
     void deductAllTeamsSalaryMatchesSalaryPaidToNonCaptainActivePlayers() {
         AdminEconomyServiceImpl service = new AdminEconomyServiceImpl(
@@ -60,7 +63,8 @@ class AdminEconomyServiceImplTest {
                 teamMapper,
                 playerMapper,
                 ruleParameterService,
-                adminAssetService);
+                adminAssetService,
+                playerDecayService);
         ReflectionTestUtils.setField(service, "currentSeason", "s2");
 
         when(ruleParameterService.getInt("salary.min_rate")).thenReturn(1);
@@ -238,7 +242,8 @@ class AdminEconomyServiceImplTest {
                 teamMapper,
                 playerMapper,
                 ruleParameterService,
-                adminAssetService);
+                adminAssetService,
+                playerDecayService);
         ReflectionTestUtils.setField(service, "currentSeason", "s2");
         return service;
     }
