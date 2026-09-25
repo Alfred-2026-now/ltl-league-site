@@ -68,6 +68,7 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
     private final AdminPlayerDepositService adminPlayerDepositService;
     private final RuleParameterService ruleParameterService;
     private final AdminAssetService adminAssetService;
+    private final com.ltl.league.service.PlayerDecayService playerDecayService;
 
     public MatchSettlementServiceImpl(
             MatchSettlementCalculator calculator,
@@ -83,7 +84,8 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
             PlayerMapper playerMapper,
             AdminPlayerDepositService adminPlayerDepositService,
             RuleParameterService ruleParameterService,
-            AdminAssetService adminAssetService) {
+            AdminAssetService adminAssetService,
+            com.ltl.league.service.PlayerDecayService playerDecayService) {
         this.calculator = calculator;
         this.matchMapper = matchMapper;
         this.matchResultMapper = matchResultMapper;
@@ -98,6 +100,7 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
         this.adminPlayerDepositService = adminPlayerDepositService;
         this.ruleParameterService = ruleParameterService;
         this.adminAssetService = adminAssetService;
+        this.playerDecayService = playerDecayService;
     }
 
     @Override
@@ -785,8 +788,14 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
             change.setSource("match_result");
             change.setOperator("admin");
             change.setIsVoided(0);
+            // 快照改动前的衰减计时，撤回赛果时用于恢复
+            change.setBeforeNextDecayAt(player.getNextDecayAt());
+            change.setBeforeDecayCount(player.getDecayCount());
             valuationChangeMapper.insert(change);
             player.setValue(afterValue);
+            // 赛果结算 = 有效参赛，重置未参赛衰减计时
+            playerDecayService.resetDecayClock(player,
+                    java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")));
             playerMapper.updateById(player);
         }
     }
@@ -850,6 +859,9 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
         for (ValuationChange change : changes) {
             Player player = players.get(change.getPlayerId());
             player.setValue(change.getBeforeValue());
+            // 恢复赛果结算前的未参赛衰减计时
+            player.setNextDecayAt(change.getBeforeNextDecayAt());
+            player.setDecayCount(change.getBeforeDecayCount() != null ? change.getBeforeDecayCount() : 0);
             playerMapper.updateById(player);
         }
         if (!changes.isEmpty()) {

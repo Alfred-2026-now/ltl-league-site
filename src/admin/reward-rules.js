@@ -12,7 +12,7 @@ const els = {};
 let rewardRules = [];
 let ruleParameters = [];
 
-const groupOrder = ["luxury_tax", "loan_fee", "player_transfer", "salary", "daily_fee", "event_task"];
+const groupOrder = ["luxury_tax", "loan_fee", "player_transfer", "salary", "daily_fee", "event_task", "inactivity_decay"];
 
 function bindEls() {
   els.ruleFormat = document.getElementById("ruleFormat");

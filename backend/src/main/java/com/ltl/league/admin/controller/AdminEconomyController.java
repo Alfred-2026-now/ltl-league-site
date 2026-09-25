@@ -30,10 +30,19 @@ public class AdminEconomyController {
 
     private final AdminEconomyService adminEconomyService;
     private final AdminAssetService adminAssetService;
+    private final com.ltl.league.service.PlayerDecayService playerDecayService;
 
-    public AdminEconomyController(AdminEconomyService adminEconomyService, AdminAssetService adminAssetService) {
+    public AdminEconomyController(AdminEconomyService adminEconomyService, AdminAssetService adminAssetService,
+            com.ltl.league.service.PlayerDecayService playerDecayService) {
         this.adminEconomyService = adminEconomyService;
         this.adminAssetService = adminAssetService;
+        this.playerDecayService = playerDecayService;
+    }
+
+    /** 手动触发一次"未参赛身价衰减"扫描（仅当规则参数中功能开关已开启时才生效）。 */
+    @PostMapping("/players/run-decay")
+    public Result<Integer> runInactivityDecay() {
+        return Result.success(playerDecayService.runDailyDecay());
     }
 
     @GetMapping("/p-ledger")

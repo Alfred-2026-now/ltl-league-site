@@ -38,6 +38,12 @@ public class ValuationChange {
 
     private Integer isVoided;
 
+    /** 改动前的"下次衰减日期"，撤回时用于恢复衰减进程 */
+    private LocalDateTime beforeNextDecayAt;
+
+    /** 改动前的"已衰减次数"，撤回时用于恢复衰减进程 */
+    private Integer beforeDecayCount;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 

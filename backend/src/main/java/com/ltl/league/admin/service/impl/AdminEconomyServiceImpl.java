@@ -21,6 +21,7 @@ import com.ltl.league.mapper.PLedgerMapper;
 import com.ltl.league.mapper.PlayerMapper;
 import com.ltl.league.mapper.TeamMapper;
 import com.ltl.league.mapper.ValuationChangeMapper;
+import com.ltl.league.service.PlayerDecayService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -50,6 +53,7 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
     private final PlayerMapper playerMapper;
     private final RuleParameterService ruleParameterService;
     private final AdminAssetService adminAssetService;
+    private final PlayerDecayService playerDecayService;
 
     @Value("${ltl.league.current-season:s1}")
     private String currentSeason;
@@ -60,13 +64,15 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
             TeamMapper teamMapper,
             PlayerMapper playerMapper,
             RuleParameterService ruleParameterService,
-            AdminAssetService adminAssetService) {
+            AdminAssetService adminAssetService,
+            PlayerDecayService playerDecayService) {
         this.pLedgerMapper = pLedgerMapper;
         this.valuationChangeMapper = valuationChangeMapper;
         this.teamMapper = teamMapper;
         this.playerMapper = playerMapper;
         this.ruleParameterService = ruleParameterService;
         this.adminAssetService = adminAssetService;
+        this.playerDecayService = playerDecayService;
     }
 
     @Override
@@ -137,12 +143,17 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
         change.setSource("manual_adjustment");
         change.setOperator("admin");
         change.setIsVoided(0);
+        // 快照改动前的衰减计时，撤回时用于恢复
+        change.setBeforeNextDecayAt(player.getNextDecayAt());
+        change.setBeforeDecayCount(player.getDecayCount());
         valuationChangeMapper.insert(change);
 
         // 写入对应位置身价，并重算最高身价
         setPositionValue(player, position, request.getAfterValue());
         // 该位置身价被调整 → 标记为已激活（首次调整即激活，不会自动取消）
         activatePosition(player, position);
+        // 身价被改动 → 视为有效参赛，重置未参赛衰减计时
+        playerDecayService.resetDecayClock(player, LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
         recalcMaxValueAndSync(player);
         playerMapper.updateById(player);
 
@@ -391,6 +402,9 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
         Player player = playerMapper.selectById(change.getPlayerId());
         if (player != null) {
             setPositionValue(player, change.getPosition(), change.getBeforeValue());
+            // 恢复改动前的未参赛衰减计时（撤回错误改动后继续原衰减进程）
+            player.setNextDecayAt(change.getBeforeNextDecayAt());
+            player.setDecayCount(change.getBeforeDecayCount() != null ? change.getBeforeDecayCount() : 0);
             recalcMaxValueAndSync(player);
             playerMapper.updateById(player);
         }

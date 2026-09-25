@@ -13,6 +13,7 @@ public final class RuleParameterCatalog {
     public static final String GROUP_SALARY = "salary";
     public static final String GROUP_DAILY_FEE = "daily_fee";
     public static final String GROUP_EVENT_TASK = "event_task";
+    public static final String GROUP_INACTIVITY_DECAY = "inactivity_decay";
 
     private static final Map<String, Spec> SPECS = buildSpecs();
 
@@ -115,6 +116,26 @@ public final class RuleParameterCatalog {
         order = 700;
         add(specs, "event_task.anonymous_fee_rate", GROUP_EVENT_TASK, "赛事任务", "匿名发布费率", "10", "int", "%",
                 "匿名发布费取 50P 与（每人P币奖励 × 最大接取人数 × 本费率）中的较高值，百分比结果向上取整。", order);
+
+        order = 800;
+        add(specs, "decay.enabled", GROUP_INACTIVITY_DECAY, "身价衰减", "功能开关", "0", "int", "",
+                "设为 1 开启未参赛自动衰减，设为 0 关闭。默认关闭。", order++);
+        add(specs, "decay.pause", GROUP_INACTIVITY_DECAY, "身价衰减", "休赛期暂停", "0", "int", "",
+                "官方休赛期设为 1，暂停全部衰减；恢复比赛设为 0。", order++);
+        add(specs, "decay.first_days", GROUP_INACTIVITY_DECAY, "身价衰减", "首次衰减天数", "8", "int", "天",
+                "位置身价被激活后，连续未参赛满本天数触发第一次衰减。", order++);
+        add(specs, "decay.stage1_interval_days", GROUP_INACTIVITY_DECAY, "身价衰减", "首阶段间隔天数", "7", "int", "天",
+                "首阶段内每次衰减的间隔天数（如 8、15、22、29 天 → 间隔 7）。", order++);
+        add(specs, "decay.stage1_rate", GROUP_INACTIVITY_DECAY, "身价衰减", "首阶段衰减比例", "0.05", "decimal", "倍",
+                "首阶段每次按已激活位置身价的 本比例 衰减（0.05 = 5%）。", order++);
+        add(specs, "decay.stage1_times", GROUP_INACTIVITY_DECAY, "身价衰减", "首阶段次数", "4", "int", "次",
+                "首阶段共衰减几次；超过后进入后续阶段。", order++);
+        add(specs, "decay.stage2_interval_days", GROUP_INACTIVITY_DECAY, "身价衰减", "后续间隔天数", "7", "int", "天",
+                "后续阶段每次衰减的间隔天数。", order++);
+        add(specs, "decay.stage2_rate", GROUP_INACTIVITY_DECAY, "身价衰减", "后续衰减比例", "0.03", "decimal", "倍",
+                "后续阶段每次按已激活位置身价的 本比例 衰减（0.03 = 3%），持续到保底。", order++);
+        add(specs, "decay.floor_value", GROUP_INACTIVITY_DECAY, "身价衰减", "保底身价", "2000", "int", "P",
+                "每个已激活位置身价衰减后的下限；扣到本值即不再下降。", order);
 
         return specs;
     }

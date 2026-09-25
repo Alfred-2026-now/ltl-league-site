@@ -62,6 +62,12 @@ public class Player {
 
     private Integer role;
 
+    /** 下次身价衰减日期（未参赛衰减用）；为 null 表示尚未启动衰减计时 */
+    private java.time.LocalDateTime nextDecayAt;
+
+    /** 已发生的衰减次数（用于判断处于首阶段还是后续阶段） */
+    private Integer decayCount;
+
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 

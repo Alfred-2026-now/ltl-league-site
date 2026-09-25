@@ -79,6 +79,16 @@ function positionLabel(position) {
   return map[position] || position;
 }
 
+function sourceLabel(source) {
+  const map = {
+    match_result: "赛果结算",
+    manual_adjustment: "手动调整",
+    admin_player_edit: "选手信息调整",
+    inactivity_decay: "未参赛衰减"
+  };
+  return map[source] || source || "-";
+}
+
 function renderRows(rows) {
   if (!rows.length) {
     els.valuationBody.innerHTML = `<tr><td colspan="8" style="padding:1rem;" class="muted">暂无身价变化。</td></tr>`;
@@ -88,7 +98,7 @@ function renderRows(rows) {
     <tr>
       <td style="padding:.75rem 1rem;">${row.createdAt || "-"}</td>
       <td style="padding:.75rem 1rem;">${row.playerName || "-"}${row.teamState ? ` · ${row.teamState}` : ""}</td>
-      <td style="padding:.75rem 1rem;">${row.source || "-"}</td>
+      <td style="padding:.75rem 1rem;">${sourceLabel(row.source)}</td>
       <td style="padding:.75rem 1rem;">#${row.matchId || "-"} ${row.version || ""}</td>
       <td style="padding:.75rem 1rem;">${positionLabel(row.position)}</td>
       <td style="padding:.75rem 1rem;">${formatDelta(row)}</td>

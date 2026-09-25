@@ -7,9 +7,12 @@ import com.ltl.league.admin.service.RuleParameterService;
 import com.ltl.league.entity.*;
 import com.ltl.league.exception.BusinessException;
 import com.ltl.league.mapper.*;
+import com.ltl.league.service.PlayerDecayService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -23,20 +26,30 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
 
     private static final int ROLE_CAPTAIN = 2;
 
+    /** 选手管理页 / 赛后批量更新改动身价时的默认流水来源与说明 */
+    private static final String EDIT_SOURCE = "admin_player_edit";
+    private static final String EDIT_REASON_DEFAULT = "选手信息调整";
+
     private final PlayerMapper playerMapper;
     private final PlayerDepositLedgerMapper depositLedgerMapper;
     private final TeamMapper teamMapper;
     private final RuleParameterService ruleParameterService;
+    private final ValuationChangeMapper valuationChangeMapper;
+    private final PlayerDecayService playerDecayService;
 
     public AdminPlayerDepositServiceImpl(
             PlayerMapper playerMapper,
             PlayerDepositLedgerMapper depositLedgerMapper,
             TeamMapper teamMapper,
-            RuleParameterService ruleParameterService) {
+            RuleParameterService ruleParameterService,
+            ValuationChangeMapper valuationChangeMapper,
+            PlayerDecayService playerDecayService) {
         this.playerMapper = playerMapper;
         this.depositLedgerMapper = depositLedgerMapper;
         this.teamMapper = teamMapper;
         this.ruleParameterService = ruleParameterService;
+        this.valuationChangeMapper = valuationChangeMapper;
+        this.playerDecayService = playerDecayService;
     }
 
     @Override
@@ -246,6 +259,22 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         if (request.getSupValue() != null && !Objects.equals(oldSupValue, request.getSupValue())) {
             player.setSupActive(1);
         }
+
+        // 为真正变动的位置写身价流水（选手管理页 / 赛后批量更新此前不留痕），
+        // 并快照改动前的衰减计时，使"撤回"能恢复未参赛衰减进程。
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
+        boolean anyValueChanged = false;
+        anyValueChanged |= recordValueChange(player, "TOP", oldTopValue, player.getTopValue(), now);
+        anyValueChanged |= recordValueChange(player, "JUG", oldJugValue, player.getJugValue(), now);
+        anyValueChanged |= recordValueChange(player, "MID", oldMidValue, player.getMidValue(), now);
+        anyValueChanged |= recordValueChange(player, "BOT", oldBotValue, player.getBotValue(), now);
+        anyValueChanged |= recordValueChange(player, "SUP", oldSupValue, player.getSupValue(), now);
+
+        // 身价被改动 → 视为有效参赛，重置未参赛衰减计时
+        if (anyValueChanged) {
+            playerDecayService.resetDecayClock(player, now);
+        }
+
         if (request.getPosition() != null) {
             player.setPosition(request.getPosition());
         }
@@ -307,6 +336,39 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         return player;
     }
 
+    /**
+     * 若某位置身价确实发生变化，写一条身价流水。
+     * 召回时（撤回）可凭此恢复身价与衰减计时。
+     *
+     * @return 是否发生了变动
+     */
+    private boolean recordValueChange(Player player, String position, Integer before, Integer after, LocalDateTime now) {
+        if (Objects.equals(before, after)) {
+            return false;
+        }
+        int beforeVal = before != null ? before : 0;
+        int afterVal = after != null ? after : 0;
+
+        ValuationChange change = new ValuationChange();
+        change.setMatchId(null);
+        change.setResultId(null);
+        change.setPlayerId(player.getId());
+        change.setPosition(position);
+        change.setBeforeValue(beforeVal);
+        change.setObjectiveDelta(0);
+        change.setSubjectiveDelta(afterVal - beforeVal);
+        change.setSubjectiveReason(EDIT_REASON_DEFAULT);
+        change.setAfterValue(afterVal);
+        change.setVersion(null);
+        change.setSource(EDIT_SOURCE);
+        change.setOperator("admin");
+        change.setIsVoided(0);
+        change.setBeforeNextDecayAt(player.getNextDecayAt());
+        change.setBeforeDecayCount(player.getDecayCount());
+        valuationChangeMapper.insert(change);
+        return true;
+    }
+
     @Override
     @Transactional
     public Player setPositionActive(Long playerId, SetPositionActiveRequest request) {
@@ -324,13 +386,18 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
             throw new BusinessException(404, "选手不存在");
         }
         int active = request.getActive();
+        boolean changed;
         switch (request.getPosition().toUpperCase()) {
-            case "TOP": player.setTopActive(active); break;
-            case "JUG": player.setJugActive(active); break;
-            case "MID": player.setMidActive(active); break;
-            case "BOT": player.setBotActive(active); break;
-            case "SUP": player.setSupActive(active); break;
+            case "TOP": changed = !Objects.equals(player.getTopActive(), active); player.setTopActive(active); break;
+            case "JUG": changed = !Objects.equals(player.getJugActive(), active); player.setJugActive(active); break;
+            case "MID": changed = !Objects.equals(player.getMidActive(), active); player.setMidActive(active); break;
+            case "BOT": changed = !Objects.equals(player.getBotActive(), active); player.setBotActive(active); break;
+            case "SUP": changed = !Objects.equals(player.getSupActive(), active); player.setSupActive(active); break;
             default: throw new BusinessException(400, "未知位置：" + request.getPosition());
+        }
+        // 激活状态变更视同一次身价变动：重新计时（清空未参赛天数）
+        if (changed) {
+            playerDecayService.resetDecayClock(player, LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
         }
         playerMapper.updateById(player);
         return player;
