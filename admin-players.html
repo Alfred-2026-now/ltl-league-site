@@ -6,6 +6,17 @@
   <meta name="robots" content="noindex,nofollow" />
   <title>LTL 管理 - 选手管理</title>
   <link rel="stylesheet" href="src/styles/main.css" />
+  <style>
+    .pos-active-badge {
+      display: inline-block;
+      padding: .1rem .45rem;
+      border-radius: 999px;
+      font-size: .7rem;
+      font-weight: 600;
+      vertical-align: middle;
+      user-select: none;
+    }
+  </style>
 </head>
 <body>
   <header class="site-header">
@@ -70,23 +81,23 @@
         </label>
 
         <label class="field">
-          <span class="field-label">上路身价</span>
+          <span class="field-label">上路身价 <span id="formTopActiveBadge" class="pos-active-badge"></span></span>
           <input class="input" id="formTopValue" type="number" min="0" />
         </label>
         <label class="field">
-          <span class="field-label">打野身价</span>
+          <span class="field-label">打野身价 <span id="formJugActiveBadge" class="pos-active-badge"></span></span>
           <input class="input" id="formJugValue" type="number" min="0" />
         </label>
         <label class="field">
-          <span class="field-label">中路身价</span>
+          <span class="field-label">中路身价 <span id="formMidActiveBadge" class="pos-active-badge"></span></span>
           <input class="input" id="formMidValue" type="number" min="0" />
         </label>
         <label class="field">
-          <span class="field-label">下路身价</span>
+          <span class="field-label">下路身价 <span id="formBotActiveBadge" class="pos-active-badge"></span></span>
           <input class="input" id="formBotValue" type="number" min="0" />
         </label>
         <label class="field">
-          <span class="field-label">辅助身价</span>
+          <span class="field-label">辅助身价 <span id="formSupActiveBadge" class="pos-active-badge"></span></span>
           <input class="input" id="formSupValue" type="number" min="0" />
         </label>
 

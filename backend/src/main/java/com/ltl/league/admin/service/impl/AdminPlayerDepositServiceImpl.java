@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -206,6 +207,13 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         if (request.getName() != null && !request.getName().isBlank()) {
             player.setName(request.getName().trim());
         }
+        // 记录调整前的位置身价，用于判断哪些位置被真正改动（首次调整即激活）
+        Integer oldTopValue = player.getTopValue();
+        Integer oldJugValue = player.getJugValue();
+        Integer oldMidValue = player.getMidValue();
+        Integer oldBotValue = player.getBotValue();
+        Integer oldSupValue = player.getSupValue();
+
         if (request.getTopValue() != null) {
             player.setTopValue(request.getTopValue());
         }
@@ -220,6 +228,23 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         }
         if (request.getSupValue() != null) {
             player.setSupValue(request.getSupValue());
+        }
+
+        // 位置身价被调整 → 该位置标记为已激活（不会自动取消）
+        if (request.getTopValue() != null && !Objects.equals(oldTopValue, request.getTopValue())) {
+            player.setTopActive(1);
+        }
+        if (request.getJugValue() != null && !Objects.equals(oldJugValue, request.getJugValue())) {
+            player.setJugActive(1);
+        }
+        if (request.getMidValue() != null && !Objects.equals(oldMidValue, request.getMidValue())) {
+            player.setMidActive(1);
+        }
+        if (request.getBotValue() != null && !Objects.equals(oldBotValue, request.getBotValue())) {
+            player.setBotActive(1);
+        }
+        if (request.getSupValue() != null && !Objects.equals(oldSupValue, request.getSupValue())) {
+            player.setSupActive(1);
         }
         if (request.getPosition() != null) {
             player.setPosition(request.getPosition());
@@ -278,6 +303,35 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         player.setMaxValue(maxValue);
         player.setValue(maxValue);
 
+        playerMapper.updateById(player);
+        return player;
+    }
+
+    @Override
+    @Transactional
+    public Player setPositionActive(Long playerId, SetPositionActiveRequest request) {
+        if (playerId == null) {
+            throw new BusinessException(400, "选手ID不能为空");
+        }
+        if (request == null || request.getPosition() == null || request.getPosition().isBlank()) {
+            throw new BusinessException(400, "请选择位置");
+        }
+        if (request.getActive() == null || (request.getActive() != 0 && request.getActive() != 1)) {
+            throw new BusinessException(400, "激活状态只能是 0 或 1");
+        }
+        Player player = playerMapper.selectById(playerId);
+        if (player == null) {
+            throw new BusinessException(404, "选手不存在");
+        }
+        int active = request.getActive();
+        switch (request.getPosition().toUpperCase()) {
+            case "TOP": player.setTopActive(active); break;
+            case "JUG": player.setJugActive(active); break;
+            case "MID": player.setMidActive(active); break;
+            case "BOT": player.setBotActive(active); break;
+            case "SUP": player.setSupActive(active); break;
+            default: throw new BusinessException(400, "未知位置：" + request.getPosition());
+        }
         playerMapper.updateById(player);
         return player;
     }

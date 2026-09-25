@@ -38,6 +38,12 @@ public class AdminPlayerDepositController {
         return Result.success(adminPlayerDepositService.updatePlayer(playerId, request));
     }
 
+    @PostMapping("/players/{playerId}/position-active")
+    public Result<Player> setPositionActive(@PathVariable Long playerId,
+                                           @RequestBody SetPositionActiveRequest request) {
+        return Result.success(adminPlayerDepositService.setPositionActive(playerId, request));
+    }
+
     @DeleteMapping("/players/{playerId}")
     public Result<Void> deletePlayer(@PathVariable Long playerId) {
         adminPlayerDepositService.deletePlayer(playerId);

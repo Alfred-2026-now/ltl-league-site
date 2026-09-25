@@ -141,6 +141,8 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
 
         // 写入对应位置身价，并重算最高身价
         setPositionValue(player, position, request.getAfterValue());
+        // 该位置身价被调整 → 标记为已激活（首次调整即激活，不会自动取消）
+        activatePosition(player, position);
         recalcMaxValueAndSync(player);
         playerMapper.updateById(player);
 
@@ -159,6 +161,21 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
             case "BOT": return player.getBotValue();
             case "SUP": return player.getSupValue();
             default: return player.getValue();
+        }
+    }
+
+    /** 将某个位置标记为"已激活"（该位置身价被调整过） */
+    private void activatePosition(Player player, String position) {
+        if (position == null || position.isBlank()) {
+            return;
+        }
+        switch (position) {
+            case "TOP": player.setTopActive(1); break;
+            case "JUG": player.setJugActive(1); break;
+            case "MID": player.setMidActive(1); break;
+            case "BOT": player.setBotActive(1); break;
+            case "SUP": player.setSupActive(1); break;
+            default: break;
         }
     }
 

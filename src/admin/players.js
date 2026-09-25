@@ -72,6 +72,11 @@ function bindEls() {
   els.formMidValue = document.getElementById("formMidValue");
   els.formBotValue = document.getElementById("formBotValue");
   els.formSupValue = document.getElementById("formSupValue");
+  els.formTopActiveBadge = document.getElementById("formTopActiveBadge");
+  els.formJugActiveBadge = document.getElementById("formJugActiveBadge");
+  els.formMidActiveBadge = document.getElementById("formMidActiveBadge");
+  els.formBotActiveBadge = document.getElementById("formBotActiveBadge");
+  els.formSupActiveBadge = document.getElementById("formSupActiveBadge");
   els.formPosition = document.getElementById("formPosition");
   els.formGameAccount = document.getElementById("formGameAccount");
   els.formPuuid = document.getElementById("formPuuid");
@@ -153,6 +158,50 @@ async function refresh() {
   }
 }
 
+const POSITION_BADGES = [
+  { position: "TOP", activeKey: "topActive", badgeKey: "formTopActiveBadge" },
+  { position: "JUG", activeKey: "jugActive", badgeKey: "formJugActiveBadge" },
+  { position: "MID", activeKey: "midActive", badgeKey: "formMidActiveBadge" },
+  { position: "BOT", activeKey: "botActive", badgeKey: "formBotActiveBadge" },
+  { position: "SUP", activeKey: "supActive", badgeKey: "formSupActiveBadge" }
+];
+
+// 渲染五个位置的"激活/未激活"徽章，点击可手动切换（仅编辑已有选手时可用）
+function renderPositionBadges(player) {
+  POSITION_BADGES.forEach(item => {
+    const badge = els[item.badgeKey];
+    if (!badge) return;
+    if (!player) {
+      badge.textContent = "";
+      badge.style.display = "none";
+      return;
+    }
+    const active = player[item.activeKey] === 1;
+    badge.textContent = active ? "已激活 ✕" : "未激活 ＋";
+    badge.style.display = "";
+    badge.style.cursor = "pointer";
+    badge.title = active ? "点击取消激活" : "点击手动激活";
+    badge.style.color = active ? "#7cffb2" : "#a8b6d6";
+    badge.style.background = active ? "rgba(124,255,178,0.15)" : "rgba(168,182,214,0.15)";
+    badge.onclick = async () => {
+      if (!currentEditingPlayer) return;
+      const target = active ? 0 : 1;
+      try {
+        const updated = await request(`/admin/players/${currentEditingPlayer.id}/position-active`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ position: item.position, active: target })
+        });
+        Object.assign(currentEditingPlayer, updated || {});
+        renderPositionBadges(currentEditingPlayer);
+        await refresh();
+      } catch (e) {
+        alert("操作失败：" + e.message);
+      }
+    };
+  });
+}
+
 function openCreateDialog() {
   currentEditingPlayer = null;
   els.dialogTitle.textContent = "创建选手";
@@ -164,6 +213,7 @@ function openCreateDialog() {
   els.formMidValue.value = "";
   els.formBotValue.value = "";
   els.formSupValue.value = "";
+  renderPositionBadges(null);
   els.formPosition.value = "";
   els.formGameAccount.value = "";
   els.formPuuid.value = "";
@@ -190,6 +240,7 @@ function openEditDialog(player) {
   els.formMidValue.value = player.midValue ?? "";
   els.formBotValue.value = player.botValue ?? "";
   els.formSupValue.value = player.supValue ?? "";
+  renderPositionBadges(player);
   els.formPosition.value = player.position || "";
   els.formGameAccount.value = player.gameAccount || "";
   els.formPuuid.value = player.puuid || "";

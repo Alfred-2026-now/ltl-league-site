@@ -16,6 +16,8 @@ public interface AdminPlayerDepositService {
 
     Player updatePlayer(Long playerId, UpdatePlayerRequest request);
 
+    Player setPositionActive(Long playerId, SetPositionActiveRequest request);
+
     void deletePlayer(Long playerId);
 
     List<PlayerDepositLedgerVO> listPlayerDepositLedgers(Long playerId, Integer isVoided, Integer limit);
