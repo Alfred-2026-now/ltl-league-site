@@ -171,7 +171,6 @@ public class TeamManagerReadOnlyToolService {
         row.put("status", player.getStatus());
         row.put("isLoan", player.getIsLoan());
         row.put("loanTeamId", player.getLoanTeamId());
-        row.put("deposit", player.getDeposit());
         return row;
     }
 

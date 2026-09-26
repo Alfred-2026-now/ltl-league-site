@@ -4,7 +4,7 @@
 
   async function fetchCurrentUser() {
     try {
-      const response = await fetch(`${getApiBase()}/auth/current`, {
+      const response = await fetch(`${getApiBase()}/user/info`, {
         credentials: 'include'
       });
       const data = await response.json();
@@ -13,8 +13,17 @@
       }
       return null;
     } catch (error) {
-      return null;
+      return undefined;
     }
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   function buildUserSection(currentUser) {
@@ -27,9 +36,10 @@
       userMenu.className = 'nav-user-menu';
       userMenu.style.cssText = 'display: flex; align-items: center; gap: 0.5rem;';
       userMenu.innerHTML = `
-        <a href="profile.html" class="nav-user-name" style="color: #667eea; font-weight: 600; padding: 0.5rem 0;">
-          ${currentUser.playerName}
-        </a>
+        <div class="nav-user-identity">
+          <a href="profile.html" class="nav-user-name">${escapeHtml(currentUser.playerName)}</a>
+          <span class="nav-user-balance" aria-label="当前个人 P 币">P币 ${Number(currentUser.deposit ?? 0).toLocaleString('zh-CN')}</span>
+        </div>
         <a href="#" class="nav-logout" onclick="handleLogout(event)" style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">登出</a>
       `;
       return [divider, userMenu];
@@ -96,6 +106,20 @@
 
       const rightGroup = navLinksContainer.querySelector('.nav-right');
       buildUserSection(currentUser).forEach(el => rightGroup.appendChild(el));
+
+      window.refreshNavBalance = async function() {
+        const user = await fetchCurrentUser();
+        const balance = rightGroup.querySelector('.nav-user-balance');
+        if (user && balance) {
+          balance.textContent = `P币 ${Number(user.deposit ?? 0).toLocaleString('zh-CN')}`;
+        } else if (user === null && balance) {
+          rightGroup.replaceChildren(...buildUserSection(null));
+        }
+      };
+      window.addEventListener('ltl:balance-changed', window.refreshNavBalance);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) window.refreshNavBalance();
+      });
 
       // 立即绑定导航事件
       toggle.addEventListener("click", function(e) {

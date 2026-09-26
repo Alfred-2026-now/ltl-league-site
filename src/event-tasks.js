@@ -18,6 +18,9 @@ async function request(path, options = {}) {
   if (!response.ok || !data || data.code !== 200) {
     throw new Error(data?.message || `请求失败（${response.status}）`);
   }
+  if (options.method && options.method.toUpperCase() !== "GET") {
+    window.dispatchEvent(new Event("ltl:balance-changed"));
+  }
   return data.data;
 }
 

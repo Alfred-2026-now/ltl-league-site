@@ -4,7 +4,7 @@ const API_BASE_URL = getApiBase();
 
 async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
-  const response = await fetch(url, options);
+  const response = await fetch(url, { credentials: "include", ...options });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
@@ -16,7 +16,7 @@ async function request(endpoint, options = {}) {
 }
 
 async function getPlayers() {
-  return request("/players");
+  return request("/admin/players");
 }
 
 async function getTeams() {

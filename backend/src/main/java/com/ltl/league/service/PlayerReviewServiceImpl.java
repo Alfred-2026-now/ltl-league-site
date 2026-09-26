@@ -363,7 +363,6 @@ public class PlayerReviewServiceImpl {
         vo.setTeamId(player.getTeamId());
         vo.setPlayerName(player.getName());
         vo.setValue(player.getValue());
-        vo.setDeposit(player.getDeposit());
         vo.setTeamState(team == null ? null : team.getState());
         vo.setTeamName(team == null ? null : team.getName());
         vo.setReviewCount(reviews.size());
