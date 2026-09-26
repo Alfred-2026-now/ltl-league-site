@@ -193,8 +193,8 @@ export async function getMatchDetail(matchId) {
 /**
  * 获取公告列表（仅已发布）
  */
-export async function getAnnouncements() {
-  const data = await request("/announcements");
+export async function getAnnouncements(options = {}) {
+  const data = await request("/announcements", options);
   return data
     .filter(item => item.isActive === 1)
     .map(item => ({

@@ -1,156 +1,127 @@
-// 前台页面统一导航注入脚本
+// 所有前台页面共用导航；公共入口先渲染，账户请求不阻塞导航。
 (async function() {
   const { getApiBase } = await import("../config/api.js");
+  const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+  const navLinks = document.getElementById('navLinks');
+  const toggle = document.getElementById('navToggle');
+  if (!navLinks || !toggle) return;
+
+  const baseNavItems = [
+    { href: 'index.html', text: '首页' },
+    { href: 'announcements.html', text: '公告' },
+    { href: 'standings.html', text: '战队榜' },
+    { href: 'teams.html', text: '队伍' },
+    { href: 'player-rankings.html', text: '选手榜' },
+    { href: 'rules.html', text: '规则' },
+    { href: 'tools.html', text: '计算器' },
+    { href: 'schedule.html', text: '赛程' },
+    { href: 'match-history.html', text: '战绩' },
+    { href: 'event-tasks.html', text: '赛事任务' },
+    { href: 'prize-exchange.html', text: '积分兑换' }
+  ];
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
 
   async function fetchCurrentUser() {
     try {
       const response = await fetch(`${getApiBase()}/user/info`, {
-        credentials: 'include'
+        credentials: 'include', signal: AbortSignal.timeout(8000)
       });
+      if (!response.ok) return response.status === 401 ? null : undefined;
       const data = await response.json();
-      if (data.code === 200) {
-        return data.data;
-      }
-      return null;
-    } catch (error) {
+      return data.code === 200 ? data.data : null;
+    } catch {
       return undefined;
     }
   }
 
-  function escapeHtml(value) {
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+  // 使用统一品牌，不再把首页 logo 插入导航标签组。
+  const brand = toggle.closest('nav').querySelector('.brand');
+  if (brand && !brand.querySelector('.brand-caption')) {
+    brand.setAttribute('aria-label', 'LTL 联赛首页');
+    const caption = document.createElement('span');
+    caption.className = 'brand-caption';
+    caption.innerHTML = 'LTL 联赛<small>LEAGUE OF LEGENDS</small>';
+    brand.append(caption);
+  }
+  toggle.closest('nav').setAttribute('aria-label', '主导航');
+  toggle.setAttribute('aria-controls', 'navLinks');
+  toggle.setAttribute('aria-expanded', 'false');
+
+  function renderNav(user) {
+    const items = [...baseNavItems];
+    if (user && (user.role & 1)) items.push({ href: 'admin-event-tasks.html', text: '管理后台' });
+    if (user && (user.role & 2)) items.push({ href: 'captain.html', text: '队长管理' });
+    const links = items.map(item => {
+      const active = item.href === currentPage || (currentPage === 'valuation-rules.html' && item.href === 'rules.html');
+      return `<a href="${item.href}"${active ? ' class="active" aria-current="page"' : ''}>${item.text}</a>`;
+    }).join('');
+    const account = user
+      ? `<div class="nav-user-menu"><div class="nav-user-identity"><a href="profile.html" class="nav-user-name">${escapeHtml(user.playerName)}</a><span class="nav-user-balance" aria-label="当前个人 P 币">P币 ${Number(user.deposit ?? 0).toLocaleString('zh-CN')}</span></div><a href="#" class="nav-logout" data-logout>登出</a></div>`
+      : '<a href="login.html" class="nav-login">登录 <span aria-hidden="true">↗</span></a>';
+    navLinks.innerHTML = `<div class="nav-center">${links}</div><div class="nav-right"><span class="nav-divider" aria-hidden="true"></span>${account}</div>`;
   }
 
-  function buildUserSection(currentUser) {
-    const divider = document.createElement('span');
-    divider.className = 'nav-divider';
-    divider.style.cssText = 'border-left: 1px solid rgba(255,255,255,0.2); margin: 0 0.5rem;';
-
-    if (currentUser) {
-      const userMenu = document.createElement('div');
-      userMenu.className = 'nav-user-menu';
-      userMenu.style.cssText = 'display: flex; align-items: center; gap: 0.5rem;';
-      userMenu.innerHTML = `
-        <div class="nav-user-identity">
-          <a href="profile.html" class="nav-user-name">${escapeHtml(currentUser.playerName)}</a>
-          <span class="nav-user-balance" aria-label="当前个人 P 币">P币 ${Number(currentUser.deposit ?? 0).toLocaleString('zh-CN')}</span>
-        </div>
-        <a href="#" class="nav-logout" onclick="handleLogout(event)" style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">登出</a>
-      `;
-      return [divider, userMenu];
-    }
-
-    const loginLink = document.createElement('a');
-    loginLink.href = 'login.html';
-    loginLink.textContent = '登录';
-    loginLink.style.cssText = 'color: #667eea; font-weight: 600;';
-    return [divider, loginLink];
+  function setMenu(open) {
+    navLinks.classList.toggle('show', open);
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.setAttribute('aria-label', open ? '收起导航' : '展开导航');
+    toggle.textContent = open ? '×' : '☰';
   }
 
-  async function initNav() {
-    const currentPage = window.location.pathname.split('/').pop() || 'index.html';
-
-    // 获取当前用户
-    const currentUser = await fetchCurrentUser();
-
-    const baseNavItems = [
-      { href: "index.html", text: "首页" },
-      { href: "announcements.html", text: "公告" },
-      { href: "standings.html", text: "战队榜" },
-      { href: "teams.html", text: "队伍" },
-      { href: "player-rankings.html", text: "选手榜" },
-      { href: "rules.html", text: "规则" },
-      { href: "tools.html", text: "计算器" },
-      { href: "schedule.html", text: "赛程" },
-      { href: "match-history.html", text: "战绩" },
-      { href: "event-tasks.html", text: "赛事任务", highlight: true },
-      { href: "prize-exchange.html", text: "积分兑换", highlight: true }
-    ];
-
-    let navItems = [...baseNavItems];
-
-    // 按角色添加专属入口（位掩码：1=管理员，2=队长，3=两者，两个 tab 独立显示）
-    if (currentUser && (currentUser.role & 1)) {
-      navItems.push({ href: "admin-event-tasks.html", text: "管理后台", highlight: true });
+  toggle.addEventListener('click', () => setMenu(!navLinks.classList.contains('show')));
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && navLinks.classList.contains('show')) {
+      setMenu(false);
+      toggle.focus();
     }
-    if (currentUser && (currentUser.role & 2)) {
-      navItems.push({ href: "captain.html", text: "队长管理", highlight: true });
-    }
-
-    const navLinksContainer = document.getElementById('navLinks');
-    const toggle = document.getElementById("navToggle");
-
-    if (navLinksContainer && toggle) {
-      const isHomePage = currentPage === 'index.html';
-
-      const linksHtml = navItems.map(item => {
-        const isActive = item.href === currentPage || (currentPage === 'valuation-rules.html' && item.href === 'rules.html')
-          ? ' class="active"' : "";
-        const style = item.highlight ? ' style="color: #667eea; font-weight: 600;"' : "";
-        return `<a href="${item.href}"${isActive}${style}>${item.text}</a>`;
-      }).join("");
-
-      const homeLogo = isHomePage
-        ? `<img class="nav-inline-logo" src="assets/ltl-logo.webp" alt="LTL联赛" />`
-        : "";
-
-      // 所有前台页面使用同一布局：标签组居中，登录/账号区右对齐。
-      navLinksContainer.innerHTML =
-        `<div class="nav-center">${homeLogo}${linksHtml}</div>` +
-        `<div class="nav-right"></div>`;
-
-      const rightGroup = navLinksContainer.querySelector('.nav-right');
-      buildUserSection(currentUser).forEach(el => rightGroup.appendChild(el));
-
-      window.refreshNavBalance = async function() {
-        const user = await fetchCurrentUser();
-        const balance = rightGroup.querySelector('.nav-user-balance');
-        if (user && balance) {
-          balance.textContent = `P币 ${Number(user.deposit ?? 0).toLocaleString('zh-CN')}`;
-        } else if (user === null && balance) {
-          rightGroup.replaceChildren(...buildUserSection(null));
-        }
-      };
-      window.addEventListener('ltl:balance-changed', window.refreshNavBalance);
-      document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) window.refreshNavBalance();
-      });
-
-      // 立即绑定导航事件
-      toggle.addEventListener("click", function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        navLinksContainer.classList.toggle("show");
-      });
-
-      // 为所有链接添加点击关闭菜单的事件
-      navLinksContainer.querySelectorAll("a").forEach(anchor => {
-        anchor.addEventListener("click", function() {
-          navLinksContainer.classList.remove("show");
-        });
-      });
-    }
-
-    // 暴露登出函数到全局
-    window.handleLogout = async function(e) {
-      e.preventDefault();
+  });
+  document.addEventListener('click', event => {
+    if (!event.target.closest('.nav')) setMenu(false);
+  });
+  navLinks.addEventListener('click', async event => {
+    const link = event.target.closest('a');
+    if (!link) return;
+    setMenu(false);
+    if (link.hasAttribute('data-logout')) {
+      event.preventDefault();
       try {
-        await fetch(`${getApiBase()}/auth/logout`, {
-          method: 'POST',
-          credentials: 'include'
-        });
-        window.location.href = 'index.html';
+        const response = await fetch(`${getApiBase()}/auth/logout`, { method: 'POST', credentials: 'include' });
+        if (response.ok) window.location.href = 'index.html';
       } catch (error) {
         console.error('登出失败', error);
       }
-    };
-  }
+    }
+  });
 
-  // 执行初始化
-  initNav();
+  let currentUser = null;
+  let refreshing = false;
+  renderNav(currentUser);
+  window.refreshNavBalance = async function() {
+    if (refreshing) return;
+    refreshing = true;
+    try {
+      const user = await fetchCurrentUser();
+      if (user === undefined) return; // 网络故障时保留已知的账户状态。
+      const identityChanged = Boolean(user) !== Boolean(currentUser)
+        || user?.role !== currentUser?.role || user?.playerName !== currentUser?.playerName;
+      currentUser = user;
+      if (identityChanged) {
+        renderNav(user);
+      } else {
+        const balance = navLinks.querySelector('.nav-user-balance');
+        if (balance && user) balance.textContent = `P币 ${Number(user.deposit ?? 0).toLocaleString('zh-CN')}`;
+      }
+    } finally {
+      refreshing = false;
+    }
+  };
+  window.addEventListener('ltl:balance-changed', window.refreshNavBalance);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) window.refreshNavBalance();
+  });
+  window.refreshNavBalance();
 })();

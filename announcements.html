@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LTL最新公告</title>
   <link rel="stylesheet" href="src/styles/main.css" />
+  <link rel="stylesheet" href="src/styles/public-theme.css" />
 </head>
-<body>
+<body class="public-site">
   <header class="site-header">
     <nav class="nav">
       <a class="brand" href="index.html"><img class="brand-logo" src="assets/ltl-logo.webp" alt="LTL联赛" /></a>
@@ -27,11 +28,11 @@
   <main class="page-shell">
     <section class="section">
       <div class="section-heading"><p class="eyebrow">ANNOUNCEMENTS</p><h1 class="page-title">最新公告</h1></div>
-      <div class="announcement-list page-timeline" id="announcementList"></div>
+      <div class="announcement-list page-timeline" id="announcementList" aria-live="polite" aria-busy="true"><p class="announcement-state">正在加载公告…</p></div>
     </section>
   </main>
 
-  <script type="module" src="src/main.js"></script>
+  <script type="module" src="src/announcements.js"></script>
   <script src="src/components/public-nav.js"></script>
 </body>
 </html>

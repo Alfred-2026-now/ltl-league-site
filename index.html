@@ -3,46 +3,72 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LTL联赛 · 新章启幕，峡谷再战</title>
+  <meta name="description" content="LTL 英雄联盟赛事社区。S3 赏金猎人：接取赛事任务、见证选手成长，开启你的峡谷征程。" />
+  <meta name="theme-color" content="#080f13" />
+  <title>LTL 联赛 · S3 赏金猎人</title>
+  <link rel="preload" as="image" href="assets/rift-season-3.webp" />
   <link rel="stylesheet" href="src/styles/main.css" />
+  <link rel="stylesheet" href="src/styles/public-theme.css" />
 </head>
-<body class="home-page">
+<body class="home-page public-site">
+  <a class="skip-link" href="#home">跳至正文</a>
   <header class="site-header">
-    <nav class="nav">
-      <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+    <nav class="nav" aria-label="主导航">
+      <a class="brand" href="index.html" aria-label="LTL 联赛首页"><img class="brand-logo" src="assets/ltl-logo.webp" alt="LTL" /><span class="brand-caption">LTL 联赛<small>LEAGUE OF LEGENDS</small></span></a>
+      <button class="nav-toggle" id="navToggle" aria-label="展开导航" aria-controls="navLinks" aria-expanded="false">☰</button>
       <div class="nav-links" id="navLinks">
-        <a href="announcements.html">公告</a>
-        <a href="standings.html">积分榜</a>
-        <a href="teams.html">队伍</a>
-        <a href="player-rankings.html">选手榜</a>
-        <a href="rules.html">规则</a>
-        <a href="tools.html">计算器</a>
-        <a href="schedule.html">赛程</a>
-        <a href="match-history.html">战绩</a>
-        <a href="prize-exchange.html" style="color: #667eea; font-weight: 600;">积分兑换</a>
+        <a href="index.html" class="active" aria-current="page">首页</a><a href="announcements.html">公告</a><a href="player-rankings.html">选手榜</a><a href="rules.html">规则</a><a href="event-tasks.html">赛事任务</a><a href="prize-exchange.html">积分兑换</a><a href="login.html">登录</a>
       </div>
     </nav>
   </header>
 
-  <main id="home">
-    <section class="home-hero">
-      <img class="hero-banner" src="assets/hero-bg.webp" alt="LTL联赛S2正式开幕 — 新章启幕，峡谷再战" />
-    </section>
-
-    <section class="home-teams" id="homeTeams">
-      <div class="home-teams-header">
-        <div class="home-teams-line"></div>
-        <p class="home-teams-eyebrow">SEASON 2 · TEAMS</p>
-        <h2 class="home-teams-title">参赛战队</h2>
-        <p class="home-teams-subtitle">六支顶级战队集结，开启第二赛季的巅峰对决</p>
-        <div class="home-teams-line"></div>
+  <main id="home" tabindex="-1">
+    <section class="rift-hero" aria-labelledby="heroTitle">
+      <img class="rift-art" src="assets/rift-season-3.webp" width="1983" height="793" alt="" fetchpriority="high" />
+      <div class="rift-hero-inner">
+        <div class="season-label"><span class="season-diamond" aria-hidden="true"></span> LTL LEAGUE <span class="season-label-divider"></span> SEASON 03</div>
+        <p class="rift-kicker">英雄联盟 · LTL 联赛</p>
+        <h1 id="heroTitle">每一场交锋，<br />皆为<span>荣耀</span>而战。</h1>
+        <p class="rift-description">S3 赏金猎人<br />于峡谷中迎接挑战，让每一次并肩作战都有回响。</p>
+        <div class="rift-actions">
+          <a class="btn primary" href="event-tasks.html">探索赛事任务 <span aria-hidden="true">↗</span></a>
+          <a class="btn ghost" href="rules.html">了解赛季规则 <span aria-hidden="true">→</span></a>
+        </div>
       </div>
-      <div class="home-team-grid" id="homeTeamGrid"></div>
+      <div class="rift-hero-bottom"><span>THE RIFT IS CALLING</span><a href="#seasonHub">探索本赛季 <span aria-hidden="true">↓</span></a><span>LTL · S3</span></div>
     </section>
-  </main>
 
-  <footer class="footer"><p>LTL联赛｜新章启幕，峡谷再战</p></footer>
-  <script type="module" src="src/main.js"></script>
+    <section class="season-hub home-width" id="seasonHub" aria-labelledby="hubTitle">
+      <div class="home-section-heading"><div><p class="eyebrow">YOUR SEASON STARTS HERE</p><h2 id="hubTitle">踏入峡谷，书写你的赛季</h2></div><span class="section-note">每一份热爱，都值得全力以赴。</span></div>
+      <div class="portal-grid">
+        <a class="portal-card portal-featured" href="event-tasks.html">
+          <div class="portal-top"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="m24 5 14 8v12c0 9-14 18-14 18S10 34 10 25V13Z"/><path d="m24 14 7 10-7 10-7-10Z"/></svg><span>01 / BOUNTY HUNTERS</span><span class="portal-arrow" aria-hidden="true">↗</span></div>
+          <h3>接取你的下一份挑战</h3><p>探索赛事任务，赢取 P 币与任务赏金。<br />属于你的猎人之路，从这里开始。</p><span class="portal-link">进入任务大厅 <span aria-hidden="true">→</span></span>
+        </a>
+        <a class="portal-card" href="player-rankings.html">
+          <div class="portal-top"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M15 7h18v12c0 8-4 12-9 12s-9-4-9-12ZM15 11H7v7c0 5 4 8 9 8m17-15h8v7c0 5-4 8-9 8M24 31v9m-9 2h18"/></svg><span>02 / THE CONTENDERS</span><span class="portal-arrow" aria-hidden="true">↗</span></div>
+          <h3>实力，自有见证</h3><p>关注选手身价、赏金与评价。<br />见证每一次突破，追逐更高的排名。</p><span class="portal-link">查看选手榜 <span aria-hidden="true">→</span></span>
+        </a>
+        <a class="portal-card" href="rules.html">
+          <div class="portal-top"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 12C17 7 10 7 5 9v29c7-2 13-1 19 3 6-4 12-5 19-3V9c-5-2-12-2-19 3Zm0 0v29M11 17l7 2m-7 6 7 2m12-8 7-2m-7 10 7-2"/></svg><span>03 / THE RULEBOOK</span><span class="portal-arrow" aria-hidden="true">↗</span></div>
+          <h3>知晓规则，从容出征</h3><p>了解位置身价与赛季赏金机制。<br />做好准备，在召唤师峡谷一展身手。</p><span class="portal-link">阅读赛季规则 <span aria-hidden="true">→</span></span>
+        </a>
+      </div>
+    </section>
+
+    <section class="home-intel home-width" aria-labelledby="newsTitle">
+      <div class="home-news">
+        <div class="home-section-heading"><div><p class="eyebrow">LEAGUE INTELLIGENCE</p><h2 id="newsTitle">联赛动态</h2></div><a class="text-link" href="announcements.html">全部公告 <span aria-hidden="true">↗</span></a></div>
+        <div id="homeNewsList" class="home-news-list" aria-live="polite" aria-busy="true"><p class="home-news-state">正在获取联赛公告…</p></div>
+      </div>
+      <aside class="season-note" aria-labelledby="seasonNoteTitle"><p class="eyebrow">SEASON 03 / FIELD GUIDE</p><span class="season-note-number" aria-hidden="true">S3</span><h2 id="seasonNoteTitle">属于每位<br />召唤师的征程。</h2><p>个人出发，或与伙伴同行。<br />接取任务，积累赏金，留下你的赛季印记。</p><a class="text-link" href="prize-exchange.html">探索积分兑换 <span aria-hidden="true">→</span></a></aside>
+    </section>
+
+    <!-- 战队赛入口沿用准备期隐藏规则，开放时可恢复此区域。 -->
+    <section class="home-teams" id="homeTeams"><div class="home-teams-header"><p class="home-teams-eyebrow">LTL · TEAMS</p><h2 class="home-teams-title">参赛战队</h2><p class="home-teams-subtitle">峡谷集结，并肩作战</p></div><div class="home-team-grid" id="homeTeamGrid"></div></section>
+  </main>
+  <footer class="footer home-footer"><a class="footer-wordmark" href="index.html">LTL <span>LEAGUE</span></a><p>源于热爱，竞逐不凡。<small>英雄联盟赛事社区 · 召唤师的共同主场</small></p><a href="rules.html">赛季规则 ↗</a></footer>
+  <script type="module" src="src/home.js"></script>
   <script src="src/components/public-nav.js"></script>
 </body>
 </html>

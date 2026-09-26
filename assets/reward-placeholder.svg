@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" fill="none">
+  <defs><radialGradient id="glow"><stop stop-color="#25434a"/><stop offset="1" stop-color="#101e25"/></radialGradient></defs>
+  <path fill="url(#glow)" d="M0 0h640v360H0z"/>
+  <path stroke="#c7aa70" stroke-opacity=".18" d="M24 24h592v312H24zM320 53l115 115-115 115-115-115z"/>
+  <g stroke="#ceb37c" stroke-width="2"><path d="m320 103 51 30v60l-51 30-51-30v-60z"/><path d="m320 123 31 40-31 40-31-40zM269 133l51 30 51-30m-51 30v60"/></g>
+  <path stroke="#7bb8b7" stroke-opacity=".55" d="M147 168h45m256 0h45"/>
+  <text x="320" y="287" text-anchor="middle" fill="#a49471" font-family="Arial,sans-serif" font-size="11" letter-spacing="5">LTL REWARDS</text>
+</svg>
