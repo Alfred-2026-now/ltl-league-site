@@ -97,7 +97,7 @@ function taskCard(task, mode = "hall") {
   return `<article class="panel task-card">
     <div class="task-card-heading">
       <div>
-        <div class="task-meta"><span class="task-status">${escapeHtml(statusText[task.status] || task.status)}</span>${task.official ? '<span class="task-official">官方任务</span>' : ""}</div>
+        <div class="task-meta">${task.pinned && task.status === "PUBLISHED" ? '<span class="task-pinned">[置顶]</span>' : ""}<span class="task-status">${escapeHtml(statusText[task.status] || task.status)}</span>${task.official ? '<span class="task-official">官方任务</span>' : ""}</div>
         <h2>${escapeHtml(task.title)}</h2>
         <p class="muted">发布者：${escapeHtml(publisherName)} · ${formatTime(task.publishedAt || task.createdAt)}</p>
       </div>

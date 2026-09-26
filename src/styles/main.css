@@ -93,6 +93,20 @@
   color: #ffe19a;
 }
 
+.task-pinned {
+  display: inline-flex;
+  margin-right: .4rem;
+  color: #ffe19a;
+  font-weight: 700;
+}
+
+.task-pin-option {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  cursor: pointer;
+}
+
 .task-rewards {
   display: flex;
   gap: .75rem;

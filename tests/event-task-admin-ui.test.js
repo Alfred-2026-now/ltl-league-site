@@ -55,6 +55,10 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
   globalThis.confirm = () => true;
   globalThis.fetch = async (url, options = {}) => {
     if (options.method && options.method !== "GET") writes.push({ url, options });
+    if (url.endsWith("/admin/event-tasks/10/pin")) {
+      task.pinned = JSON.parse(options.body).pinned;
+      return response(task);
+    }
     if (url.endsWith("/admin/event-tasks") || url.endsWith("/admin/event-tasks/10")) return response([task]);
     if (url.endsWith("/admin/event-task-proofs/pending")) return response([]);
     if (url.endsWith("/event-tasks/settings")) return response({ anonymousMinimumFee: 50, anonymousFeeRate: 10 });
@@ -68,6 +72,7 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
 
   await import(`../src/admin/event-tasks.js?ui=${Date.now()}`);
   assert.match(doc.elements.publishedTaskList.innerHTML, /data-edit-published="10"/);
+  assert.match(doc.elements.publishedTaskList.innerHTML, /data-pin-task="10"/);
   assert.match(doc.elements.claimHistoryList.innerHTML, /选手：甲/);
   assert.match(doc.elements.claimHistoryList.innerHTML, /data-cancel-claim="88"/);
   doc.elements.claimStatusFilter.value = "COMPLETED";
@@ -89,6 +94,11 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
   assert.equal(edit.url, "/api/admin/event-tasks/10");
   assert.equal(JSON.parse(edit.options.body).pReward, 150);
 
+  const pinCheckbox = { dataset: { pinTask: "10" }, checked: true, disabled: false };
+  await doc.listeners.change({ target: { closest: selector => selector === "[data-pin-task]" ? pinCheckbox : null } });
+  assert.ok(writes.some(write => write.url === "/api/admin/event-tasks/10/pin" && JSON.parse(write.options.body).pinned));
+  assert.match(doc.elements.publishedTaskList.innerHTML, /\[置顶\]/);
+
   await doc.listeners.click({ target: { closest: selector => selector === "[data-cancel-claim]"
     ? { dataset: { cancelClaim: "88", playerName: "甲", feeAmount: "50" } } : null } });
   assert.ok(writes.some(write => write.url === "/api/admin/event-task-claims/88/cancel"));
@@ -99,7 +109,7 @@ test("player task hall shows the administrator cancellation cooldown", async () 
   const doc = fakeDocument(["taskContent", "taskMessage", "taskEditDialog", "taskEditForm", "saveTaskEditBtn"]);
   const task = {
     id: 10, status: "PUBLISHED", title: "任务", requirements: "新要求", publisherName: "发布者",
-    official: false, anonymous: false, pReward: 150, bountyReward: 30, claimFee: 50,
+    official: false, anonymous: false, pinned: true, pReward: 150, bountyReward: 30, claimFee: 50,
     claimedCount: 0, maxClaimants: 3, remainingSlots: 3, completedCount: 0,
     viewerClaimStatus: "ADMIN_CANCELLED", viewerReclaimAvailableAt: "2099-01-01T13:00:00", canClaim: false
   };
@@ -115,4 +125,5 @@ test("player task hall shows the administrator cancellation cooldown", async () 
   await import(`../src/event-tasks.js?ui=${Date.now()}`);
   assert.match(doc.elements.taskContent.innerHTML, /冷却中，可重新接取时间/);
   assert.match(doc.elements.taskContent.innerHTML, /新要求/);
+  assert.match(doc.elements.taskContent.innerHTML, /\[置顶\]/);
 });
