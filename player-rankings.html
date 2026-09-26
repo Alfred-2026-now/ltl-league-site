@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>选手排行榜 - LTL联赛</title>
   <link rel="stylesheet" href="src/styles/main.css" />
+  <link rel="stylesheet" href="src/styles/public-theme.css" />
 </head>
-<body>
+<body class="public-site">
   <header class="site-header">
     <nav class="nav">
       <a class="brand" href="index.html"><img class="brand-logo" src="assets/ltl-logo.webp" alt="LTL联赛" /></a>
@@ -32,21 +33,21 @@
         <p class="muted">选手身价、赏金与评价</p>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-bottom:1rem;">
+      <div class="ranking-tabs">
         <button class="btn primary" id="showValueRankings">身价排行</button>
         <button class="btn" id="showBountyRankings">赏金排行</button>
         <button class="btn" id="showReviewRankings">选手评价</button>
       </div>
 
-      <div class="panel" style="background:linear-gradient(135deg, rgba(20, 30, 60, 0.9), rgba(30, 40, 80, 0.9));border:1px solid rgba(121, 231, 255, 0.2);">
+      <div class="panel ranking-panel">
         <div class="ranking-panel-heading">
-          <h2 id="rankingTitle" style="color:#7cffb2;">选手身价排行榜</h2>
+          <h2 id="rankingTitle">选手身价排行榜</h2>
           <div class="review-sort-controls" id="reviewSortControls" style="display:none;">
             <button class="btn primary" type="button" data-review-sort="reviewCount">按点评数量</button>
             <button class="btn" type="button" data-review-sort="popularity">按总人气</button>
           </div>
         </div>
-        <table class="admin-table ranking-table" style="width:100%;border-collapse:collapse;background:rgba(10, 15, 35, 0.6);border-radius:12px;overflow:hidden;">
+        <table class="admin-table ranking-table">
           <thead id="rankingHead"></thead>
           <tbody id="rankingBody"></tbody>
         </table>

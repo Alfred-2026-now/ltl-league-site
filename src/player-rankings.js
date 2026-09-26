@@ -159,7 +159,7 @@ const POSITION_COLS = [
 ];
 
 function renderRankingHead() {
-  const th = (text) => `<th style="text-align:left;padding:.75rem 1rem;color:#79e7ff;font-weight:600;">${text}</th>`;
+  const th = (text) => `<th style="text-align:left;padding:.75rem 1rem;color:var(--gold);font-weight:600;">${text}</th>`;
   let cols;
   if (currentMode === "value") {
     cols = `${th("排名")}${th("选手")}${th("所属小组")}${th("最高身价(P)")}` +
@@ -167,7 +167,7 @@ function renderRankingHead() {
   } else {
     cols = `${th("排名")}${th("选手")}${th("所属小组")}${th("赏金 🪙")}`;
   }
-  els.rankingHead.innerHTML = `<tr style="background:linear-gradient(90deg, rgba(25, 168, 255, 0.15), rgba(140, 92, 255, 0.15));border-bottom:2px solid rgba(121, 231, 255, 0.3);">${cols}</tr>`;
+  els.rankingHead.innerHTML = `<tr class="ranking-head-row">${cols}</tr>`;
 }
 
 function renderRankings() {
@@ -262,8 +262,8 @@ function renderRankings() {
 
 function renderReviewRankings() {
   els.rankingTitle.textContent = "选手评价";
-  const th = (text) => `<th style="text-align:left;padding:.75rem 1rem;color:#79e7ff;font-weight:600;">${text}</th>`;
-  els.rankingHead.innerHTML = `<tr style="background:linear-gradient(90deg, rgba(25, 168, 255, 0.15), rgba(140, 92, 255, 0.15));border-bottom:2px solid rgba(121, 231, 255, 0.3);">${th("排名")}${th("选手")}${th("所属小组")}${th("身价(P)")}${th("点评数")}${th("总人气")}</tr>`;
+  const th = (text) => `<th style="text-align:left;padding:.75rem 1rem;color:var(--gold);font-weight:600;">${text}</th>`;
+  els.rankingHead.innerHTML = `<tr class="ranking-head-row">${th("排名")}${th("选手")}${th("所属小组")}${th("身价(P)")}${th("点评数")}${th("总人气")}</tr>`;
   [...els.reviewSortControls.querySelectorAll("[data-review-sort]")].forEach(button => {
     button.classList.toggle("primary", button.dataset.reviewSort === reviewSort);
   });

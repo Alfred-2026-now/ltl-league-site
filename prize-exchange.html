@@ -231,8 +231,9 @@
       margin-bottom: 1rem;
     }
   </style>
+  <link rel="stylesheet" href="src/styles/public-theme.css" />
 </head>
-<body>
+<body class="public-site">
   <div id="app">
     <header class="site-header">
       <nav class="nav">
@@ -358,10 +359,10 @@
           const stockClass = prize.stock <= 3 ? 'low' : '';
 
           card.innerHTML = `
-            <img src="${prize.imageUrl || 'https://via.placeholder.com/400x300?text=No+Image'}"
+            <img src="${prize.imageUrl || 'assets/reward-placeholder.svg'}"
                  alt="${prize.name}"
                  class="prize-image"
-                 onerror="this.src='https://via.placeholder.com/400x300?text=No+Image'" />
+                 onerror="this.onerror=null;this.src='assets/reward-placeholder.svg'" />
             <div class="prize-content">
               <h3 class="prize-name">${prize.name}</h3>
               ${prize.description ? `<p class="prize-description">${prize.description}</p>` : ''}
