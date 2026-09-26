@@ -6,8 +6,9 @@
   <meta name="robots" content="noindex,nofollow" />
   <title>LTL 管理 - 选手积分流水</title>
   <link rel="stylesheet" href="src/styles/main.css" />
+  <link rel="stylesheet" href="src/styles/admin-theme.css" />
 </head>
-<body>
+<body class="admin-site">
   <header class="site-header">
     <nav class="nav">
       <a class="brand" href="index.html"><img class="brand-logo" src="assets/ltl-logo.webp" alt="LTL联赛" /></a>
@@ -27,7 +28,7 @@
       </div>
 
       <div class="panel" style="padding:1rem;">
-        <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.75rem;">
+        <div class="admin-form-grid" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.75rem;">
           <label class="field"><span class="field-label">选手</span><select class="input" id="filterPlayer"></select></label>
           <label class="field"><span class="field-label">队伍</span><select class="input" id="filterTeam"></select></label>
           <label class="field"><span class="field-label">类型</span><select class="input" id="filterType"><option value="">全部</option><option value="loan_fee">租借费</option><option value="manual_adjustment">手动调整</option><option value="race_reward">比赛奖励</option><option value="transfer_out">转赠扣款</option><option value="transfer_in">转赠收款</option><option value="daily_maintenance_fee">每日维护费</option><option value="salary">工资</option></select></label>
@@ -39,7 +40,7 @@
 
       <div class="panel" style="padding:1rem;margin-top:1rem;">
         <h3 style="margin:0 0 1rem 0;">调整选手积分</h3>
-        <div style="display:grid;grid-template-columns:2fr 1fr 2fr auto;gap:.75rem;align-items:end;">
+        <div class="admin-form-grid" style="display:grid;grid-template-columns:2fr 1fr 2fr auto;gap:.75rem;align-items:end;">
           <label class="field"><span class="field-label">选手</span><select class="input" id="adjustPlayer"></select></label>
           <label class="field"><span class="field-label">调整金额</span><input class="input" id="adjustAmount" type="number" placeholder="正数增加/负数减少" /></label>
           <label class="field"><span class="field-label">原因</span><input class="input" id="adjustReason" placeholder="调整原因" /></label>
@@ -50,7 +51,7 @@
 
       <div class="panel" style="padding:1rem;margin-top:1rem;">
         <h3 style="margin:0 0 1rem 0;">一键发工资</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:.75rem;align-items:end;">
+        <div class="admin-form-grid" style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:.75rem;align-items:end;">
           <label class="field">
             <span class="field-label">工资比例(%)</span>
             <input class="input" id="salaryRate" type="number" value="10" min="1" max="100" placeholder="如:10表示10%" />

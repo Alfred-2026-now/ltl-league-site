@@ -6,8 +6,9 @@
   <meta name="robots" content="noindex,nofollow" />
   <title>LTL 管理 - P币流水</title>
   <link rel="stylesheet" href="src/styles/main.css" />
+  <link rel="stylesheet" href="src/styles/admin-theme.css" />
 </head>
-<body>
+<body class="admin-site">
   <header class="site-header">
     <nav class="nav">
       <a class="brand" href="index.html"><img class="brand-logo" src="assets/ltl-logo.webp" alt="LTL联赛" /></a>
@@ -25,7 +26,7 @@
         </div>
       </div>
       <div class="panel" style="padding:1rem;">
-        <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.75rem;">
+        <div class="admin-form-grid" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.75rem;">
           <label class="field"><span class="field-label">队伍</span><select class="input" id="filterTeam"></select></label>
           <label class="field"><span class="field-label">类型</span><select class="input" id="filterType"><option value="">全部</option><option value="match_reward">比赛奖励</option><option value="luxury_tax">奢侈税</option><option value="loan_fee">租借费</option><option value="player_donation">选手赠与</option><option value="player_sign_loss">买入损耗</option><option value="player_release_loss">解约损耗</option><option value="salary_deduct">工资扣除</option><option value="population_subsidy">人口补贴</option></select></label>
           <label class="field"><span class="field-label">状态</span><select class="input" id="filterVoided"><option value="0">未作废</option><option value="1">已作废</option><option value="">全部</option></select></label>
@@ -36,7 +37,7 @@
       </div>
       <div class="panel" style="padding:1rem;margin-top:1rem;">
         <h3 style="margin:0 0 1rem 0;">手动添加P币流水</h3>
-        <div style="display:grid;grid-template-columns:2fr 1fr 2fr auto;gap:.75rem;align-items:end;">
+        <div class="admin-form-grid" style="display:grid;grid-template-columns:2fr 1fr 2fr auto;gap:.75rem;align-items:end;">
           <label class="field"><span class="field-label">队伍</span><select class="input" id="addTeam"></select></label>
           <label class="field"><span class="field-label">金额</span><input class="input" id="addAmount" type="number" /></label>
           <label class="field"><span class="field-label">原因</span><input class="input" id="addReason" /></label>
@@ -47,14 +48,14 @@
       <div class="panel" style="padding:1rem;margin-top:1rem;">
         <h3 style="margin:0 0 .5rem 0;">一键发放人口补贴</h3>
         <p class="muted" style="margin:0 0 1rem;">补贴收入 = 当前在职队员人数（不含队长）× 每人补贴金额。请先预览，确认明细无误后再发放。</p>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:1rem;align-items:start;">
+        <div class="admin-form-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:1rem;align-items:start;">
           <fieldset style="border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:.75rem;margin:0;min-width:0;">
             <legend class="field-label" style="padding:0 .35rem;">目标队伍</legend>
             <label style="display:flex;align-items:center;gap:.5rem;margin-bottom:.65rem;font-weight:600;">
               <input id="subsidySelectAll" type="checkbox" />
               <span>全选当前赛季队伍</span>
             </label>
-            <div id="subsidyTeamOptions" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr));gap:.5rem;"></div>
+            <div class="admin-form-grid" id="subsidyTeamOptions" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr));gap:.5rem;"></div>
           </fieldset>
           <div>
             <label class="field">
@@ -80,7 +81,7 @@
 
       <div class="panel" style="padding:1rem;margin-top:1rem;">
         <h3 style="margin:0 0 1rem 0;">扣除队伍工资</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:.75rem;align-items:end;">
+        <div class="admin-form-grid" style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:.75rem;align-items:end;">
           <label class="field">
             <span class="field-label">工资比例(%)</span>
             <input class="input" id="deductSalaryRate" type="number" value="10" min="1" max="100" placeholder="如:10表示10%" />

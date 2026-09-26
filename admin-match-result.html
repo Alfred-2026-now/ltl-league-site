@@ -6,8 +6,9 @@
   <meta name="robots" content="noindex,nofollow" />
   <title>LTL 管理 - 赛果录入</title>
   <link rel="stylesheet" href="src/styles/main.css" />
+  <link rel="stylesheet" href="src/styles/admin-theme.css" />
 </head>
-<body>
+<body class="admin-site">
   <header class="site-header">
     <nav class="nav">
       <a class="brand" href="index.html">
@@ -29,7 +30,7 @@
       </div>
 
       <div class="panel" style="padding: 1rem; margin-bottom: 1rem;" id="resultFormPanel">
-        <div style="display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: .75rem;">
+        <div class="admin-form-grid" style="display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: .75rem;">
           <label class="field">
             <span class="field-label">结果类型</span>
             <select class="input" id="resultType">
@@ -79,7 +80,7 @@
           <p class="muted" style="margin:0 0 .75rem;">
             系统按“本场折算身价 × 出场局数 ÷ 实际比赛局数”累计出场总身价；如使用身价差优势，折算身价为“原始身价 − 勾选档位之和 ÷ 赛制总局数”（BO2=2、BO3=3、BO5=5），勾选项数也不得超过赛制总局数。每队出场局数合计应为“实际比赛局数 × 5”。
           </p>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:.75rem;">
+          <div class="admin-form-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:.75rem;">
             <section class="panel" style="padding:.75rem;" data-lineup-side="home">
               <div style="display:flex;align-items:end;justify-content:space-between;gap:.75rem;flex-wrap:wrap;">
                 <div>
@@ -166,5 +167,6 @@
   <!-- 管理员权限验证 -->
   <script type="module" src="src/util/admin-auth.js"></script>
   <script type="module" src="src/admin/match-result.js"></script>
+  <script src="src/components/admin-nav.js"></script>
 </body>
 </html>

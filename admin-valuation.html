@@ -6,8 +6,9 @@
   <meta name="robots" content="noindex,nofollow" />
   <title>LTL 管理 - 身价管理</title>
   <link rel="stylesheet" href="src/styles/main.css" />
+  <link rel="stylesheet" href="src/styles/admin-theme.css" />
 </head>
-<body>
+<body class="admin-site">
   <header class="site-header">
     <nav class="nav">
       <a class="brand" href="index.html"><img class="brand-logo" src="assets/ltl-logo.webp" alt="LTL联赛" /></a>
@@ -25,7 +26,7 @@
         </div>
       </div>
       <div class="panel" style="padding:1rem;">
-        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:.75rem;align-items:end;">
+        <div class="admin-form-grid" style="display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:.75rem;align-items:end;">
           <label class="field"><span class="field-label">选手</span><select class="input" id="adjustPlayer"></select></label>
           <label class="field"><span class="field-label">位置</span><select class="input" id="adjustPosition"><option value="TOP">上路</option><option value="JUG">打野</option><option value="MID">中路</option><option value="BOT">下路</option><option value="SUP">辅助</option></select></label>
           <label class="field"><span class="field-label">调整后身价</span><input class="input" id="adjustAfterValue" type="number" min="0" /></label>
@@ -35,7 +36,7 @@
         <p class="muted" id="currentValueHint" style="margin:.75rem 0 0;"></p>
       </div>
       <div class="panel" style="padding:1rem;margin-top:1rem;">
-        <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.75rem;">
+        <div class="admin-form-grid" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.75rem;">
           <label class="field"><span class="field-label">队伍</span><select class="input" id="filterTeam"></select></label>
           <label class="field"><span class="field-label">选手</span><select class="input" id="filterPlayer"></select></label>
           <label class="field"><span class="field-label">来源</span><select class="input" id="filterSource"><option value="">全部</option><option value="match_result">赛果结算</option><option value="manual_adjustment">手动调整</option><option value="admin_player_edit">选手信息调整</option><option value="inactivity_decay">未参赛衰减</option></select></label>

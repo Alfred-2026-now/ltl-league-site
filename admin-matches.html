@@ -6,8 +6,9 @@
   <meta name="robots" content="noindex,nofollow" />
   <title>LTL 管理 - 赛程发布</title>
   <link rel="stylesheet" href="src/styles/main.css" />
+  <link rel="stylesheet" href="src/styles/admin-theme.css" />
 </head>
-<body>
+<body class="admin-site">
   <header class="site-header">
     <nav class="nav">
       <a class="brand" href="index.html"><img class="brand-logo" src="assets/ltl-logo.webp" alt="LTL联赛" /></a>
@@ -28,7 +29,7 @@
       </div>
 
       <div class="panel" style="padding: 1rem;">
-        <div class="admin-filters" style="display:grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .75rem;">
+        <div class="admin-form-grid admin-filters" style="display:grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .75rem;">
           <label class="field">
             <span class="field-label">赛季</span>
             <input class="input" id="filterSeason" placeholder="例如 s1（留空=全部）" />
@@ -105,7 +106,7 @@
         <button class="btn ghost" id="closeMatchDialogBtn" type="button">关闭</button>
       </div>
 
-      <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-top: .75rem;">
+      <div class="admin-form-grid" style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-top: .75rem;">
         <label class="field">
           <span class="field-label">轮次（必填）</span>
           <input class="input" id="formRound" type="number" min="1" required />

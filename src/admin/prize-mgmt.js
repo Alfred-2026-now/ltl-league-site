@@ -73,10 +73,10 @@ async function loadPrizes() {
       const statusClass = prize.isActive === 0 ? 'inactive' : '';
 
       card.innerHTML = `
-        <img src="${prize.imageUrl || 'https://via.placeholder.com/400x300?text=No+Image'}"
+        <img src="${prize.imageUrl || 'assets/reward-placeholder.svg'}"
              alt="${prize.name}"
              class="prize-image"
-             onerror="this.src='https://via.placeholder.com/400x300?text=No+Image'" />
+             onerror="this.onerror=null;this.src='assets/reward-placeholder.svg'" />
         <div class="prize-body">
           <div class="prize-header">
             <h3 class="prize-name">${prize.name}</h3>

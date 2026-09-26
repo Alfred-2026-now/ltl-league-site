@@ -1,8 +1,8 @@
 const SERIES = [
-  { key: "teamDelta", assetKey: "teamAssets", label: "队伍资产", color: "#6EE7F9" },
-  { key: "leagueDelta", assetKey: "leagueAssets", label: "联盟资产", color: "#A78BFA" },
-  { key: "playerDelta", assetKey: "playerAssets", label: "个人资产", color: "#FBBF24" },
-  { key: "taskEscrowDelta", assetKey: "taskEscrowAssets", label: "任务悬赏托管", color: "#34D399" }
+  { key: "teamDelta", assetKey: "teamAssets", label: "队伍资产", color: "#80CDCA" },
+  { key: "leagueDelta", assetKey: "leagueAssets", label: "联盟资产", color: "#8DAAC4" },
+  { key: "playerDelta", assetKey: "playerAssets", label: "个人资产", color: "#D5B77A" },
+  { key: "taskEscrowDelta", assetKey: "taskEscrowAssets", label: "任务悬赏托管", color: "#89B79A" }
 ];
 
 export function buildChangeChartModel(rows, currentAssets = {}) {
@@ -81,7 +81,7 @@ function ensureTooltip(canvas) {
       "padding:.45rem .6rem",
       "border:1px solid rgba(148, 163, 184, .35)",
       "border-radius:8px",
-      "background:rgba(4, 12, 28, .94)",
+      "background:rgba(11, 21, 26, .96)",
       "box-shadow:0 12px 30px rgba(0, 0, 0, .28)",
       "color:#e5edf7",
       "font-size:.85rem",

@@ -17,8 +17,9 @@
       user-select: none;
     }
   </style>
+  <link rel="stylesheet" href="src/styles/admin-theme.css" />
 </head>
-<body>
+<body class="admin-site">
   <header class="site-header">
     <nav class="nav">
       <a class="brand" href="index.html"><img class="brand-logo" src="assets/ltl-logo.webp" alt="LTL联赛" /></a>
@@ -38,7 +39,7 @@
       </div>
 
       <div class="panel" style="padding:1rem;margin-top:1rem;">
-        <div style="display:grid;grid-template-columns:2fr 1fr;gap:.75rem;">
+        <div class="admin-form-grid" style="display:grid;grid-template-columns:2fr 1fr;gap:.75rem;">
           <label class="field"><span class="field-label">队伍</span><select class="input" id="filterTeam"><option value="">全部</option></select></label>
           <label class="field"><span class="field-label">状态</span><select class="input" id="filterStatus"><option value="">全部</option><option value="1">在职</option><option value="2">离队</option><option value="3">自由人</option></select></label>
         </div>
@@ -70,7 +71,7 @@
         <button class="btn ghost" id="closeDialogBtn" type="button">关闭</button>
       </div>
 
-      <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-top: .75rem;">
+      <div class="admin-form-grid" style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-top: .75rem;">
         <label class="field">
           <span class="field-label">选手名称（必填）</span>
           <input class="input" id="formName" />

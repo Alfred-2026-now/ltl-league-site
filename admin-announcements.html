@@ -6,8 +6,9 @@
   <meta name="robots" content="noindex,nofollow" />
   <title>LTL 管理 - 公告管理</title>
   <link rel="stylesheet" href="src/styles/main.css" />
+  <link rel="stylesheet" href="src/styles/admin-theme.css" />
 </head>
-<body>
+<body class="admin-site">
   <header class="site-header">
     <nav class="nav">
       <a class="brand" href="index.html"><img class="brand-logo" src="assets/ltl-logo.webp" alt="LTL联赛" /></a>
@@ -26,7 +27,7 @@
       </div>
       <div class="panel" style="padding:1rem;">
         <h3 style="margin:0 0 1rem 0;">发布新公告</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+        <div class="admin-form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
           <label class="field"><span class="field-label">标题</span><input class="input" id="addTitle" /></label>
           <label class="field"><span class="field-label">日期</span><input class="input" id="addDate" type="date" /></label>
         </div>

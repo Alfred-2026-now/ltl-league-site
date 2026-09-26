@@ -6,8 +6,9 @@
   <meta name="robots" content="noindex,nofollow" />
   <title>LTL 管理 - 资产监测</title>
   <link rel="stylesheet" href="src/styles/main.css" />
+  <link rel="stylesheet" href="src/styles/admin-theme.css" />
 </head>
-<body>
+<body class="admin-site">
   <header class="site-header">
     <nav class="nav">
       <a class="brand" href="index.html"><img class="brand-logo" src="assets/ltl-logo.webp" alt="LTL联赛" /></a>
@@ -30,7 +31,7 @@
         </div>
       </div>
 
-      <div id="summaryGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;"></div>
+      <div class="admin-form-grid" id="summaryGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;"></div>
 
       <div class="panel" style="padding:1rem;margin-top:1rem;">
         <div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;margin-bottom:.75rem;">
@@ -42,7 +43,7 @@
 
       <div class="panel" style="padding:1rem;margin-top:1rem;">
         <h3 style="margin:0 0 1rem 0;">调整联盟总资产</h3>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;align-items:end;">
+        <div class="admin-form-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.75rem;align-items:end;">
           <label class="field"><span class="field-label">金额</span><input class="input" id="adjustAmount" type="number" placeholder="正数增加，负数扣除" /></label>
           <label class="field"><span class="field-label">原因</span><input class="input" id="adjustReason" placeholder="如：福利发放、赞助注入" /></label>
           <button class="btn primary" id="adjustBtn" type="button">提交</button>
