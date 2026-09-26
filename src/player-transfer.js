@@ -47,6 +47,9 @@ async function request(endpoint, options = {}) {
   if (data.code !== 200) {
     throw new Error(data.message || "请求失败");
   }
+  if (options.method && options.method.toUpperCase() !== "GET") {
+    window.dispatchEvent(new Event("ltl:balance-changed"));
+  }
   return data.data;
 }
 
@@ -159,7 +162,7 @@ function renderPlayers() {
   const currentPlayerId = state.userInfo?.playerId;
   const options = state.players
     .filter(player => player.id !== currentPlayerId)
-    .map(player => `<option value="${player.id}">${escapeHtml(player.name)} · ${formatP(player.deposit || 0)}</option>`)
+    .map(player => `<option value="${player.id}">${escapeHtml(player.name)}</option>`)
     .join("");
   els.recipientPlayer.innerHTML = `<option value="">选择受赠人</option>${options}`;
 }

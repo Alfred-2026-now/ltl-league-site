@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>LTL 管理 - 选手积分排行</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="index.html"><img class="brand-logo" src="assets/ltl-logo.webp" alt="LTL联赛" /></a>
+      <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+      <div class="nav-links" id="navLinks"></div>
+    </nav>
+  </header>
+
+  <main class="page-shell">
+    <section class="section">
+      <div class="section-heading">
+        <p class="eyebrow">ADMIN · PLAYER RANKINGS</p>
+        <h1 class="page-title">选手积分排行榜</h1>
+        <p class="muted">仅管理员可查看选手个人 P 币余额。</p>
+      </div>
+      <div class="panel" style="margin-top:1rem;overflow:auto;">
+        <table class="admin-table admin-balance-table" style="width:100%;border-collapse:collapse;">
+          <thead><tr><th>排名</th><th>选手</th><th>当前 P 币</th></tr></thead>
+          <tbody id="rankingBody"><tr><td colspan="3" class="muted">加载中...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="src/util/admin-auth.js"></script>
+  <script type="module" src="src/admin/player-rankings.js"></script>
+  <script src="src/components/admin-nav.js"></script>
+</body>
+</html>

@@ -62,7 +62,6 @@ public final class PlayerReviewDtos {
         private String teamState;
         private String teamName;
         private Integer value;
-        private Integer deposit;
         private Integer reviewCount;
         private Double topPopularity;
         private Double totalPopularity;

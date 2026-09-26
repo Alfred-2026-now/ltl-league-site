@@ -389,6 +389,31 @@ body.home-page .home-teams {
   flex: 0 0 auto;
   white-space: nowrap;
 }
+.nav-user-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+}
+.nav-user-name {
+  color: #667eea;
+  font-weight: 600;
+  padding: 0 !important;
+}
+.nav-user-balance {
+  color: #ffd580;
+  font-size: 0.78rem;
+  margin-top: 3px;
+}
+.admin-balance-table th,
+.admin-balance-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+.admin-balance-table th {
+  color: #79e7ff;
+}
 .nav-toggle {
   display: none;
   color: #fff;

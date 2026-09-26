@@ -1,5 +1,6 @@
 package com.ltl.league.ai.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.ltl.league.admin.dto.RuleParameterVO;
 import com.ltl.league.dto.UserInfoVO;
 import com.ltl.league.entity.Player;
@@ -22,6 +23,7 @@ public final class TeamManagerDtos {
         private UserInfoVO currentUser;
         private Team currentTeam;
         private List<Team> teams = new ArrayList<>();
+        @JsonIgnoreProperties("deposit")
         private List<Player> players = new ArrayList<>();
         private List<RuleParameterVO> ruleParameters = new ArrayList<>();
         private List<SettlementRewardRule> rewardRules = new ArrayList<>();

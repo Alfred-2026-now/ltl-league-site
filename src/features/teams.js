@@ -32,7 +32,7 @@ function isCaptain(player) {
 
 function renderRosterItem(player, captain) {
   const badge = captain ? `<em class="roster-badge">队长</em>` : "";
-  return `<li class="${captain ? "is-captain" : ""}"><span>${escapeHtml(player[0])}${badge}</span><small>身价 ${formatP(player[1])} | 积分 ${formatP(player[2] || 0)}</small></li>`;
+  return `<li class="${captain ? "is-captain" : ""}"><span>${escapeHtml(player[0])}${badge}</span><small>身价 ${formatP(player[1])}</small></li>`;
 }
 
 function renderRoster(players) {

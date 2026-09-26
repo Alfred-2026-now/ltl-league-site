@@ -245,6 +245,7 @@ async function depositToTeam() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ amount, reason })
     });
+    window.dispatchEvent(new Event("ltl:balance-changed"));
     msg.style.color = "#22c55e";
     msg.textContent = "转入成功";
     document.getElementById("depositAmount").value = "";

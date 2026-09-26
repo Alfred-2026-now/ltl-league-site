@@ -26,6 +26,9 @@ async function request(endpoint, options = {}) {
   if (data.code !== 200) {
     throw new Error(data.message || "请求失败");
   }
+  if (options.method && options.method.toUpperCase() !== "GET") {
+    window.dispatchEvent(new Event("ltl:balance-changed"));
+  }
   return data.data;
 }
 
@@ -91,7 +94,6 @@ const els = {};
 
 function bindEls() {
   els.showValueRankings = document.getElementById("showValueRankings");
-  els.showDepositRankings = document.getElementById("showDepositRankings");
   els.showBountyRankings = document.getElementById("showBountyRankings");
   els.showReviewRankings = document.getElementById("showReviewRankings");
   els.reviewSortControls = document.getElementById("reviewSortControls");
@@ -105,7 +107,6 @@ function bindEls() {
 function setMode(mode) {
   currentMode = mode;
   els.showValueRankings.classList.toggle("primary", mode === "value");
-  els.showDepositRankings.classList.toggle("primary", mode === "deposit");
   els.showBountyRankings.classList.toggle("primary", mode === "bounty");
   els.showReviewRankings.classList.toggle("primary", mode === "reviews");
   els.reviewSortControls.style.display = mode === "reviews" ? "flex" : "none";
@@ -163,10 +164,8 @@ function renderRankingHead() {
   if (currentMode === "value") {
     cols = `${th("排名")}${th("选手")}${th("所属小组")}${th("最高身价(P)")}` +
       POSITION_COLS.map(c => th(c.label + "身价")).join("");
-  } else if (currentMode === "bounty") {
-    cols = `${th("排名")}${th("选手")}${th("所属小组")}${th("赏金 🪙")}`;
   } else {
-    cols = `${th("排名")}${th("选手")}${th("所属小组")}${th("积分(P)")}`;
+    cols = `${th("排名")}${th("选手")}${th("所属小组")}${th("赏金 🪙")}`;
   }
   els.rankingHead.innerHTML = `<tr style="background:linear-gradient(90deg, rgba(25, 168, 255, 0.15), rgba(140, 92, 255, 0.15));border-bottom:2px solid rgba(121, 231, 255, 0.3);">${cols}</tr>`;
 }
@@ -192,18 +191,13 @@ function renderRankings() {
     if (currentMode === "value") {
       return (b.maxValue ?? b.value ?? 0) - (a.maxValue ?? a.value ?? 0);
     }
-    if (currentMode === "bounty") {
-      return (b.bounty || 0) - (a.bounty || 0);
-    }
-    return (b.deposit || 0) - (a.deposit || 0);
+    return (b.bounty || 0) - (a.bounty || 0);
   });
 
   if (currentMode === "value") {
     els.rankingTitle.textContent = "选手身价排行榜";
-  } else if (currentMode === "bounty") {
-    els.rankingTitle.textContent = "选手赏金排行榜";
   } else {
-    els.rankingTitle.textContent = "选手积分排行榜";
+    els.rankingTitle.textContent = "选手赏金排行榜";
   }
 
   els.rankingBody.innerHTML = rankedPlayers.map((player, index) => {
@@ -232,23 +226,12 @@ function renderRankings() {
       `;
     }
 
-    if (currentMode === "bounty") {
-      return `
-        <tr class="ranking-row">
-          <td style="padding:.75rem 1rem;font-weight:bold;${rankStyle(rank)}">${rankDisplay(rank)}</td>
-          <td style="padding:.75rem 1rem;color:#f3f8ff;">${escapeHtml(player.name || "-")}${substituteText}</td>
-          <td style="padding:.75rem 1rem;color:${teamColor(team)};font-weight:600;">${escapeHtml(teamText(team))}</td>
-          <td style="padding:.75rem 1rem;color:#ffd700;font-weight:600;">🪙 ${player.bounty || 0}</td>
-        </tr>
-      `;
-    }
-
     return `
       <tr class="ranking-row">
         <td style="padding:.75rem 1rem;font-weight:bold;${rankStyle(rank)}">${rankDisplay(rank)}</td>
         <td style="padding:.75rem 1rem;color:#f3f8ff;">${escapeHtml(player.name || "-")}${substituteText}</td>
         <td style="padding:.75rem 1rem;color:${teamColor(team)};font-weight:600;">${escapeHtml(teamText(team))}</td>
-        <td style="padding:.75rem 1rem;color:#f59e0b;font-weight:600;">${player.deposit || 0}P</td>
+        <td style="padding:.75rem 1rem;color:#ffd700;font-weight:600;">🪙 ${player.bounty || 0}</td>
       </tr>
     `;
   }).join("");
@@ -260,12 +243,9 @@ function renderRankings() {
     if (currentMode === "value") {
       metricLabel = "最高身价";
       metricValue = `${player.maxValue ?? player.value ?? 0}P`;
-    } else if (currentMode === "bounty") {
+    } else {
       metricLabel = "赏金";
       metricValue = `🪙 ${player.bounty || 0}`;
-    } else {
-      metricLabel = "积分";
-      metricValue = `${player.deposit || 0}P`;
     }
     return `
       <button class="ranking-card" type="button">
@@ -488,11 +468,6 @@ async function switchToReviewMode() {
 function bindEvents() {
   els.showValueRankings.addEventListener("click", () => {
     setMode("value");
-    renderRankings();
-  });
-
-  els.showDepositRankings.addEventListener("click", () => {
-    setMode("deposit");
     renderRankings();
   });
 
