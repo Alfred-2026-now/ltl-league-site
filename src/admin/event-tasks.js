@@ -49,7 +49,7 @@ function proofCard(proof, taskMap) {
 function publishedTask(task) {
   const unfinished = (task.claims || []).filter(claim => unfinishedStatuses.includes(claim.status)).length;
   const pending = (task.claims || []).filter(claim => claim.status === "PROOF_PENDING").length;
-  return `<article class="panel task-card"><div class="task-card-heading"><div><span class="task-status">${task.official ? "官方任务" : "进行中"}</span><h3>${esc(task.title)}</h3><p class="muted">发布者：${esc(publisherLabel(task))} · ${time(task.publishedAt)}</p></div><div class="task-rewards"><strong>${task.pReward}P</strong><strong>🪙 ${task.bountyReward}</strong></div></div><div class="task-requirements">${esc(task.requirements).replaceAll("\n", "<br>")}</div>${task.budgetNote ? `<p class="task-note">备注：${esc(task.budgetNote)}</p>` : ""}<div class="task-facts"><span>接取 ${task.claimedCount}/${task.maxClaimants}</span><span>完成 ${task.completedCount}</span><span>未完成 ${unfinished}</span><span>待审 ${pending}</span><span>剩余冻结 ${task.escrowRemaining}P</span>${task.anonymous ? `<span>匿名发布费 ${task.anonymousFeeAmount}P（费率快照 ${task.anonymousFeeRateSnapshot}%）</span>` : ""}</div><div class="task-actions"><button class="btn" data-edit-published="${task.id}">编辑任务</button><button class="btn ghost" data-close-task="${task.id}" data-close-summary="未完成${unfinished}人、待审${pending}份、剩余冻结${task.escrowRemaining}P">注销任务</button></div></article>`;
+  return `<article class="panel task-card"><div class="task-card-heading"><div>${task.pinned ? '<span class="task-pinned">[置顶]</span>' : ""}<span class="task-status">${task.official ? "官方任务" : "进行中"}</span><h3>${esc(task.title)}</h3><p class="muted">发布者：${esc(publisherLabel(task))} · ${time(task.publishedAt)}</p></div><div class="task-rewards"><strong>${task.pReward}P</strong><strong>🪙 ${task.bountyReward}</strong></div></div><div class="task-requirements">${esc(task.requirements).replaceAll("\n", "<br>")}</div>${task.budgetNote ? `<p class="task-note">备注：${esc(task.budgetNote)}</p>` : ""}<div class="task-facts"><span>接取 ${task.claimedCount}/${task.maxClaimants}</span><span>完成 ${task.completedCount}</span><span>未完成 ${unfinished}</span><span>待审 ${pending}</span><span>剩余冻结 ${task.escrowRemaining}P</span>${task.anonymous ? `<span>匿名发布费 ${task.anonymousFeeAmount}P（费率快照 ${task.anonymousFeeRateSnapshot}%）</span>` : ""}</div><div class="task-actions"><label class="task-pin-option"><input type="checkbox" data-pin-task="${task.id}" ${task.pinned ? "checked" : ""} />置顶</label><button class="btn" data-edit-published="${task.id}">编辑任务</button><button class="btn ghost" data-close-task="${task.id}" data-close-summary="未完成${unfinished}人、待审${pending}份、剩余冻结${task.escrowRemaining}P">注销任务</button></div></article>`;
 }
 
 function renderClaimHistory() {
@@ -100,7 +100,8 @@ async function load() {
     filter.innerHTML = '<option value="">全部任务</option>' + [...uniqueTasks].map(([id, title]) => `<option value="${id}">${esc(title)}</option>`).join("");
     filter.value = selectedTask;
     const pending = tasks.filter(task => task.status === "PENDING_REVIEW");
-    const published = tasks.filter(task => task.status === "PUBLISHED");
+    const published = tasks.filter(task => task.status === "PUBLISHED")
+      .sort((left, right) => Number(Boolean(right.pinned)) - Number(Boolean(left.pinned)));
     const closed = tasks.filter(task => ["CLOSED", "ABANDONED"].includes(task.status));
     const completions = tasks.flatMap(task => (task.claims || [])
       .filter(claim => ["COMPLETED", "COMPLETION_REVOKED"].includes(claim.status))
@@ -186,6 +187,21 @@ document.addEventListener("click", async event => {
     if (reason && confirm("确认注销该任务？此操作会终止全部未完成接取。")) {
       await act(() => request(`/admin/event-tasks/${close.dataset.closeTask}/close`, json({ reason })), "任务已注销");
     }
+  }
+});
+
+document.addEventListener("change", async event => {
+  const checkbox = event.target.closest("[data-pin-task]");
+  if (!checkbox) return;
+  checkbox.disabled = true;
+  try {
+    await request(`/admin/event-tasks/${checkbox.dataset.pinTask}/pin`, json({ pinned: checkbox.checked }, "PUT"));
+    setMessage(checkbox.checked ? "任务已置顶" : "已取消置顶");
+    await load();
+  } catch (error) {
+    checkbox.checked = !checkbox.checked;
+    checkbox.disabled = false;
+    setMessage(error.message, true);
   }
 });
 

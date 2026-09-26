@@ -58,6 +58,11 @@ public final class EventTaskDtos {
     }
 
     @Data
+    public static class AdminPinRequest {
+        private Boolean pinned;
+    }
+
+    @Data
     public static class AdminCancelClaimRequest {
         private String reason;
     }
@@ -122,6 +127,7 @@ public final class EventTaskDtos {
         private Long publisherPlayerId;
         private String publisherName;
         private Boolean official;
+        private Boolean pinned;
         private Boolean anonymous;
         private String title;
         private String requirements;

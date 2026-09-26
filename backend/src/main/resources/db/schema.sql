@@ -435,6 +435,7 @@ CREATE TABLE IF NOT EXISTS `event_tasks` (
   `publisher_player_id` BIGINT UNSIGNED NOT NULL,
   `publisher_name_snapshot` VARCHAR(50) NOT NULL,
   `official` TINYINT NOT NULL DEFAULT 0,
+  `pinned` TINYINT NOT NULL DEFAULT 0 COMMENT '是否在公开任务列表置顶',
   `anonymous` TINYINT NOT NULL DEFAULT 0,
   `title` VARCHAR(200) NOT NULL,
   `requirements` TEXT NOT NULL,

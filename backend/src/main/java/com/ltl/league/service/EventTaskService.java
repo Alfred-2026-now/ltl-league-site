@@ -113,6 +113,7 @@ public class EventTaskService {
                 .eq(EventTask::getSeason, currentSeason)
                 .eq(EventTask::getStatus, TASK_PUBLISHED)
                 .eq(EventTask::getDeleted, 0)
+                .orderByDesc(EventTask::getPinned)
                 .orderByDesc(EventTask::getPublishedAt)
                 .orderByDesc(EventTask::getId));
         return toTaskVOs(tasks, viewer, false);
@@ -385,6 +386,20 @@ public class EventTaskService {
                 .eq(status != null && !status.isBlank(), EventTask::getStatus, status)
                 .orderByDesc(EventTask::getCreatedAt);
         return toTaskVOs(taskMapper.selectList(query), admin, true);
+    }
+
+    @Transactional
+    public EventTaskDtos.TaskVO setPinned(Long taskId, EventTaskDtos.AdminPinRequest request, Player admin) {
+        if (request == null || request.getPinned() == null) {
+            throw new BusinessException(400, "请选择是否置顶");
+        }
+        EventTask task = taskMapper.selectByIdForUpdate(taskId);
+        if (task == null || !TASK_PUBLISHED.equals(task.getStatus()) || !currentSeason.equals(task.getSeason())) {
+            throw new BusinessException(409, "只有本赛季进行中的任务可以设置置顶");
+        }
+        task.setPinned(Boolean.TRUE.equals(request.getPinned()) ? 1 : 0);
+        taskMapper.updateById(task);
+        return toTaskVO(task, admin, true);
     }
 
     public List<EventTaskDtos.ClaimVO> listAdminClaimHistory() {
@@ -1063,6 +1078,7 @@ public class EventTaskService {
         vo.setPublisherPlayerId(maySeePublisher ? task.getPublisherPlayerId() : null);
         vo.setPublisherName(maySeePublisher ? task.getPublisherNameSnapshot() : "匿名发布者");
         vo.setOfficial(Integer.valueOf(1).equals(task.getOfficial()));
+        vo.setPinned(Integer.valueOf(1).equals(task.getPinned()));
         vo.setAnonymous(anonymous);
         vo.setTitle(task.getTitle());
         vo.setRequirements(task.getRequirements());

@@ -182,6 +182,36 @@ class EventTaskServiceTest {
     }
 
     @Test
+    void adminCanPinAndUnpinPublishedTask() {
+        EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
+        Player admin = player(9L, "管理员", 0, 0);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        EventTaskDtos.AdminPinRequest request = new EventTaskDtos.AdminPinRequest();
+        request.setPinned(true);
+
+        assertTrue(service.setPinned(10L, request, admin).getPinned());
+        assertEquals(1, task.getPinned());
+        request.setPinned(false);
+        assertFalse(service.setPinned(10L, request, admin).getPinned());
+        assertEquals(0, task.getPinned());
+        verify(taskMapper, times(2)).updateById(task);
+    }
+
+    @Test
+    void cannotPinClosedTaskOrOmitValue() {
+        EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
+        Player admin = player(9L, "管理员", 0, 0);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        assertThrows(BusinessException.class,
+                () -> service.setPinned(10L, new EventTaskDtos.AdminPinRequest(), admin));
+        task.setStatus("CLOSED");
+        EventTaskDtos.AdminPinRequest request = new EventTaskDtos.AdminPinRequest();
+        request.setPinned(true);
+        assertThrows(BusinessException.class, () -> service.setPinned(10L, request, admin));
+        verify(taskMapper, never()).updateById(task);
+    }
+
+    @Test
     void anonymousTaskRedactsPublisherPubliclyButAdminStillSeesIdentity() {
         EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
         task.setAnonymous(1);

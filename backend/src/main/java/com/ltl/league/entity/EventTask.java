@@ -14,6 +14,7 @@ public class EventTask {
     private Long publisherPlayerId;
     private String publisherNameSnapshot;
     private Integer official;
+    private Integer pinned;
     private Integer anonymous;
     private String title;
     private String requirements;

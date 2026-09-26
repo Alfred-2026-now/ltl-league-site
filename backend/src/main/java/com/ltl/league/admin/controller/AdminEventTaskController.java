@@ -80,6 +80,15 @@ public class AdminEventTaskController {
         return Result.success(taskService.editPublished(admin.getId(), taskId, request));
     }
 
+    @PutMapping("/event-tasks/{taskId}/pin")
+    public Result<EventTaskDtos.TaskVO> setPinned(
+            @PathVariable Long taskId,
+            @RequestBody EventTaskDtos.AdminPinRequest request,
+            @CookieValue(value = COOKIE_NAME, required = false) String token) {
+        Player admin = currentPlayerService.requireAdmin(token);
+        return Result.success(taskService.setPinned(taskId, request, admin));
+    }
+
     @PostMapping("/event-task-claims/{claimId}/cancel")
     public Result<EventTaskDtos.ClaimVO> cancelClaim(
             @PathVariable Long claimId,
