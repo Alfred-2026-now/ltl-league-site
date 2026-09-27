@@ -273,6 +273,42 @@ class EventTaskServiceTest {
     }
 
     @Test
+    void zeroFeeTaskCanBeClaimedWithNegativeBalanceWithoutChangingBalance() {
+        EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
+        task.setClaimFee(0);
+        Player claimant = player(2L, "接取者", -30, 0);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        when(playerMapper.selectByIdForUpdate(2L)).thenReturn(claimant);
+        when(playerMapper.selectById(2L)).thenReturn(claimant);
+        when(taskMapper.selectById(10L)).thenReturn(task);
+
+        EventTaskDtos.ClaimVO result = service.claim(2L, 10L);
+
+        assertEquals(0, result.getFeeAmount());
+        assertEquals(-30, claimant.getDeposit());
+        assertEquals(1, task.getClaimedCount());
+        verify(playerMapper, never()).updateById(any(Player.class));
+        verify(depositLedgerMapper, never()).insert(any(PlayerDepositLedger.class));
+        verify(adminAssetService, never()).recordIncome(anyInt(), any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void paidTaskStillRejectsNegativeBalance() {
+        EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
+        task.setClaimFee(1);
+        Player claimant = player(2L, "接取者", -30, 0);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        when(playerMapper.selectByIdForUpdate(2L)).thenReturn(claimant);
+
+        BusinessException error = assertThrows(BusinessException.class, () -> service.claim(2L, 10L));
+
+        assertEquals("个人P币不足，无法接取任务", error.getMessage());
+        verify(claimMapper, never()).insert(any(EventTaskClaim.class));
+    }
+
+    @Test
     void publisherCannotClaimOwnTask() {
         EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
         when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);

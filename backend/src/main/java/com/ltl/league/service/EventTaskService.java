@@ -238,7 +238,7 @@ public class EventTaskService {
         }
         int fee = safe(task.getClaimFee());
         int before = safe(player.getDeposit());
-        if (before < fee) {
+        if (fee > 0 && before < fee) {
             throw new BusinessException(400, "个人P币不足，无法接取任务");
         }
 

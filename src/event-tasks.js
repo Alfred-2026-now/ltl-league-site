@@ -80,7 +80,7 @@ function taskCard(task, mode = "hall") {
     ? "LTL官方"
     : `${task.publisherName}${mode === "published" && task.anonymous ? "（匿名）" : ""}`;
   const claimButton = task.canClaim
-    ? `<button class="btn primary" data-claim-task="${task.id}">支付 ${task.claimFee || 0}P 并接取</button>`
+    ? `<button class="btn primary" data-claim-task="${task.id}" data-claim-fee="${task.claimFee || 0}">${task.claimFee > 0 ? `支付 ${task.claimFee}P 并接取` : "免费接取"}</button>`
     : task.viewerClaimStatus === "ADMIN_CANCELLED" && task.viewerReclaimAvailableAt
       ? `<span class="task-status">${new Date() < new Date(task.viewerReclaimAvailableAt) ? "冷却中，可重新接取时间" : "可重新接取，等待空余名额"}：${formatTime(task.viewerReclaimAvailableAt)}</span>`
     : task.viewerClaimStatus
@@ -228,7 +228,10 @@ document.addEventListener("click", async event => {
   const claimButton = event.target.closest("[data-claim-task]");
   if (claimButton) {
     if (!currentUser) return window.location.assign(`login.html?redirect=${encodeURIComponent(window.location.href)}`);
-    if (!confirm("确认支付接取费用并接取任务？接取后30分钟内可无损放弃。")) return;
+    const fee = Number(claimButton.dataset.claimFee);
+    if (!confirm(fee > 0
+      ? "确认支付接取费用并接取任务？接取后30分钟内可无损放弃。"
+      : "确认免费接取任务？接取后30分钟内可无损放弃。")) return;
     await runAction(() => request(`/event-tasks/${claimButton.dataset.claimTask}/claims`, { method: "POST" }), "任务接取成功");
   }
   const abandonClaim = event.target.closest("[data-abandon-claim]");
