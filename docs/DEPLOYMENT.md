@@ -515,3 +515,36 @@ tail -f /var/log/nginx/access.log
 ```bash
 tail -f /var/log/nginx/error.log
 ```
+
+---
+
+## 12. 服务器内存加固（2026-09-28）
+
+> 背景：服务器仅 1.6GB 内存，2026-09-28 12:17 `apt-daily` 定时任务触发内存耗尽，
+> 整机 swap 死亡螺旋冻结 4 小时，最终靠阿里云控制台强制停止恢复。
+> 以下配置只存在于服务器上，**重装系统时需按本章重做**。
+
+### 12.1 已做的服务器侧配置（代码库之外）
+
+| 配置 | 位置 | 内容 |
+|---|---|---|
+| earlyoom 熔断 | `/etc/default/earlyoom` | `-m 10 -s 10 -r 3600 --avoid ^(sshd\|nginx)$`，内存/swap 低于 10% 先杀最大进程，避免整机冻结 |
+| MySQL 内存 | `/etc/mysql/mysql.conf.d/99-ltl-tuning.cnf` | `performance_schema=OFF`、`innodb_buffer_pool_size=96M`（RSS 397→162MB；数据总量 <10MB，性能无影响） |
+| apt 定时任务 | `/etc/systemd/system/apt-daily.timer.d/override.conf` | 从中午随机时段挪到固定 04:30 |
+| sysstat 监控 | `/etc/default/sysstat` | `ENABLED="true"`，采样数据在 `/var/log/sysstat/`（排障用 `sar -r -f ...`） |
+| 已停用服务 | systemd | `snapd`（已卸载）、`bt` 宝塔面板、`multipathd`、`tuned` |
+
+### 12.2 JVM 内存上限（已同步进 `scripts/deploy.sh`）
+
+`start.sh` 除 `-Xmx256m` 外，同时封顶原生内存（否则堆外内存不受限，JVM 实际可吃到 500MB+）：
+
+- `-XX:MaxMetaspaceSize=160m` / `-XX:ReservedCodeCacheSize=64m` / `-XX:MaxDirectMemorySize=64m`
+- `-Xss512k` + Tomcat 线程 200→50（`--server.tomcat.threads.max=50`，注意 Spring 参数必须在 `-jar` 之后）
+- Hikari 连接池 10→6（`--spring.datasource.hikari.maximum-pool-size=6`）
+
+### 12.3 注意事项
+
+- **升级 JVM 内存相关参数前先看 `free -h`**，这台机器没有余量给"顺手调大"
+- 若再出现"ping 通但 SSH 无响应"，是整机冻结，只能阿里云控制台强制停止后重启
+- 治本方案是升配到 4GB（截至本文档更新时未执行）
+
