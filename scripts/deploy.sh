@@ -95,13 +95,19 @@ ltl:
       timeout-ms: 60000
 YAML
 
-# 限制 JVM 堆，避免与 MySQL 抢光 1.6G 内存
+# 限制 JVM 堆与原生内存（Metaspace/CodeCache/DirectMemory），避免与 MySQL 抢光 1.6G 内存
+# 2026-09-28 宕机加固：另将 Tomcat 线程 200→50、Hikari 连接池 10→6（Spring 参数必须在 -jar 之后）
 cat > /opt/ltl-league/backend/start.sh << 'START'
 #!/bin/bash
 cd /opt/ltl-league/backend
 export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))
-exec java -Xms128m -Xmx256m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 \
-  -jar league-backend-1.0.0.jar --spring.profiles.active=prod
+exec java -Xms128m -Xmx256m -Xss512k \
+  -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=64m -XX:MaxDirectMemorySize=64m \
+  -XX:+UseG1GC -XX:MaxGCPauseMillis=200 \
+  -jar league-backend-1.0.0.jar --spring.profiles.active=prod \
+  --server.tomcat.threads.max=50 \
+  --server.tomcat.threads.min-spare=8 \
+  --spring.datasource.hikari.maximum-pool-size=6
 START
 chmod +x /opt/ltl-league/backend/start.sh
 
