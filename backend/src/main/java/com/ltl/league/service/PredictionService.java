@@ -107,7 +107,8 @@ public class PredictionService {
             wrapper.eq(Prediction::getStatus, status);
         }
         wrapper.orderByDesc(Prediction::getCreatedAt);
-        return predictionMapper.selectList(wrapper).stream().map(p -> toVO(p, null)).collect(Collectors.toList());
+        // 管理端始终可见实时票数分布
+        return predictionMapper.selectList(wrapper).stream().map(p -> toVO(p, null, true)).collect(Collectors.toList());
     }
 
     @Transactional
@@ -230,8 +231,7 @@ public class PredictionService {
             if (pShare > 0) {
                 int before = safe(winner.getDeposit());
                 winner.setDeposit(checkedAdd(before, pShare, "P币奖励"));
-                addDepositLedger(winner, "prediction_reward", pShare, reasonPrefix, before, winner.getDeposit(),
-                        "match_prediction", "match_prediction_bets", bet.getId(), adminName);
+                upsertDepositRewardLedger(winner, pShare, reasonPrefix, before, winner.getDeposit(), bet.getId(), adminName);
                 actualPTotal += pShare;
             }
             if (bountyShare > 0) {
@@ -287,8 +287,10 @@ public class PredictionService {
     }
 
     /**
-     * 撤回结算：按结算快照扣回每位中奖选手的P币与赏金，作废原奖励流水并记回退流水，
+     * 撤回结算：按结算快照扣回每位中奖选手的P币与赏金（记无业务引用的补偿回退流水），
      * 联盟资产记回流；竞猜回到 PUBLISHED，可修改后重新结算。
+     * 注意：奖励流水不作废——uk_player_deposit_business_flow 以 (player,type,ref,voided) 为一条业务流水，
+     * 多个结算周期中原地复用同一条，否则第二个周期的作废/重插会撞唯一键。
      */
     @Transactional
     public PredictionDtos.PredictionVO revoke(Long adminId, Long predictionId, PredictionDtos.RevokeRequest request) {
@@ -316,8 +318,6 @@ public class PredictionService {
                 throw new BusinessException(404, "中奖选手不存在：" + bet.getPlayerId());
             }
             if (pShare > 0) {
-                // 作废原奖励流水，释放唯一键槽位，便于撤回后重新结算再发
-                voidDepositRewardLedgers(winner.getId(), bet.getId(), reason);
                 int before = safe(winner.getDeposit());
                 winner.setDeposit(checkedAdd(before, -pShare, "P币奖励回退"));
                 addDepositLedger(winner, "prediction_reward_reversal", -pShare, reasonPrefix, before, winner.getDeposit(),
@@ -373,19 +373,29 @@ public class PredictionService {
         predictionMapper.deleteById(predictionId);
     }
 
-    private void voidDepositRewardLedgers(Long playerId, Long betId, String reason) {
-        List<PlayerDepositLedger> rows = depositLedgerMapper.selectList(new LambdaQueryWrapper<PlayerDepositLedger>()
-                .eq(PlayerDepositLedger::getPlayerId, playerId)
-                .eq(PlayerDepositLedger::getType, "prediction_reward")
-                .eq(PlayerDepositLedger::getRefTable, "match_prediction_bets")
-                .eq(PlayerDepositLedger::getRefId, betId)
-                .eq(PlayerDepositLedger::getIsVoided, 0));
-        LocalDateTime voidedAt = now();
-        for (PlayerDepositLedger row : rows) {
-            row.setIsVoided(1);
-            row.setVoidedAt(voidedAt);
-            row.setVoidReason("撤回竞猜结算：" + reason);
-            depositLedgerMapper.updateById(row);
+    /**
+     * 同一注的奖励流水只占一条：首个结算周期插入，后续周期（撤回后重新结算）原地覆盖，
+     * 避免 uk_player_deposit_business_flow 在多周期下撞唯一键；各周期的扣回在回退流水（无业务引用）中体现。
+     */
+    private void upsertDepositRewardLedger(Player winner, int pShare, String reasonPrefix, int before, int after,
+                                           Long betId, String adminName) {
+        PlayerDepositLedger existing = depositLedgerMapper.selectList(new LambdaQueryWrapper<PlayerDepositLedger>()
+                        .eq(PlayerDepositLedger::getPlayerId, winner.getId())
+                        .eq(PlayerDepositLedger::getType, "prediction_reward")
+                        .eq(PlayerDepositLedger::getRefTable, "match_prediction_bets")
+                        .eq(PlayerDepositLedger::getRefId, betId)
+                        .eq(PlayerDepositLedger::getIsVoided, 0))
+                .stream().findFirst().orElse(null);
+        if (existing == null) {
+            addDepositLedger(winner, "prediction_reward", pShare, reasonPrefix, before, after,
+                    "match_prediction", "match_prediction_bets", betId, adminName);
+        } else {
+            existing.setAmount(pShare);
+            existing.setReason(reasonPrefix);
+            existing.setBalanceBefore(before);
+            existing.setBalanceAfter(after);
+            existing.setOperator(adminName);
+            depositLedgerMapper.updateById(existing);
         }
     }
 
@@ -467,6 +477,10 @@ public class PredictionService {
     }
 
     private PredictionDtos.PredictionVO toVO(Prediction prediction, Player viewer) {
+        return toVO(prediction, viewer, false);
+    }
+
+    private PredictionDtos.PredictionVO toVO(Prediction prediction, Player viewer, boolean revealVotes) {
         PredictionDtos.PredictionVO vo = new PredictionDtos.PredictionVO();
         vo.setId(prediction.getId());
         vo.setSeason(prediction.getSeason());
@@ -496,7 +510,7 @@ public class PredictionService {
         vo.setTotalBets(allBets.size());
         Map<Long, Long> votesByOption = allBets.stream().collect(Collectors.groupingBy(
                 PredictionBet::getOptionId, Collectors.counting()));
-        boolean revealed = !STATUS_PUBLISHED.equals(prediction.getStatus());
+        boolean revealed = revealVotes || !STATUS_PUBLISHED.equals(prediction.getStatus());
         List<PredictionDtos.OptionVO> optionVOs = options.stream().map(option -> {
             PredictionDtos.OptionVO optionVO = new PredictionDtos.OptionVO();
             optionVO.setId(option.getId());

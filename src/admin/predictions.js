@@ -26,7 +26,7 @@ function setMessage(text, error = false) {
 // ==================== 发布表单 ====================
 
 const quickFillPresets = {
-  bo2: ["1:0", "1:1", "0:1"],
+  bo2: ["2:0", "1:1", "0:2"],
   bo3: ["2:0", "2:1", "1:2", "0:2"],
   bo5: ["3:0", "3:1", "3:2", "2:3", "1:3", "0:3"]
 };
@@ -103,7 +103,7 @@ function predictionCard(prediction) {
     ? (prediction.bettingOpen ? "进行中" : "已截止 · 待结算")
     : (prediction.status === "SETTLED" ? "已结算" : "已作废");
   const options = (prediction.options || []).map(option => {
-    const votes = option.voteCount != null ? `${option.voteCount}票` : "票数保密";
+    const votes = `${option.voteCount ?? 0}票`;
     const correct = option.isCorrect ? "✅ " : "";
     return `<span>${correct}${esc(option.label)}（${votes}）</span>`;
   }).join("");

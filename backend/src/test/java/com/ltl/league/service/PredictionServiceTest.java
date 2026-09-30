@@ -136,13 +136,6 @@ class PredictionServiceTest {
         PredictionBet winnerBet = bet(51L, 10L, 21L, 1L);
         Player winner = player(1L, "甲", 50, 20);
         Player admin = player(9L, "管理员", 0, 0);
-        PlayerDepositLedger rewardRow = new PlayerDepositLedger();
-        rewardRow.setId(500L);
-        rewardRow.setPlayerId(1L);
-        rewardRow.setType("prediction_reward");
-        rewardRow.setRefTable("match_prediction_bets");
-        rewardRow.setRefId(51L);
-        rewardRow.setIsVoided(0);
 
         when(predictionMapper.selectByIdForUpdate(10L)).thenReturn(prediction);
         when(optionMapper.selectById(21L)).thenReturn(win);
@@ -151,7 +144,6 @@ class PredictionServiceTest {
         when(playerMapper.selectById(9L)).thenReturn(admin);
         when(playerMapper.selectBatchIds(anyCollection())).thenReturn(Collections.singletonList(winner));
         when(optionMapper.selectList(any())).thenReturn(Collections.singletonList(win));
-        when(depositLedgerMapper.selectList(any())).thenReturn(Collections.singletonList(rewardRow));
 
         PredictionDtos.SettleRequest settleRequest = new PredictionDtos.SettleRequest();
         settleRequest.setCorrectOptionId(21L);
@@ -168,11 +160,9 @@ class PredictionServiceTest {
         assertNull(prediction.getCorrectOptionId());
         assertEquals(0, prediction.getWinnerCount());
         assertEquals(50, winner.getDeposit());
-        assertEquals(120 - 100, winner.getBounty());
-        assertEquals(1, rewardRow.getIsVoided());
-        assertNotNull(rewardRow.getVoidedAt());
+        assertEquals(20, winner.getBounty());
 
-        // 回退流水：负数金额、无业务引用（避免唯一键冲突）
+        // 回退流水：负数金额、无业务引用（不受业务流水唯一键约束）
         ArgumentCaptor<PlayerDepositLedger> depositLedger = ArgumentCaptor.forClass(PlayerDepositLedger.class);
         verify(depositLedgerMapper, times(2)).insert(depositLedger.capture());
         PlayerDepositLedger reversal = depositLedger.getAllValues().get(1);
@@ -189,6 +179,51 @@ class PredictionServiceTest {
         verify(adminAssetService).recordIncome(eq(100), eq("prediction_reward_reversal"), any(), any(),
                 eq("match_predictions"), eq(10L), isNull(), isNull(), eq("管理员"));
         assertEquals(Boolean.TRUE, vo.getBettingOpen());
+    }
+
+    @Test
+    void repeatedSettleRevokeCyclesReuseTheRewardLedgerRow() {
+        // 第二个结算周期：奖励流水原地复用（updateById），不再插入，避免业务流水唯一键冲突
+        Prediction prediction = prediction(10L, 100, 100, LocalDateTime.parse("2026-10-02T12:00:00"));
+        PredictionOption win = option(21L, 10L, "选项A");
+        PredictionBet winnerBet = bet(51L, 10L, 21L, 1L);
+        Player winner = player(1L, "甲", 50, 20);
+        Player admin = player(9L, "管理员", 0, 0);
+        PlayerDepositLedger rewardRow = new PlayerDepositLedger();
+        rewardRow.setId(500L);
+        rewardRow.setPlayerId(1L);
+        rewardRow.setType("prediction_reward");
+        rewardRow.setRefTable("match_prediction_bets");
+        rewardRow.setRefId(51L);
+        rewardRow.setIsVoided(0);
+        rewardRow.setAmount(100);
+
+        when(predictionMapper.selectByIdForUpdate(10L)).thenReturn(prediction);
+        when(optionMapper.selectById(21L)).thenReturn(win);
+        when(betMapper.selectList(any())).thenReturn(Collections.singletonList(winnerBet));
+        when(playerMapper.selectByIdForUpdate(1L)).thenReturn(winner);
+        when(playerMapper.selectById(9L)).thenReturn(admin);
+        when(playerMapper.selectBatchIds(anyCollection())).thenReturn(Collections.singletonList(winner));
+        when(optionMapper.selectList(any())).thenReturn(Collections.singletonList(win));
+        when(depositLedgerMapper.selectList(any()))
+                .thenReturn(Collections.emptyList())                    // 第一周期结算：无已有流水
+                .thenReturn(Collections.singletonList(rewardRow));      // 第二周期结算：已有流水，原地覆盖
+
+        PredictionDtos.SettleRequest settleRequest = new PredictionDtos.SettleRequest();
+        settleRequest.setCorrectOptionId(21L);
+        PredictionDtos.RevokeRequest revokeRequest = new PredictionDtos.RevokeRequest();
+        revokeRequest.setReason("重结");
+
+        service.settle(9L, 10L, settleRequest);
+        service.revoke(9L, 10L, revokeRequest);
+        service.settle(9L, 10L, settleRequest);
+
+        // 奖励流水只插一次；第二周期走 updateById 覆盖
+        verify(depositLedgerMapper, times(2)).insert(any(PlayerDepositLedger.class)); // 1 奖励 + 1 回退
+        verify(depositLedgerMapper).updateById(rewardRow);
+        assertEquals(100, rewardRow.getAmount());
+        assertEquals(150, winner.getDeposit());
+        assertEquals(PredictionService.STATUS_SETTLED, prediction.getStatus());
     }
 
     @Test
