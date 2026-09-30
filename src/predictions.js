@@ -51,16 +51,6 @@ function setMessage(message, error = false) {
   els.message.classList.toggle("error", error);
 }
 
-function matchLine(prediction) {
-  if (!prediction.matchId) return "";
-  const teams = prediction.homeTeamName || prediction.awayTeamName
-    ? `${escapeHtml(prediction.homeTeamName || "?")} vs ${escapeHtml(prediction.awayTeamName || "?")}`
-    : "";
-  const parts = [prediction.matchRoundLabel, teams, prediction.matchDate ? formatTime(prediction.matchDate) : ""]
-    .filter(Boolean);
-  return parts.length ? `关联比赛：${parts.join(" · ")}` : "";
-}
-
 function optionRow(prediction, option) {
   const mine = prediction.viewerBetOptionId === option.id;
   const revealed = option.voteCount != null;
@@ -120,9 +110,8 @@ function predictionCard(prediction) {
   return `<article class="panel task-card">
     <div class="task-card-heading">
       <div>
-        <div class="task-meta"><span class="task-status">${statusChip(prediction)}</span>${prediction.matchId ? '<span class="task-official">比赛竞猜</span>' : ""}</div>
+        <div class="task-meta"><span class="task-status">${statusChip(prediction)}</span></div>
         <h2>${escapeHtml(prediction.title)}</h2>
-        <p class="muted">${matchLine(prediction)}</p>
       </div>
       <div class="task-rewards"><strong>${prediction.rewardPTotal}P</strong><strong>🪙 ${prediction.rewardBountyTotal}</strong></div>
     </div>

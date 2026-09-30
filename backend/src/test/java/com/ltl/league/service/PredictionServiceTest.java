@@ -34,8 +34,6 @@ class PredictionServiceTest {
     @Mock private PlayerMapper playerMapper;
     @Mock private PlayerDepositLedgerMapper depositLedgerMapper;
     @Mock private PlayerBountyLedgerMapper bountyLedgerMapper;
-    @Mock private MatchMapper matchMapper;
-    @Mock private TeamMapper teamMapper;
     @Mock private AdminAssetService adminAssetService;
 
     /** 2026-10-01 12:00 北京时间 */
@@ -45,7 +43,7 @@ class PredictionServiceTest {
     @BeforeEach
     void setUp() {
         service = new PredictionService(predictionMapper, optionMapper, betMapper, playerMapper,
-                depositLedgerMapper, bountyLedgerMapper, matchMapper, teamMapper, adminAssetService, clock);
+                depositLedgerMapper, bountyLedgerMapper, adminAssetService, clock);
         ReflectionTestUtils.setField(service, "currentSeason", "s2");
     }
 
@@ -131,14 +129,86 @@ class PredictionServiceTest {
     }
 
     @Test
-    void settleRejectsBeforeDeadline() {
+    void settleAndRevokeWorkEvenBeforeDeadline() {
+        // 截止时间在未来也允许直接结算；撤回后扣回奖励并回到进行中
         Prediction prediction = prediction(10L, 100, 100, LocalDateTime.parse("2026-10-02T12:00:00"));
-        when(predictionMapper.selectByIdForUpdate(10L)).thenReturn(prediction);
+        PredictionOption win = option(21L, 10L, "选项A");
+        PredictionBet winnerBet = bet(51L, 10L, 21L, 1L);
+        Player winner = player(1L, "甲", 50, 20);
+        Player admin = player(9L, "管理员", 0, 0);
+        PlayerDepositLedger rewardRow = new PlayerDepositLedger();
+        rewardRow.setId(500L);
+        rewardRow.setPlayerId(1L);
+        rewardRow.setType("prediction_reward");
+        rewardRow.setRefTable("match_prediction_bets");
+        rewardRow.setRefId(51L);
+        rewardRow.setIsVoided(0);
 
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> service.settle(9L, 10L, new PredictionDtos.SettleRequest()));
-        assertEquals(409, ex.getCode());
+        when(predictionMapper.selectByIdForUpdate(10L)).thenReturn(prediction);
+        when(optionMapper.selectById(21L)).thenReturn(win);
+        when(betMapper.selectList(any())).thenReturn(Collections.singletonList(winnerBet));
+        when(playerMapper.selectByIdForUpdate(1L)).thenReturn(winner);
+        when(playerMapper.selectById(9L)).thenReturn(admin);
+        when(playerMapper.selectBatchIds(anyCollection())).thenReturn(Collections.singletonList(winner));
+        when(optionMapper.selectList(any())).thenReturn(Collections.singletonList(win));
+        when(depositLedgerMapper.selectList(any())).thenReturn(Collections.singletonList(rewardRow));
+
+        PredictionDtos.SettleRequest settleRequest = new PredictionDtos.SettleRequest();
+        settleRequest.setCorrectOptionId(21L);
+        service.settle(9L, 10L, settleRequest);
+        assertEquals(PredictionService.STATUS_SETTLED, prediction.getStatus());
+        assertEquals(150, winner.getDeposit());
+        assertEquals(120, winner.getBounty());
+
+        PredictionDtos.RevokeRequest revokeRequest = new PredictionDtos.RevokeRequest();
+        revokeRequest.setReason("选错了正确选项");
+        PredictionDtos.PredictionVO vo = service.revoke(9L, 10L, revokeRequest);
+
         assertEquals(PredictionService.STATUS_PUBLISHED, prediction.getStatus());
+        assertNull(prediction.getCorrectOptionId());
+        assertEquals(0, prediction.getWinnerCount());
+        assertEquals(50, winner.getDeposit());
+        assertEquals(120 - 100, winner.getBounty());
+        assertEquals(1, rewardRow.getIsVoided());
+        assertNotNull(rewardRow.getVoidedAt());
+
+        // 回退流水：负数金额、无业务引用（避免唯一键冲突）
+        ArgumentCaptor<PlayerDepositLedger> depositLedger = ArgumentCaptor.forClass(PlayerDepositLedger.class);
+        verify(depositLedgerMapper, times(2)).insert(depositLedger.capture());
+        PlayerDepositLedger reversal = depositLedger.getAllValues().get(1);
+        assertEquals("prediction_reward_reversal", reversal.getType());
+        assertEquals(-100, reversal.getAmount());
+        assertNull(reversal.getRefTable());
+        assertNull(reversal.getRefId());
+
+        ArgumentCaptor<PlayerBountyLedger> bountyLedger = ArgumentCaptor.forClass(PlayerBountyLedger.class);
+        verify(bountyLedgerMapper, times(2)).insert(bountyLedger.capture());
+        assertEquals(-100, bountyLedger.getAllValues().get(1).getAmount());
+
+        // 联盟资产回流 100
+        verify(adminAssetService).recordIncome(eq(100), eq("prediction_reward_reversal"), any(), any(),
+                eq("match_predictions"), eq(10L), isNull(), isNull(), eq("管理员"));
+        assertEquals(Boolean.TRUE, vo.getBettingOpen());
+    }
+
+    @Test
+    void revokeRejectsNonSettledPrediction() {
+        Prediction prediction = prediction(10L, 100, 100, LocalDateTime.parse("2026-09-30T12:00:00"));
+        when(predictionMapper.selectByIdForUpdate(10L)).thenReturn(prediction);
+        PredictionDtos.RevokeRequest request = new PredictionDtos.RevokeRequest();
+        request.setReason("理由");
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.revoke(9L, 10L, request));
+        assertEquals(409, ex.getCode());
+    }
+
+    @Test
+    void deleteOnlyHidesPredictionWithoutTouchingRewards() {
+        Prediction prediction = prediction(10L, 100, 100, LocalDateTime.parse("2026-10-02T12:00:00"));
+        when(predictionMapper.selectById(10L)).thenReturn(prediction);
+        service.delete(9L, 10L);
+        verify(predictionMapper).deleteById(10L);
+        verify(playerMapper, never()).updateById(any(Player.class));
+        verify(depositLedgerMapper, never()).insert(any(PlayerDepositLedger.class));
     }
 
     @Test
@@ -223,23 +293,18 @@ class PredictionServiceTest {
     }
 
     @Test
-    void editOnlyAllowsExtendingDeadline() {
+    void editAllowsAnyDeadlineChange() {
         Prediction prediction = prediction(10L, 100, 100, LocalDateTime.parse("2026-10-02T12:00:00"));
         when(predictionMapper.selectByIdForUpdate(10L)).thenReturn(prediction);
+        when(optionMapper.selectList(any())).thenReturn(Collections.emptyList());
+        when(betMapper.selectList(any())).thenReturn(Collections.emptyList());
 
         PredictionDtos.AdminEditRequest request = new PredictionDtos.AdminEditRequest();
         request.setTitle("新标题");
-        request.setDeadlineAt(LocalDateTime.parse("2026-10-01T18:00:00")); // 早于原截止
-        BusinessException ex = assertThrows(BusinessException.class, () -> service.edit(9L, 10L, request));
-        assertEquals(400, ex.getCode());
-        assertEquals("总决赛竞猜", prediction.getTitle()); // 校验失败整单回滚，不改标题
-
-        request.setDeadlineAt(LocalDateTime.parse("2026-10-03T12:00:00"));
-        when(optionMapper.selectList(any())).thenReturn(Collections.emptyList());
-        when(betMapper.selectList(any())).thenReturn(Collections.emptyList());
+        request.setDeadlineAt(LocalDateTime.parse("2026-10-01T18:00:00")); // 早于原截止也允许
         service.edit(9L, 10L, request);
         assertEquals("新标题", prediction.getTitle());
-        assertEquals(LocalDateTime.parse("2026-10-03T12:00:00"), prediction.getDeadlineAt());
+        assertEquals(LocalDateTime.parse("2026-10-01T18:00:00"), prediction.getDeadlineAt());
     }
 
     @Test

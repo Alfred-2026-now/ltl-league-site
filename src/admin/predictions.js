@@ -1,10 +1,8 @@
 import { getApiBase } from "../config/api.js";
-import { listAdminMatches, getCurrentTeams } from "./api.js";
 
 const API = getApiBase();
 const message = document.getElementById("adminPredictionMessage");
 const optionInputs = document.getElementById("predictionOptionInputs");
-const matchSelect = document.getElementById("predictionMatchSelect");
 const editDialog = document.getElementById("predictionEditDialog");
 const settleDialog = document.getElementById("predictionSettleDialog");
 let statusFilter = "PUBLISHED";
@@ -19,7 +17,6 @@ async function request(path, options = {}) {
 const json = (payload, method = "POST") => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload || {}) });
 const esc = value => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 const time = value => value ? new Date(value).toLocaleString("zh-CN", { hour12: false }) : "-";
-const toLocalInput = value => value ? String(value).slice(0, 16) : "";
 
 function setMessage(text, error = false) {
   message.textContent = text || "";
@@ -27,6 +24,12 @@ function setMessage(text, error = false) {
 }
 
 // ==================== 发布表单 ====================
+
+const quickFillPresets = {
+  bo2: ["1:0", "1:1", "0:1"],
+  bo3: ["2:0", "2:1", "1:2", "0:2"],
+  bo5: ["3:0", "3:1", "3:2", "2:3", "1:3", "0:3"]
+};
 
 function optionInputRow(value = "") {
   const index = optionInputs.children.length + 1;
@@ -48,9 +51,10 @@ function refreshOptionPlaceholders() {
   });
 }
 
-function renderOptionInputs(count = 2) {
+function renderOptionInputs(values = ["", ""]) {
   optionInputs.innerHTML = "";
-  for (let i = 0; i < count; i += 1) optionInputs.append(optionInputRow());
+  values.forEach(value => optionInputs.append(optionInputRow(value)));
+  refreshOptionPlaceholders();
 }
 
 document.getElementById("addPredictionOptionBtn").addEventListener("click", () => {
@@ -59,20 +63,13 @@ document.getElementById("addPredictionOptionBtn").addEventListener("click", () =
   refreshOptionPlaceholders();
 });
 
-async function loadMatchOptions() {
-  try {
-    const [matches, teams] = await Promise.all([listAdminMatches({}), getCurrentTeams()]);
-    const teamName = id => teams.find(team => team.id === id)?.name || `队伍#${id}`;
-    matches
-      .filter(match => match.id != null)
-      .forEach(match => {
-        const label = `${match.roundLabel || `第${match.round}轮`} · ${teamName(match.homeTeamId)} vs ${teamName(match.awayTeamId)} · ${time(match.matchDate)}`;
-        matchSelect.insertAdjacentHTML("beforeend", `<option value="${match.id}">${esc(label)}</option>`);
-      });
-  } catch (error) {
-    setMessage(`比赛列表加载失败：${error.message}`, true);
-  }
-}
+document.querySelectorAll("[data-quick-fill]").forEach(button => {
+  button.addEventListener("click", () => {
+    const preset = quickFillPresets[button.dataset.quickFill] || [];
+    renderOptionInputs(preset);
+    setMessage(`已填充 ${preset.length} 个比分选项，可继续调整`);
+  });
+});
 
 async function publish(event) {
   event.preventDefault();
@@ -82,7 +79,6 @@ async function publish(event) {
   const payload = {
     title: form.title.value.trim(),
     description: form.description.value.trim() || null,
-    matchId: form.matchId.value ? Number(form.matchId.value) : null,
     options: labels,
     rewardP: Number(form.rewardP.value || 0),
     rewardBounty: Number(form.rewardBounty.value || 0),
@@ -103,13 +99,9 @@ async function publish(event) {
 // ==================== 列表 ====================
 
 function predictionCard(prediction) {
-  const settleReady = prediction.status === "PUBLISHED" && !prediction.bettingOpen;
   const chips = prediction.status === "PUBLISHED"
-    ? (prediction.bettingOpen ? "进行中" : "已截止 · 可结算")
+    ? (prediction.bettingOpen ? "进行中" : "已截止 · 待结算")
     : (prediction.status === "SETTLED" ? "已结算" : "已作废");
-  const match = prediction.matchId
-    ? `<p class="muted">关联比赛：${esc(prediction.matchRoundLabel || `#${prediction.matchId}`)}${prediction.homeTeamName ? ` · ${esc(prediction.homeTeamName)} vs ${esc(prediction.awayTeamName)}` : ""}</p>`
-    : "";
   const options = (prediction.options || []).map(option => {
     const votes = option.voteCount != null ? `${option.voteCount}票` : "票数保密";
     const correct = option.isCorrect ? "✅ " : "";
@@ -129,14 +121,18 @@ function predictionCard(prediction) {
     : "";
   const actions = prediction.status === "PUBLISHED"
     ? `<div class="task-actions">
-        <button class="btn" data-edit-prediction="${prediction.id}">编辑 / 延长截止</button>
-        <button class="btn primary" data-settle-prediction="${prediction.id}" ${settleReady ? "" : "disabled title=\"需过截止时间后才能结算\""}>结算发奖</button>
+        <button class="btn" data-edit-prediction="${prediction.id}">编辑</button>
+        <button class="btn primary" data-settle-prediction="${prediction.id}">结算发奖</button>
         <button class="btn ghost" data-cancel-prediction="${prediction.id}">作废</button>
+        <button class="btn ghost" data-delete-prediction="${prediction.id}">删除</button>
       </div>`
-    : "";
+    : `<div class="task-actions">
+        ${prediction.status === "SETTLED" ? `<button class="btn" data-revoke-prediction="${prediction.id}">撤回结算</button>` : ""}
+        <button class="btn ghost" data-delete-prediction="${prediction.id}">删除</button>
+      </div>`;
   return `<article class="panel task-card">
     <div class="task-card-heading">
-      <div><span class="task-status">${chips}</span><h3>${esc(prediction.title)}</h3><p class="muted">发布于 ${time(prediction.createdAt)}</p>${match}</div>
+      <div><span class="task-status">${chips}</span><h3>${esc(prediction.title)}</h3><p class="muted">发布于 ${time(prediction.createdAt)}</p></div>
       <div class="task-rewards"><strong>${prediction.rewardPTotal}P</strong><strong>🪙 ${prediction.rewardBountyTotal}</strong></div>
     </div>
     ${prediction.description ? `<div class="task-requirements">${esc(prediction.description).replaceAll("\n", "<br>")}</div>` : ""}
@@ -173,7 +169,6 @@ function openEdit(id) {
   form.title.value = prediction.title;
   form.description.value = prediction.description || "";
   form.deadlineAt.value = "";
-  form.deadlineAt.min = toLocalInput(prediction.deadlineAt);
   editDialog.showModal();
 }
 
@@ -244,7 +239,7 @@ async function confirmSettle(event) {
   if (!checked || Number(checked.value) !== previewedOptionId) {
     return setMessage("选项已变动，请重新预览后再确认", true);
   }
-  if (!confirm("确认结算？将立即向猜对选手发放奖励，且不可撤销。")) return;
+  if (!confirm("确认结算？将立即向猜对选手发放奖励。")) return;
   try {
     setMessage("结算中…");
     await request(`/admin/predictions/${form.predictionId.value}/settle`, json({ correctOptionId: Number(checked.value) }));
@@ -256,7 +251,24 @@ async function confirmSettle(event) {
   }
 }
 
-// ==================== 作废 ====================
+// ==================== 撤回 / 作废 / 删除 ====================
+
+async function revokePrediction(id) {
+  const prediction = predictions.find(item => item.id === id);
+  const reason = prompt(`撤回「${prediction?.title || ""}」的结算。将按结算快照扣回每位中奖选手的奖励（余额可为负），竞猜回到进行中，可重新结算。\n请输入撤回原因：`);
+  if (reason == null) return;
+  const trimmed = reason.trim();
+  if (!trimmed) return setMessage("撤回原因不能为空", true);
+  if (!confirm("确认撤回结算？已发放的奖励将被扣回。")) return;
+  try {
+    setMessage("撤回中…");
+    await request(`/admin/predictions/${id}/revoke`, json({ reason: trimmed }));
+    setMessage("结算已撤回，奖励已扣回，竞猜回到进行中");
+    await loadList();
+  } catch (error) {
+    setMessage(error.message, true);
+  }
+}
 
 async function cancelPrediction(id) {
   const reason = prompt("请输入作废原因（选手可见）：");
@@ -268,6 +280,18 @@ async function cancelPrediction(id) {
     setMessage("处理中…");
     await request(`/admin/predictions/${id}/cancel`, json({ reason: trimmed }));
     setMessage("竞猜已作废");
+    await loadList();
+  } catch (error) {
+    setMessage(error.message, true);
+  }
+}
+
+async function deletePrediction(id) {
+  if (!confirm("确认删除该竞猜？删除仅移除展示，不影响任何已发放的积分与流水记录。")) return;
+  try {
+    setMessage("处理中…");
+    await request(`/admin/predictions/${id}/delete`, { method: "POST" });
+    setMessage("竞猜已删除（仅移除展示）");
     await loadList();
   } catch (error) {
     setMessage(error.message, true);
@@ -286,9 +310,13 @@ document.addEventListener("click", async event => {
   const edit = event.target.closest("[data-edit-prediction]");
   if (edit) return openEdit(Number(edit.dataset.editPrediction));
   const settle = event.target.closest("[data-settle-prediction]");
-  if (settle && !settle.disabled) return openSettle(Number(settle.dataset.settlePrediction));
+  if (settle) return openSettle(Number(settle.dataset.settlePrediction));
+  const revoke = event.target.closest("[data-revoke-prediction]");
+  if (revoke) return revokePrediction(Number(revoke.dataset.revokePrediction));
   const cancel = event.target.closest("[data-cancel-prediction]");
   if (cancel) return cancelPrediction(Number(cancel.dataset.cancelPrediction));
+  const del = event.target.closest("[data-delete-prediction]");
+  if (del) return deletePrediction(Number(del.dataset.deletePrediction));
 });
 
 document.getElementById("predictionPublishForm").addEventListener("submit", publish);
@@ -299,5 +327,4 @@ document.getElementById("cancelPredictionEdit").addEventListener("click", () => 
 document.getElementById("cancelSettleBtn").addEventListener("click", () => settleDialog.close());
 
 renderOptionInputs();
-await loadMatchOptions();
 await loadList();

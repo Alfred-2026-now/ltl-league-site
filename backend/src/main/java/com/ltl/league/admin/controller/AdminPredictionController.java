@@ -73,4 +73,22 @@ public class AdminPredictionController {
         Player admin = currentPlayerService.requireAdmin(token);
         return Result.success(predictionService.cancel(admin.getId(), predictionId, request));
     }
+
+    @PostMapping("/predictions/{predictionId}/revoke")
+    public Result<PredictionDtos.PredictionVO> revoke(
+            @PathVariable Long predictionId,
+            @RequestBody PredictionDtos.RevokeRequest request,
+            @CookieValue(value = COOKIE_NAME, required = false) String token) {
+        Player admin = currentPlayerService.requireAdmin(token);
+        return Result.success(predictionService.revoke(admin.getId(), predictionId, request));
+    }
+
+    @PostMapping("/predictions/{predictionId}/delete")
+    public Result<Void> delete(
+            @PathVariable Long predictionId,
+            @CookieValue(value = COOKIE_NAME, required = false) String token) {
+        currentPlayerService.requireAdmin(token);
+        predictionService.delete(null, predictionId);
+        return Result.success();
+    }
 }

@@ -32,8 +32,6 @@ public class PredictionService {
     private final PlayerMapper playerMapper;
     private final PlayerDepositLedgerMapper depositLedgerMapper;
     private final PlayerBountyLedgerMapper bountyLedgerMapper;
-    private final MatchMapper matchMapper;
-    private final TeamMapper teamMapper;
     private final AdminAssetService adminAssetService;
     private final Clock clock;
 
@@ -47,8 +45,6 @@ public class PredictionService {
             PlayerMapper playerMapper,
             PlayerDepositLedgerMapper depositLedgerMapper,
             PlayerBountyLedgerMapper bountyLedgerMapper,
-            MatchMapper matchMapper,
-            TeamMapper teamMapper,
             AdminAssetService adminAssetService,
             Clock clock) {
         this.predictionMapper = predictionMapper;
@@ -57,8 +53,6 @@ public class PredictionService {
         this.playerMapper = playerMapper;
         this.depositLedgerMapper = depositLedgerMapper;
         this.bountyLedgerMapper = bountyLedgerMapper;
-        this.matchMapper = matchMapper;
-        this.teamMapper = teamMapper;
         this.adminAssetService = adminAssetService;
         this.clock = clock;
     }
@@ -130,17 +124,9 @@ public class PredictionService {
         if (deadlineAt == null || !deadlineAt.isAfter(now())) {
             throw new BusinessException(400, "截止时间必须晚于当前时间");
         }
-        Match match = null;
-        if (request.getMatchId() != null) {
-            match = matchMapper.selectById(request.getMatchId());
-            if (match == null) {
-                throw new BusinessException(404, "关联比赛不存在");
-            }
-        }
 
         Prediction prediction = new Prediction();
         prediction.setSeason(currentSeason);
-        prediction.setMatchId(match == null ? null : match.getId());
         prediction.setTitle(title);
         prediction.setDescription(description);
         prediction.setRewardPTotal(rewardP);
@@ -164,7 +150,8 @@ public class PredictionService {
     }
 
     /**
-     * 有人投注后仅允许修改标题、说明和延长截止时间；选项与奖励锁定。
+     * 有人投注后仅允许修改标题、说明和截止时间；选项与奖励锁定。
+     * 截止时间可任意修改（提前到当前时间之前会立即停止投注）。
      */
     @Transactional
     public PredictionDtos.PredictionVO edit(Long adminId, Long predictionId, PredictionDtos.AdminEditRequest request) {
@@ -178,19 +165,8 @@ public class PredictionService {
         if (!STATUS_PUBLISHED.equals(prediction.getStatus())) {
             throw new BusinessException(409, "竞猜已结束，不能修改");
         }
-        // 先校验全部字段，再修改实体
-        String title = requireText(request.getTitle(), 200, "竞猜标题");
-        String description = optionalText(request.getDescription(), 1000);
-        if (request.getDeadlineAt() != null) {
-            if (!request.getDeadlineAt().isAfter(prediction.getDeadlineAt())) {
-                throw new BusinessException(400, "截止时间只能延长，不能提前或不变");
-            }
-            if (!request.getDeadlineAt().isAfter(now())) {
-                throw new BusinessException(400, "新的截止时间必须晚于当前时间");
-            }
-        }
-        prediction.setTitle(title);
-        prediction.setDescription(description);
+        prediction.setTitle(requireText(request.getTitle(), 200, "竞猜标题"));
+        prediction.setDescription(optionalText(request.getDescription(), 1000));
         if (request.getDeadlineAt() != null) {
             prediction.setDeadlineAt(request.getDeadlineAt());
         }
@@ -310,6 +286,109 @@ public class PredictionService {
         return toVO(prediction, null);
     }
 
+    /**
+     * 撤回结算：按结算快照扣回每位中奖选手的P币与赏金，作废原奖励流水并记回退流水，
+     * 联盟资产记回流；竞猜回到 PUBLISHED，可修改后重新结算。
+     */
+    @Transactional
+    public PredictionDtos.PredictionVO revoke(Long adminId, Long predictionId, PredictionDtos.RevokeRequest request) {
+        String reason = requireText(request == null ? null : request.getReason(), 500, "撤回原因");
+        Prediction prediction = predictionMapper.selectByIdForUpdate(predictionId);
+        if (prediction == null) {
+            throw new BusinessException(404, "竞猜不存在");
+        }
+        if (!STATUS_SETTLED.equals(prediction.getStatus())) {
+            throw new BusinessException(409, "只有已结算的竞猜可以撤回");
+        }
+        Long correctOptionId = prediction.getCorrectOptionId();
+        if (correctOptionId == null) {
+            throw new BusinessException(409, "竞猜结算记录异常，无法撤回");
+        }
+        int pShare = safe(prediction.getRewardPPerWinner());
+        int bountyShare = safe(prediction.getRewardBountyPerWinner());
+        String adminName = playerName(adminId);
+        String reasonPrefix = "撤回竞猜结算：" + prediction.getTitle() + "；" + reason;
+
+        int actualPTotal = 0;
+        for (PredictionBet bet : listBets(predictionId, correctOptionId)) {
+            Player winner = playerMapper.selectByIdForUpdate(bet.getPlayerId());
+            if (winner == null) {
+                throw new BusinessException(404, "中奖选手不存在：" + bet.getPlayerId());
+            }
+            if (pShare > 0) {
+                // 作废原奖励流水，释放唯一键槽位，便于撤回后重新结算再发
+                voidDepositRewardLedgers(winner.getId(), bet.getId(), reason);
+                int before = safe(winner.getDeposit());
+                winner.setDeposit(checkedAdd(before, -pShare, "P币奖励回退"));
+                addDepositLedger(winner, "prediction_reward_reversal", -pShare, reasonPrefix, before, winner.getDeposit(),
+                        "match_prediction", null, null, adminName);
+                actualPTotal += pShare;
+            }
+            if (bountyShare > 0) {
+                int before = safe(winner.getBounty());
+                winner.setBounty(checkedAdd(before, -bountyShare, "赏金奖励回退"));
+                PlayerBountyLedger bountyLedger = new PlayerBountyLedger();
+                bountyLedger.setPlayerId(winner.getId());
+                bountyLedger.setSeason(prediction.getSeason());
+                bountyLedger.setType("prediction_reward_reversal");
+                bountyLedger.setAmount(-bountyShare);
+                bountyLedger.setReason(reasonPrefix);
+                bountyLedger.setBalanceBefore(before);
+                bountyLedger.setBalanceAfter(winner.getBounty());
+                bountyLedger.setOperator(adminName);
+                bountyLedger.setRefTable("match_prediction_bets");
+                bountyLedger.setRefId(bet.getId());
+                bountyLedgerMapper.insert(bountyLedger);
+            }
+            playerMapper.updateById(winner);
+        }
+        // 联盟资产记回流（金额与结算时的实发支出一致）
+        if (actualPTotal > 0) {
+            adminAssetService.recordIncome(actualPTotal, "prediction_reward_reversal",
+                    "撤回竞猜奖励发放：" + prediction.getTitle(),
+                    "match_prediction", "match_predictions", prediction.getId(), null, null, adminName);
+        }
+
+        prediction.setStatus(STATUS_PUBLISHED);
+        prediction.setCorrectOptionId(null);
+        prediction.setWinnerCount(0);
+        prediction.setRewardPPerWinner(0);
+        prediction.setRewardBountyPerWinner(0);
+        prediction.setSettledAt(null);
+        prediction.setSettledByPlayerId(null);
+        // updateById 默认忽略 null 字段，用显式 SQL 清空结算快照
+        predictionMapper.clearSettlement(prediction.getId());
+        return toVO(prediction, null);
+    }
+
+    /**
+     * 删除竞猜：仅移除展示（逻辑删除），不影响任何已发放的积分与流水。
+     */
+    @Transactional
+    public void delete(Long adminId, Long predictionId) {
+        Prediction prediction = predictionMapper.selectById(predictionId);
+        if (prediction == null) {
+            throw new BusinessException(404, "竞猜不存在");
+        }
+        predictionMapper.deleteById(predictionId);
+    }
+
+    private void voidDepositRewardLedgers(Long playerId, Long betId, String reason) {
+        List<PlayerDepositLedger> rows = depositLedgerMapper.selectList(new LambdaQueryWrapper<PlayerDepositLedger>()
+                .eq(PlayerDepositLedger::getPlayerId, playerId)
+                .eq(PlayerDepositLedger::getType, "prediction_reward")
+                .eq(PlayerDepositLedger::getRefTable, "match_prediction_bets")
+                .eq(PlayerDepositLedger::getRefId, betId)
+                .eq(PlayerDepositLedger::getIsVoided, 0));
+        LocalDateTime voidedAt = now();
+        for (PlayerDepositLedger row : rows) {
+            row.setIsVoided(1);
+            row.setVoidedAt(voidedAt);
+            row.setVoidReason("撤回竞猜结算：" + reason);
+            depositLedgerMapper.updateById(row);
+        }
+    }
+
     // ==================== 内部工具 ====================
 
     private void requireBettingOpen(Prediction prediction) {
@@ -333,9 +412,6 @@ public class PredictionService {
     private void requireSettleableState(Prediction prediction) {
         if (!STATUS_PUBLISHED.equals(prediction.getStatus())) {
             throw new BusinessException(409, "竞猜已结算或已作废");
-        }
-        if (!now().isAfter(prediction.getDeadlineAt())) {
-            throw new BusinessException(409, "尚未到截止时间，不能结算");
         }
     }
 
@@ -394,18 +470,6 @@ public class PredictionService {
         PredictionDtos.PredictionVO vo = new PredictionDtos.PredictionVO();
         vo.setId(prediction.getId());
         vo.setSeason(prediction.getSeason());
-        vo.setMatchId(prediction.getMatchId());
-        if (prediction.getMatchId() != null) {
-            Match match = matchMapper.selectById(prediction.getMatchId());
-            if (match != null) {
-                vo.setMatchRoundLabel(match.getRoundLabel() != null ? match.getRoundLabel()
-                        : (match.getRound() != null ? "第" + match.getRound() + "轮" : null));
-                vo.setMatchDate(match.getMatchDate());
-                vo.setMatchFormat(match.getFormat());
-                vo.setHomeTeamName(teamName(match.getHomeTeamId()));
-                vo.setAwayTeamName(teamName(match.getAwayTeamId()));
-            }
-        }
         vo.setTitle(prediction.getTitle());
         vo.setDescription(prediction.getDescription());
         vo.setRewardPTotal(safe(prediction.getRewardPTotal()));
@@ -481,14 +545,6 @@ public class PredictionService {
             }
         }
         return vo;
-    }
-
-    private String teamName(Long teamId) {
-        if (teamId == null) {
-            return null;
-        }
-        Team team = teamMapper.selectById(teamId);
-        return team == null ? null : team.getName();
     }
 
     private void addDepositLedger(Player player, String type, int amount, String reason, int before, int after,

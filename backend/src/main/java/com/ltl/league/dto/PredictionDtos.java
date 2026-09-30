@@ -18,7 +18,6 @@ public final class PredictionDtos {
     public static class AdminCreateRequest {
         private String title;
         private String description;
-        private Long matchId;
         private List<String> options;
         private Integer rewardP;
         private Integer rewardBounty;
@@ -43,6 +42,11 @@ public final class PredictionDtos {
     }
 
     @Data
+    public static class RevokeRequest {
+        private String reason;
+    }
+
+    @Data
     public static class OptionVO {
         private Long id;
         private String label;
@@ -63,12 +67,6 @@ public final class PredictionDtos {
     public static class PredictionVO {
         private Long id;
         private String season;
-        private Long matchId;
-        private String matchRoundLabel;
-        private LocalDateTime matchDate;
-        private String matchFormat;
-        private String homeTeamName;
-        private String awayTeamName;
         private String title;
         private String description;
         private Integer rewardPTotal;
