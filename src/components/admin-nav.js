@@ -12,6 +12,7 @@
     const groups = [
       ['赛事运营', [
         ['admin-event-tasks.html', '任务管理', 'task'],
+        ['admin-predictions.html', '竞猜管理', 'target'],
         ['admin-prize-mgmt.html', '奖品兑换', 'gift'],
         ['admin-announcements.html', '公告管理', 'notice']
       ]],

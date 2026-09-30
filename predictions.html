@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LTL 比赛竞猜</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+  <link rel="stylesheet" href="src/styles/public-theme.css" />
+</head>
+<body class="public-site">
+  <header class="site-header">
+    <nav class="nav">
+      <a class="brand" href="index.html"><img class="brand-logo" src="assets/ltl-logo.webp" alt="LTL联赛" /></a>
+      <button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button>
+      <div class="nav-links" id="navLinks"></div>
+    </nav>
+  </header>
+
+  <main class="page-shell task-page">
+    <section class="section">
+      <div class="section-heading row">
+        <div>
+          <p class="eyebrow">MATCH PREDICTION</p>
+          <h1 class="page-title">比赛竞猜</h1>
+          <p class="muted">预测比赛结果，猜对即与其他猜对选手平分总奖励（四舍五入到个位）。</p>
+        </div>
+      </div>
+
+      <div class="task-rule-banner">
+        <strong>竞猜规则</strong>
+        <span>免费参与，不消耗P币。每人每场竞猜只能投一票，截止前可以随时改票。投票分布在结算前对所有人保密，只显示总票数；结算或作废后公开。奖励由联盟发放：猜对选手平分P币与赏金积分两份总奖励，每人所得四舍五入到个位；无人猜中则不发放。</span>
+      </div>
+
+      <div class="task-tabs" role="tablist" aria-label="竞猜视图">
+        <button class="btn primary" type="button" data-prediction-tab="open">进行中</button>
+        <button class="btn" type="button" data-prediction-tab="finished">已结束</button>
+      </div>
+
+      <p id="predictionMessage" class="task-message" aria-live="polite"></p>
+      <div id="predictionContent"></div>
+    </section>
+  </main>
+
+  <script type="module" src="src/predictions.js"></script>
+  <script src="src/components/public-nav.js"></script>
+</body>
+</html>

@@ -3067,3 +3067,82 @@ body.home-page main {
     grid-template-columns: 1fr;
   }
 }
+
+/* 比赛竞猜 */
+.prediction-options {
+  display: grid;
+  gap: .55rem;
+  margin: .6rem 0;
+}
+
+.prediction-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  width: 100%;
+  padding: .6rem .9rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(18, 32, 66, 0.55);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.prediction-option:hover {
+  border-color: var(--blue);
+}
+
+.prediction-option.mine {
+  border-color: var(--gold);
+  color: #ffe19a;
+}
+
+.prediction-option.correct {
+  border-color: rgba(156, 232, 189, .55);
+}
+
+.prediction-option[disabled] {
+  cursor: default;
+}
+
+.prediction-option-label {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+}
+
+.prediction-option-votes {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  color: var(--muted);
+  font-size: .85rem;
+  white-space: nowrap;
+}
+
+.prediction-option-bar {
+  height: 6px;
+  width: 4rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--blue), var(--cyan));
+}
+
+.prediction-result-banner {
+  margin-top: .6rem;
+  padding: .6rem .9rem;
+  border: 1px solid rgba(121, 231, 255, .28);
+  border-radius: 10px;
+  background: rgba(57, 110, 180, .12);
+}
+
+.prediction-result-banner.win {
+  border-color: rgba(156, 232, 189, .45);
+  color: #9ce8bd;
+}
+
+.prediction-result-banner.lose {
+  color: var(--muted);
+}

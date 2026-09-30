@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>LTL 管理 - 比赛竞猜</title>
+  <link rel="stylesheet" href="src/styles/main.css" />
+  <link rel="stylesheet" href="src/styles/admin-theme.css" />
+</head>
+<body class="admin-site">
+  <header class="site-header"><nav class="nav"><a class="brand" href="index.html"><img class="brand-logo" src="assets/ltl-logo.webp" alt="LTL联赛" /></a><button class="nav-toggle" id="navToggle" aria-label="展开导航">☰</button><div class="nav-links" id="navLinks"></div></nav></header>
+  <main class="page-shell task-page">
+    <section class="section">
+      <div class="section-heading row"><div><p class="eyebrow">ADMIN · MATCH PREDICTION</p><h1 class="page-title">比赛竞猜管理</h1><p class="muted">发布竞猜、延长截止时间、结算正确答案并自动发奖。</p></div></div>
+      <p id="adminPredictionMessage" class="task-message" aria-live="polite"></p>
+
+      <form class="panel task-form" id="predictionPublishForm">
+        <h2>发布新竞猜</h2>
+        <p class="muted">选手免费参与，奖励由联盟资产支出。选项2至6个，发布后有选手投注则选项与奖励锁定，只能修改标题说明或延长截止时间。</p>
+        <label class="field"><span class="field-label">竞猜标题</span><input class="input" name="title" maxlength="200" placeholder="例：总决赛冠军竞猜" required /></label>
+        <label class="field"><span class="field-label">说明（可选）</span><textarea class="input" name="description" rows="3" maxlength="1000"></textarea></label>
+        <label class="field"><span class="field-label">关联比赛（可选）</span><select class="input" name="matchId" id="predictionMatchSelect"><option value="">不关联，自由竞猜</option></select></label>
+        <label class="field"><span class="field-label">竞猜选项（2至6个）</span><div id="predictionOptionInputs" style="display:grid;gap:.5rem;"></div></label>
+        <div class="task-actions">
+          <button class="btn" type="button" id="addPredictionOptionBtn">+ 添加选项</button>
+        </div>
+        <div class="task-form-grid">
+          <label class="field"><span class="field-label">P币总奖励</span><input class="input" name="rewardP" type="number" min="1" max="10000000" required /></label>
+          <label class="field"><span class="field-label">赏金总奖励</span><input class="input" name="rewardBounty" type="number" min="1" max="10000000" required /></label>
+          <label class="field"><span class="field-label">截止竞猜时间</span><input class="input" name="deadlineAt" type="datetime-local" required /></label>
+        </div>
+        <button class="btn primary" type="submit">发布竞猜</button>
+      </form>
+
+      <div class="task-tabs" role="tablist" aria-label="竞猜筛选">
+        <button class="btn primary" type="button" data-admin-prediction-tab="PUBLISHED">进行中</button>
+        <button class="btn" type="button" data-admin-prediction-tab="SETTLED">已结算</button>
+        <button class="btn" type="button" data-admin-prediction-tab="CANCELLED">已作废</button>
+      </div>
+      <div id="adminPredictionList" class="task-list"></div>
+    </section>
+  </main>
+
+  <dialog id="predictionEditDialog" class="task-dialog">
+    <form class="task-form" id="predictionEditForm">
+      <h2>编辑进行中竞猜</h2>
+      <p class="muted">选项与奖励已锁定；只能修改标题说明，或延长截止时间（只能往后延）。</p>
+      <input type="hidden" name="predictionId" />
+      <label class="field"><span class="field-label">竞猜标题</span><input class="input" name="title" maxlength="200" required /></label>
+      <label class="field"><span class="field-label">说明</span><textarea class="input" name="description" rows="3" maxlength="1000"></textarea></label>
+      <label class="field"><span class="field-label">延长截止时间（留空表示不改）</span><input class="input" name="deadlineAt" type="datetime-local" /></label>
+      <div class="task-actions"><button class="btn primary" type="submit">保存修改</button><button class="btn ghost" type="button" id="cancelPredictionEdit">取消</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="predictionSettleDialog" class="task-dialog">
+    <form class="task-form" id="predictionSettleForm">
+      <h2>结算竞猜</h2>
+      <p class="muted">选择正确选项并确认后立即向猜对选手发奖，结算不可撤销。</p>
+      <input type="hidden" name="predictionId" />
+      <div class="field"><span class="field-label">正确选项</span><div id="settleOptionRadios" style="display:grid;gap:.5rem;"></div></div>
+      <button class="btn" type="button" id="previewSettleBtn">预览结算结果</button>
+      <div id="settlePreview"></div>
+      <div class="task-actions"><button class="btn primary" type="submit" id="confirmSettleBtn" disabled>确认结算并发奖</button><button class="btn ghost" type="button" id="cancelSettleBtn">取消</button></div>
+    </form>
+  </dialog>
+
+  <script type="module" src="src/util/admin-auth.js"></script>
+  <script type="module" src="src/admin/predictions.js"></script>
+  <script src="src/components/admin-nav.js"></script>
+</body>
+</html>

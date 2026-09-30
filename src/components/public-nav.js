@@ -17,6 +17,7 @@
     { href: 'schedule.html', text: '赛程' },
     { href: 'match-history.html', text: '战绩' },
     { href: 'event-tasks.html', text: '赛事任务' },
+    { href: 'predictions.html', text: '比赛竞猜' },
     { href: 'prize-exchange.html', text: '积分兑换' }
   ];
 
