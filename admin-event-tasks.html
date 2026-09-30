@@ -18,9 +18,10 @@
       <form class="panel task-form" id="officialTaskForm">
         <h2>直接发布官方任务</h2>
         <p class="muted">官方任务不扣管理员个人P币，奖励由系统发放。</p>
-        <div class="task-form-grid"><label class="field"><span class="field-label">标题</span><input class="input" name="title" maxlength="200" required /></label><label class="field"><span class="field-label">最大接取人数</span><input class="input" name="maxClaimants" type="number" min="1" max="100" required /></label></div>
+        <div class="task-form-grid"><label class="field"><span class="field-label">标题</span><input class="input" name="title" maxlength="200" required /></label><label class="field"><span class="field-label">最大接取人数</span><input class="input" name="maxClaimants" type="number" min="1" max="999" required /></label><label class="field"><span class="field-label">最大奖励人数</span><input class="input" name="maxRewardRecipients" type="number" min="1" max="999" required /></label></div>
         <label class="field"><span class="field-label">任务要求</span><textarea class="input" name="requirements" rows="5" maxlength="10000" required></textarea></label>
         <div class="task-form-grid"><label class="field"><span class="field-label">每人P币奖励</span><input class="input" name="pReward" type="number" min="0" value="0" required /></label><label class="field"><span class="field-label">每人赏金积分</span><input class="input" name="bountyReward" type="number" min="0" value="0" required /></label><label class="field"><span class="field-label">接取费用</span><input class="input" name="claimFee" type="number" min="0" value="0" required /></label></div>
+        <label class="task-anonymous-option"><input name="repeatable" type="checkbox" /><span><strong>允许重复接取</strong><small>完成或主动放弃后可再次接取；每次完成占用一个奖励名额。</small></span></label>
         <label class="field"><span class="field-label">备注</span><textarea class="input" name="budgetNote" rows="2" maxlength="500"></textarea></label>
         <button class="btn primary" type="submit">发布官方任务</button>
       </form>
@@ -47,11 +48,12 @@
   <dialog id="adminTaskEditDialog" class="task-dialog">
     <form class="task-form" id="adminTaskEditForm">
       <h2>编辑进行中任务</h2>
-      <p class="muted">新内容和奖励适用于未完成及之后接取的选手；已完成奖励不变。接取费、名额及已收匿名费不变。</p>
+      <p class="muted">新内容和奖励适用于未完成及之后接取的选手；已完成奖励不变。接取费、名额及已收发布费与匿名费不变。</p>
       <input type="hidden" name="taskId" />
       <label class="field"><span class="field-label">标题</span><input class="input" name="title" maxlength="200" required /></label>
       <label class="field"><span class="field-label">任务要求</span><textarea class="input" name="requirements" rows="6" maxlength="10000" required></textarea></label>
       <div class="task-form-grid"><label class="field"><span class="field-label">每人P币奖励</span><input class="input" name="pReward" type="number" min="0" max="10000000" required /></label><label class="field"><span class="field-label">每人赏金积分</span><input class="input" name="bountyReward" type="number" min="0" max="10000000" required /></label></div>
+      <label class="task-anonymous-option"><input name="repeatable" type="checkbox" /><span><strong>允许重复接取</strong></span></label>
       <label class="field"><span class="field-label">备注</span><textarea class="input" name="budgetNote" rows="2" maxlength="500"></textarea></label>
       <div class="task-actions"><button class="btn primary" type="submit">保存修改</button><button class="btn ghost" type="button" id="cancelAdminTaskEdit">取消</button></div>
     </form>

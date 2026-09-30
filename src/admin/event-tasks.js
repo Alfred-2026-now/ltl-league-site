@@ -2,7 +2,7 @@ import { getApiBase } from "../config/api.js";
 
 const API = getApiBase();
 const message = document.getElementById("adminTaskMessage");
-let taskSettings = { anonymousMinimumFee: 50, anonymousFeeRate: 10 };
+let taskSettings = { anonymousMinimumFee: 50, anonymousFeeRate: 10, publicationFeeRate: 10, publicationFeeCap: 1000 };
 let taskById = new Map();
 let claimHistory = [];
 
@@ -29,16 +29,18 @@ function setMessage(text, error = false) {
 }
 
 const publisherLabel = task => `${task.publisherName}${task.anonymous ? "（匿名）" : ""}`;
-const anonymousFee = (task, maxClaimants) => Math.max(
+const anonymousFee = (task, maxRewardRecipients) => Math.max(
   taskSettings.anonymousMinimumFee,
-  Math.ceil((Number(task.pReward) || 0) * maxClaimants * taskSettings.anonymousFeeRate / 100)
+  Math.ceil((Number(task.pReward) || 0) * maxRewardRecipients * taskSettings.anonymousFeeRate / 100)
 );
+const publicationFee = (task, maxRewardRecipients) => Math.min(taskSettings.publicationFeeCap,
+  Math.ceil((Number(task.pReward) || 0) * maxRewardRecipients * taskSettings.publicationFeeRate / 100));
 
 function pendingTask(task) {
   const privacy = task.anonymous
-    ? `<p class="task-review-comment"><strong>匿名发布：</strong>当前费率 ${taskSettings.anonymousFeeRate}%，最低 ${taskSettings.anonymousMinimumFee}P；按 1 个名额预计收取 <strong data-anonymous-preview="${task.id}">${anonymousFee(task, 1)}P</strong>，通过时从发布者账户扣除且不退。</p>`
+    ? `<p class="task-review-comment"><strong>匿名发布：</strong>当前费率 ${taskSettings.anonymousFeeRate}%，最低 ${taskSettings.anonymousMinimumFee}P；按当前奖励人数预计收取 <strong data-anonymous-preview="${task.id}">${anonymousFee(task, 1)}P</strong>，此费用另收且不退。</p>`
     : "";
-  return `<article class="panel task-card"><div class="task-card-heading"><div><span class="task-status">待审核</span><h3>${esc(task.title)}</h3><p class="muted">发布者：${esc(publisherLabel(task))} · ${time(task.createdAt)}</p></div><div class="task-rewards"><strong>${task.pReward}P</strong><strong>🪙 ${task.bountyReward}</strong></div></div><div class="task-requirements">${esc(task.requirements).replaceAll("\n", "<br>")}</div>${task.budgetNote ? `<p class="task-note">预算备注：${esc(task.budgetNote)}</p>` : ""}${privacy}<div class="task-form-grid task-admin-config"><label class="field"><span class="field-label">接取费用</span><input class="input" type="number" min="0" value="0" data-fee="${task.id}" /></label><label class="field"><span class="field-label">最大接取人数</span><input class="input" type="number" min="1" max="100" value="1" data-max="${task.id}" /></label></div><div class="task-actions"><button class="btn primary" data-publish="${task.id}">通过并发布</button><button class="btn ghost" data-return-task="${task.id}">打回</button></div></article>`;
+  return `<article class="panel task-card"><div class="task-card-heading"><div><span class="task-status">待审核</span><h3>${esc(task.title)}</h3><p class="muted">发布者：${esc(publisherLabel(task))} · ${time(task.createdAt)}</p></div><div class="task-rewards"><strong>${task.pReward}P</strong><strong>🪙 ${task.bountyReward}</strong></div></div><div class="task-requirements">${esc(task.requirements).replaceAll("\n", "<br>")}</div>${task.budgetNote ? `<p class="task-note">预算备注：${esc(task.budgetNote)}</p>` : ""}<p class="task-note">${task.repeatable ? "允许重复接取" : "每人限接一次"}</p><p class="task-review-comment">冻结额：每人P币奖励 × 最大奖励人数；发布费 <strong data-publication-preview="${task.id}">${publicationFee(task, 1)}P</strong>（10%，最多1000P）。</p>${privacy}<div class="task-form-grid task-admin-config"><label class="field"><span class="field-label">接取费用</span><input class="input" type="number" min="0" value="0" data-fee="${task.id}" /></label><label class="field"><span class="field-label">最大接取人数</span><input class="input" type="number" min="1" max="999" value="1" data-max="${task.id}" /></label><label class="field"><span class="field-label">最大奖励人数</span><input class="input" type="number" min="1" max="999" value="1" data-reward-max="${task.id}" /></label></div><div class="task-actions"><button class="btn primary" data-publish="${task.id}">通过并发布</button><button class="btn ghost" data-return-task="${task.id}">打回</button></div></article>`;
 }
 
 function proofCard(proof, taskMap) {
@@ -49,7 +51,7 @@ function proofCard(proof, taskMap) {
 function publishedTask(task) {
   const unfinished = (task.claims || []).filter(claim => unfinishedStatuses.includes(claim.status)).length;
   const pending = (task.claims || []).filter(claim => claim.status === "PROOF_PENDING").length;
-  return `<article class="panel task-card"><div class="task-card-heading"><div>${task.pinned ? '<span class="task-pinned">[置顶]</span>' : ""}<span class="task-status">${task.official ? "官方任务" : "进行中"}</span><h3>${esc(task.title)}</h3><p class="muted">发布者：${esc(publisherLabel(task))} · ${time(task.publishedAt)}</p></div><div class="task-rewards"><strong>${task.pReward}P</strong><strong>🪙 ${task.bountyReward}</strong></div></div><div class="task-requirements">${esc(task.requirements).replaceAll("\n", "<br>")}</div>${task.budgetNote ? `<p class="task-note">备注：${esc(task.budgetNote)}</p>` : ""}<div class="task-facts"><span>接取 ${task.claimedCount}/${task.maxClaimants}</span><span>完成 ${task.completedCount}</span><span>未完成 ${unfinished}</span><span>待审 ${pending}</span><span>剩余冻结 ${task.escrowRemaining}P</span>${task.anonymous ? `<span>匿名发布费 ${task.anonymousFeeAmount}P（费率快照 ${task.anonymousFeeRateSnapshot}%）</span>` : ""}</div><div class="task-actions"><label class="task-pin-option"><input type="checkbox" data-pin-task="${task.id}" ${task.pinned ? "checked" : ""} />置顶</label><button class="btn" data-edit-published="${task.id}">编辑任务</button><button class="btn ghost" data-close-task="${task.id}" data-close-summary="未完成${unfinished}人、待审${pending}份、剩余冻结${task.escrowRemaining}P">注销任务</button></div></article>`;
+  return `<article class="panel task-card"><div class="task-card-heading"><div>${task.pinned ? '<span class="task-pinned">[置顶]</span>' : ""}<span class="task-status">${task.official ? "官方任务" : "进行中"}</span><h3>${esc(task.title)}</h3><p class="muted">发布者：${esc(publisherLabel(task))} · ${time(task.publishedAt)}</p></div><div class="task-rewards"><strong>${task.pReward}P</strong><strong>🪙 ${task.bountyReward}</strong></div></div><div class="task-requirements">${esc(task.requirements).replaceAll("\n", "<br>")}</div>${task.budgetNote ? `<p class="task-note">备注：${esc(task.budgetNote)}</p>` : ""}<div class="task-facts"><span>当前接取 ${task.activeClaimCount}/${task.maxClaimants}</span><span>已奖励 ${task.completedCount}/${task.maxRewardRecipients}</span><span>${task.repeatable ? "可重复接取" : "每人限接一次"}</span><span>未完成 ${unfinished}</span><span>待审 ${pending}</span><span>剩余冻结 ${task.escrowRemaining}P</span>${!task.official ? `<span>发布费 ${task.publicationFeeAmount}P</span>` : ""}${task.anonymous ? `<span>匿名发布费 ${task.anonymousFeeAmount}P（费率快照 ${task.anonymousFeeRateSnapshot}%）</span>` : ""}</div><div class="task-actions"><label class="task-pin-option"><input type="checkbox" data-pin-task="${task.id}" ${task.pinned ? "checked" : ""} />置顶</label><button class="btn" data-edit-published="${task.id}">编辑任务</button><button class="btn ghost" data-close-task="${task.id}" data-close-summary="未完成${unfinished}人、待审${pending}份、剩余冻结${task.escrowRemaining}P">注销任务</button></div></article>`;
 }
 
 function renderClaimHistory() {
@@ -91,7 +93,7 @@ function completionHistoryCard(record) {
 async function load() {
   try {
     const [tasks, proofs, settings, claims] = await Promise.all([request("/admin/event-tasks"), request("/admin/event-task-proofs/pending"), request("/event-tasks/settings"), request("/admin/event-task-claims")]);
-    taskSettings = settings;
+    taskSettings = { ...taskSettings, ...settings };
     taskById = new Map(tasks.map(task => [task.id, task]));
     claimHistory = claims;
     const filter = document.getElementById("claimTaskFilter");
@@ -135,6 +137,7 @@ document.addEventListener("click", async event => {
     const task = taskById.get(Number(editPublished.dataset.editPublished));
     const form = document.getElementById("adminTaskEditForm");
     for (const field of ["title", "requirements", "pReward", "bountyReward", "budgetNote"]) form.elements[field].value = task[field] ?? "";
+    form.elements.repeatable.checked = Boolean(task.repeatable);
     form.elements.taskId.value = task.id;
     document.getElementById("adminTaskEditDialog").showModal();
     return;
@@ -152,10 +155,11 @@ document.addEventListener("click", async event => {
     const id = publish.dataset.publish;
     const claimFee = Number(document.querySelector(`[data-fee="${id}"]`).value);
     const maxClaimants = Number(document.querySelector(`[data-max="${id}"]`).value);
+    const maxRewardRecipients = Number(document.querySelector(`[data-reward-max="${id}"]`).value);
     const task = taskById.get(Number(id));
-    const privacyText = task?.anonymous ? `，并收取匿名发布费 ${anonymousFee(task, maxClaimants)}P` : "";
-    if (!confirm(`确认以接取费 ${claimFee}P、最多 ${maxClaimants} 人通过并直接发布？系统会立即冻结发布者足额P币${privacyText}。`)) return;
-    await act(() => request(`/admin/event-tasks/${id}/publish`, json({ claimFee, maxClaimants })), "任务已发布");
+    const privacyText = task?.anonymous ? `，另收匿名发布费 ${anonymousFee(task, maxRewardRecipients)}P` : "";
+    if (!confirm(`确认以接取费 ${claimFee}P、同时最多 ${maxClaimants} 人、最多奖励 ${maxRewardRecipients} 人发布？将冻结 ${task.pReward * maxRewardRecipients}P，并收取发布费 ${publicationFee(task, maxRewardRecipients)}P${privacyText}。`)) return;
+    await act(() => request(`/admin/event-tasks/${id}/publish`, json({ claimFee, maxClaimants, maxRewardRecipients })), "任务已发布");
   }
   const returnTask = event.target.closest("[data-return-task]");
   if (returnTask) {
@@ -210,13 +214,15 @@ document.addEventListener("input", event => {
     renderClaimHistory();
     return;
   }
-  const input = event.target.closest("[data-max]");
+  const input = event.target.closest("[data-reward-max]");
   if (!input) return;
-  const task = taskById.get(Number(input.dataset.max));
-  const preview = document.querySelector(`[data-anonymous-preview="${input.dataset.max}"]`);
-  const maxClaimants = Number(input.value);
-  if (task?.anonymous && preview && Number.isFinite(maxClaimants) && maxClaimants > 0) {
-    preview.textContent = `${anonymousFee(task, maxClaimants)}P`;
+  const task = taskById.get(Number(input.dataset.rewardMax));
+  const privacyPreview = document.querySelector(`[data-anonymous-preview="${input.dataset.rewardMax}"]`);
+  const feePreview = document.querySelector(`[data-publication-preview="${input.dataset.rewardMax}"]`);
+  const maxRewardRecipients = Number(input.value);
+  if (task && Number.isFinite(maxRewardRecipients) && maxRewardRecipients > 0) {
+    if (privacyPreview) privacyPreview.textContent = `${anonymousFee(task, maxRewardRecipients)}P`;
+    if (feePreview) feePreview.textContent = `${publicationFee(task, maxRewardRecipients)}P`;
   }
 });
 
@@ -234,12 +240,13 @@ document.getElementById("adminTaskEditForm").addEventListener("submit", async ev
     requirements: form.elements.requirements.value.trim(),
     pReward: Number(form.elements.pReward.value),
     bountyReward: Number(form.elements.bountyReward.value),
-    budgetNote: form.elements.budgetNote.value.trim()
+    budgetNote: form.elements.budgetNote.value.trim(),
+    repeatable: form.elements.repeatable.checked
   };
   if (payload.pReward + payload.bountyReward <= 0) { setMessage("P币和赏金积分至少一项大于0", true); return; }
-  const delta = (payload.pReward - task.pReward) * (task.maxClaimants - task.completedCount);
+  const delta = (payload.pReward - task.pReward) * (task.maxRewardRecipients - task.completedCount);
   const fundMessage = task.official ? "官方任务由系统发奖。" : delta > 0 ? `将从发布者余额追加冻结 ${delta}P。` : delta < 0 ? `将向发布者退还 ${-delta}P冻结额。` : "冻结额不变。";
-  if (!confirm(`确认修改“${task.title}”？未完成与未来接取将使用新内容和奖励；已完成记录不变。${fundMessage}匿名费不重算。`)) return;
+  if (!confirm(`确认修改“${task.title}”？未完成与未来接取将使用新内容和奖励；已完成记录不变。${fundMessage}发布费和匿名费不重算。`)) return;
   try {
     setMessage("处理中…");
     await request(`/admin/event-tasks/${task.id}`, json(payload, "PUT"));
@@ -259,7 +266,9 @@ document.getElementById("officialTaskForm").addEventListener("submit", async eve
     bountyReward: Number(data.get("bountyReward") || 0),
     budgetNote: String(data.get("budgetNote") || "").trim(),
     claimFee: Number(data.get("claimFee") || 0),
-    maxClaimants: Number(data.get("maxClaimants") || 0)
+    maxClaimants: Number(data.get("maxClaimants") || 0),
+    maxRewardRecipients: Number(data.get("maxRewardRecipients") || 0),
+    repeatable: data.get("repeatable") === "on"
   };
   if (!confirm("确认无成本直接发布该官方任务？")) return;
   await act(() => request("/admin/event-tasks/official", json(payload)), "官方任务已发布");

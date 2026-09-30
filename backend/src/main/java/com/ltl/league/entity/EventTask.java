@@ -16,6 +16,7 @@ public class EventTask {
     private Integer official;
     private Integer pinned;
     private Integer anonymous;
+    private Integer repeatable;
     private String title;
     private String requirements;
     private Integer pReward;
@@ -23,8 +24,10 @@ public class EventTask {
     private String budgetNote;
     private Integer anonymousFeeRateSnapshot;
     private Integer anonymousFeeAmount;
+    private Integer publicationFeeAmount;
     private Integer claimFee;
     private Integer maxClaimants;
+    private Integer maxRewardRecipients;
     private Integer claimedCount;
     private Integer completedCount;
     private Integer escrowTotal;

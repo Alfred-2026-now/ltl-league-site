@@ -48,8 +48,10 @@ public class EventTaskService {
     public static final String PROOF_STATUS_REVOKED = "REVOKED";
     public static final String PROOF_STATUS_VOIDED = "VOIDED";
 
-    private static final int MAX_CLAIMANTS = 100;
+    private static final int MAX_CLAIMANTS = 999;
     private static final int MAX_REWARD = 10_000_000;
+    private static final int PUBLICATION_FEE_RATE = 10;
+    private static final int PUBLICATION_FEE_CAP = 1_000;
     private static final int ANONYMOUS_MINIMUM_FEE = 50;
     private static final String ANONYMOUS_FEE_RATE_KEY = "event_task.anonymous_fee_rate";
     private static final long MAX_IMAGE_BYTES = 10L * 1024 * 1024;
@@ -105,6 +107,8 @@ public class EventTaskService {
         EventTaskDtos.TaskPublicSettingsVO settings = new EventTaskDtos.TaskPublicSettingsVO();
         settings.setAnonymousMinimumFee(ANONYMOUS_MINIMUM_FEE);
         settings.setAnonymousFeeRate(anonymousFeeRate());
+        settings.setPublicationFeeRate(PUBLICATION_FEE_RATE);
+        settings.setPublicationFeeCap(PUBLICATION_FEE_CAP);
         return settings;
     }
 
@@ -212,11 +216,18 @@ public class EventTaskService {
         if (task == null || !TASK_PUBLISHED.equals(task.getStatus())) {
             throw new BusinessException(409, "任务已停止接取");
         }
-        if (Objects.equals(task.getPublisherPlayerId(), playerId)) {
+        if (!Integer.valueOf(1).equals(task.getOfficial()) && Objects.equals(task.getPublisherPlayerId(), playerId)) {
             throw new BusinessException(400, "不能接取自己发布的任务");
         }
-        if (task.getMaxClaimants() == null || safe(task.getClaimedCount()) >= task.getMaxClaimants()) {
+        int activeCount = safe(task.getClaimedCount()) - safe(task.getCompletedCount());
+        if (activeCount < 0) {
+            throw new BusinessException(409, "任务人数统计异常，无法接取");
+        }
+        if (task.getMaxClaimants() == null || activeCount >= task.getMaxClaimants()) {
             throw new BusinessException(409, "任务接取名额已满");
+        }
+        if (safe(task.getClaimedCount()) >= rewardLimit(task)) {
+            throw new BusinessException(409, "任务奖励名额已满");
         }
         List<EventTaskClaim> previous = claimMapper.selectList(new LambdaQueryWrapper<EventTaskClaim>()
                 .eq(EventTaskClaim::getTaskId, taskId)
@@ -224,11 +235,13 @@ public class EventTaskService {
                 .eq(EventTaskClaim::getDeleted, 0)
                 .orderByDesc(EventTaskClaim::getId));
         for (EventTaskClaim old : previous) {
-            if (!ADMIN_CANCELLED.equals(old.getStatus())) {
+            if (ADMIN_CANCELLED.equals(old.getStatus())) {
+                if (old.getTerminatedAt() == null || now().isBefore(old.getTerminatedAt().plusHours(1))) {
+                    throw new BusinessException(409, "管理员取消接取后需等待1小时才能再次接取");
+                }
+            } else if (!Integer.valueOf(1).equals(task.getRepeatable())
+                    || !List.of(COMPLETED, CLAIM_ABANDONED, COMPLETION_REVOKED).contains(old.getStatus())) {
                 throw new BusinessException(409, "你已经接取或放弃过该任务，不能重复接取");
-            }
-            if (old.getTerminatedAt() == null || now().isBefore(old.getTerminatedAt().plusHours(1))) {
-                throw new BusinessException(409, "管理员取消接取后需等待1小时才能再次接取");
             }
         }
 
@@ -435,21 +448,24 @@ public class EventTaskService {
 
     @Transactional
     public EventTaskDtos.TaskVO publishTask(Long adminId, Long taskId, EventTaskDtos.AdminPublishRequest request) {
-        validateAdminConfig(request == null ? null : request.getClaimFee(), request == null ? null : request.getMaxClaimants());
+        validateAdminConfig(request == null ? null : request.getClaimFee(), request == null ? null : request.getMaxClaimants(),
+                request == null ? null : request.getMaxRewardRecipients());
         EventTask task = taskMapper.selectByIdForUpdate(taskId);
         if (task == null || !TASK_PENDING.equals(task.getStatus())) {
             throw new BusinessException(409, "只有待审核任务可以发布");
         }
+        int rewardRecipients = request.getMaxRewardRecipients() == null ? request.getMaxClaimants() : request.getMaxRewardRecipients();
         int escrow;
         try {
-            escrow = Math.multiplyExact(safe(task.getPReward()), request.getMaxClaimants());
+            escrow = Math.multiplyExact(safe(task.getPReward()), rewardRecipients);
         } catch (ArithmeticException e) {
             throw new BusinessException(400, "P币悬赏总额过大");
         }
         boolean anonymous = Integer.valueOf(1).equals(task.getAnonymous());
         int anonymousRate = anonymous ? anonymousFeeRate() : 0;
         int anonymousFee = anonymous ? calculateAnonymousFee(escrow, anonymousRate) : 0;
-        int required = checkedAdd(escrow, anonymousFee, "发布任务所需P币");
+        int publicationFee = calculatePublicationFee(escrow);
+        int required = checkedAdd(checkedAdd(escrow, anonymousFee, "发布任务所需P币"), publicationFee, "发布任务所需P币");
         Player publisher = playerMapper.selectByIdForUpdate(task.getPublisherPlayerId());
         if (publisher == null) {
             throw new BusinessException(404, "任务发布者不存在");
@@ -457,7 +473,7 @@ public class EventTaskService {
         int before = safe(publisher.getDeposit());
         if (before < required) {
             String feeText = anonymousFee > 0 ? "并支付匿名发布费 " + anonymousFee + "P" : "";
-            throw new BusinessException(400, "发布者个人P币不足，当前 " + before + "P，需要冻结 " + escrow + "P" + feeText);
+            throw new BusinessException(400, "发布者个人P币不足，当前 " + before + "P，需要冻结 " + escrow + "P并支付发布费 " + publicationFee + "P" + feeText);
         }
         int balance = before;
         if (escrow > 0) {
@@ -477,6 +493,16 @@ public class EventTaskService {
                     null, null, playerName(adminId));
             balance = afterFee;
         }
+        if (publicationFee > 0) {
+            int afterFee = balance - publicationFee;
+            addDepositLedger(publisher, "task_publication_fee", -publicationFee,
+                    "私人任务发布费：" + task.getTitle(), balance, afterFee,
+                    "event_task", "event_tasks", task.getId(), playerName(adminId));
+            adminAssetService.recordIncome(publicationFee, "task_publication_fee",
+                    "私人任务发布费：" + task.getTitle(), "event_task", "event_tasks", task.getId(),
+                    null, null, playerName(adminId));
+            balance = afterFee;
+        }
         if (required > 0) {
             publisher.setDeposit(balance);
             playerMapper.updateById(publisher);
@@ -484,10 +510,12 @@ public class EventTaskService {
         LocalDateTime now = now();
         task.setClaimFee(request.getClaimFee());
         task.setMaxClaimants(request.getMaxClaimants());
+        task.setMaxRewardRecipients(rewardRecipients);
         task.setEscrowTotal(escrow);
         task.setEscrowRemaining(escrow);
         task.setAnonymousFeeRateSnapshot(anonymous ? anonymousRate : null);
         task.setAnonymousFeeAmount(anonymousFee);
+        task.setPublicationFeeAmount(publicationFee);
         task.setStatus(TASK_PUBLISHED);
         task.setLatestReviewComment(null);
         task.setReviewedByPlayerId(adminId);
@@ -495,7 +523,7 @@ public class EventTaskService {
         task.setPublishedAt(now);
         taskMapper.updateById(task);
         addReview(taskId, "PUBLISH", adminId,
-                anonymous ? "审核通过并发布；匿名发布费 " + anonymousFee + "P" : "审核通过并发布",
+                "审核通过并发布；发布费 " + publicationFee + "P" + (anonymous ? "；匿名发布费 " + anonymousFee + "P" : ""),
                 request.getClaimFee(), request.getMaxClaimants());
         return toTaskVO(task, playerMapper.selectById(adminId), true);
     }
@@ -503,7 +531,7 @@ public class EventTaskService {
     @Transactional
     public EventTaskDtos.TaskVO publishOfficial(Long adminId, EventTaskDtos.OfficialTaskRequest request) {
         validateTaskWrite(request);
-        validateAdminConfig(request.getClaimFee(), request.getMaxClaimants());
+        validateAdminConfig(request.getClaimFee(), request.getMaxClaimants(), request.getMaxRewardRecipients());
         Player admin = requirePlayer(adminId);
         LocalDateTime now = now();
         EventTask task = new EventTask();
@@ -515,8 +543,10 @@ public class EventTaskService {
         task.setAnonymous(0);
         task.setAnonymousFeeRateSnapshot(null);
         task.setAnonymousFeeAmount(0);
+        task.setPublicationFeeAmount(0);
         task.setClaimFee(request.getClaimFee());
         task.setMaxClaimants(request.getMaxClaimants());
+        task.setMaxRewardRecipients(request.getMaxRewardRecipients() == null ? request.getMaxClaimants() : request.getMaxRewardRecipients());
         task.setClaimedCount(0);
         task.setCompletedCount(0);
         task.setEscrowTotal(0);
@@ -543,21 +573,25 @@ public class EventTaskService {
         long completed = claims.stream().filter(claim -> COMPLETED.equals(claim.getStatus())).count();
         long active = claims.stream().filter(claim -> List.of(CLAIMED, PROOF_PENDING, PROOF_RETURNED).contains(claim.getStatus())).count();
         if (completed != safe(task.getCompletedCount()) || completed + active != safe(task.getClaimedCount())
-                || task.getMaxClaimants() == null || completed > task.getMaxClaimants()) {
+                || task.getMaxClaimants() == null || completed > rewardLimit(task)) {
             throw new BusinessException(409, "任务接取人数记录异常，无法编辑");
         }
-        int newRemaining;
-        try {
-            newRemaining = Math.multiplyExact(request.getPReward(), task.getMaxClaimants() - (int) completed);
-        } catch (ArithmeticException ex) {
-            throw new BusinessException(400, "P币悬赏总额过大");
-        }
-        int delta = newRemaining - safe(task.getEscrowRemaining());
-        int newTotal = checkedAdd(safe(task.getEscrowTotal()), delta, "任务冻结P币总额");
-        if (newTotal < newRemaining || newTotal < 0) {
-            throw new BusinessException(409, "任务冻结P币记录异常，无法编辑");
-        }
         boolean official = Integer.valueOf(1).equals(task.getOfficial());
+        int newRemaining = 0;
+        int delta = 0;
+        int newTotal = 0;
+        if (!official) {
+            try {
+                newRemaining = Math.multiplyExact(request.getPReward(), rewardLimit(task) - (int) completed);
+            } catch (ArithmeticException ex) {
+                throw new BusinessException(400, "P币悬赏总额过大");
+            }
+            delta = newRemaining - safe(task.getEscrowRemaining());
+            newTotal = checkedAdd(safe(task.getEscrowTotal()), delta, "任务冻结P币总额");
+            if (newTotal < newRemaining || newTotal < 0) {
+                throw new BusinessException(409, "任务冻结P币记录异常，无法编辑");
+            }
+        }
         Player publisher = null;
         if (!official && delta != 0) {
             publisher = playerMapper.selectByIdForUpdate(task.getPublisherPlayerId());
@@ -576,6 +610,9 @@ public class EventTaskService {
         task.setBudgetNote(trimToNull(request.getBudgetNote()));
         task.setPReward(request.getPReward());
         task.setBountyReward(request.getBountyReward());
+        if (request.getRepeatable() != null) {
+            task.setRepeatable(Boolean.TRUE.equals(request.getRepeatable()) ? 1 : 0);
+        }
         if (!official) {
             task.setEscrowRemaining(newRemaining);
             task.setEscrowTotal(newTotal);
@@ -937,12 +974,15 @@ public class EventTaskService {
         }
     }
 
-    private void validateAdminConfig(Integer claimFee, Integer maxClaimants) {
+    private void validateAdminConfig(Integer claimFee, Integer maxClaimants, Integer maxRewardRecipients) {
         if (claimFee == null || claimFee < 0 || claimFee > MAX_REWARD) {
             throw new BusinessException(400, "接取费用必须为0到10000000之间的整数");
         }
         if (maxClaimants == null || maxClaimants < 1 || maxClaimants > MAX_CLAIMANTS) {
-            throw new BusinessException(400, "最大接取人数必须为1到100");
+            throw new BusinessException(400, "最大接取人数必须为1到999");
+        }
+        if (maxRewardRecipients != null && (maxRewardRecipients < 1 || maxRewardRecipients > MAX_CLAIMANTS)) {
+            throw new BusinessException(400, "最大奖励人数必须为1到999");
         }
     }
 
@@ -996,6 +1036,7 @@ public class EventTaskService {
         task.setBountyReward(request.getBountyReward());
         task.setBudgetNote(trimToNull(request.getBudgetNote()));
         task.setAnonymous(Boolean.TRUE.equals(request.getAnonymous()) ? 1 : 0);
+        task.setRepeatable(Boolean.TRUE.equals(request.getRepeatable()) ? 1 : 0);
     }
 
     private EventTaskReview addReview(Long taskId, String action, Long operatorId, String comment, Integer fee, Integer max) {
@@ -1017,6 +1058,7 @@ public class EventTaskService {
         snapshot.put("budgetNote", task.getBudgetNote());
         snapshot.put("pReward", task.getPReward());
         snapshot.put("bountyReward", task.getBountyReward());
+        snapshot.put("repeatable", Integer.valueOf(1).equals(task.getRepeatable()));
         try {
             return SNAPSHOT_MAPPER.writeValueAsString(snapshot);
         } catch (JsonProcessingException ex) {
@@ -1080,6 +1122,7 @@ public class EventTaskService {
         vo.setOfficial(Integer.valueOf(1).equals(task.getOfficial()));
         vo.setPinned(Integer.valueOf(1).equals(task.getPinned()));
         vo.setAnonymous(anonymous);
+        vo.setRepeatable(Integer.valueOf(1).equals(task.getRepeatable()));
         vo.setTitle(task.getTitle());
         vo.setRequirements(task.getRequirements());
         vo.setPReward(safe(task.getPReward()));
@@ -1087,11 +1130,16 @@ public class EventTaskService {
         vo.setBudgetNote(owner || includeClaims ? task.getBudgetNote() : null);
         vo.setAnonymousFeeRateSnapshot(owner || includeClaims ? task.getAnonymousFeeRateSnapshot() : null);
         vo.setAnonymousFeeAmount(owner || includeClaims ? safe(task.getAnonymousFeeAmount()) : null);
+        vo.setPublicationFeeAmount(owner || includeClaims ? safe(task.getPublicationFeeAmount()) : null);
         vo.setClaimFee(task.getClaimFee());
         vo.setMaxClaimants(task.getMaxClaimants());
+        vo.setMaxRewardRecipients(task.getMaxClaimants() == null ? null : rewardLimit(task));
         vo.setClaimedCount(safe(task.getClaimedCount()));
         vo.setCompletedCount(safe(task.getCompletedCount()));
-        vo.setRemainingSlots(task.getMaxClaimants() == null ? null : Math.max(0, task.getMaxClaimants() - safe(task.getClaimedCount())));
+        int activeCount = Math.max(0, safe(task.getClaimedCount()) - safe(task.getCompletedCount()));
+        vo.setActiveClaimCount(activeCount);
+        vo.setRemainingSlots(task.getMaxClaimants() == null ? null : Math.max(0,
+                Math.min(task.getMaxClaimants() - activeCount, rewardLimit(task) - safe(task.getClaimedCount()))));
         vo.setEscrowTotal(safe(task.getEscrowTotal()));
         vo.setEscrowRemaining(safe(task.getEscrowRemaining()));
         vo.setStatus(task.getStatus());
@@ -1108,8 +1156,12 @@ public class EventTaskService {
         LocalDateTime reclaimAt = viewerClaim != null && ADMIN_CANCELLED.equals(viewerClaim.getStatus())
                 && viewerClaim.getTerminatedAt() != null ? viewerClaim.getTerminatedAt().plusHours(1) : null;
         vo.setViewerReclaimAvailableAt(reclaimAt);
-        vo.setCanClaim(viewer != null && TASK_PUBLISHED.equals(task.getStatus()) && !owner
-                && (viewerClaim == null || reclaimAt != null && !now().isBefore(reclaimAt))
+        boolean priorClaimAllowsRepeat = viewerClaim == null
+                || ADMIN_CANCELLED.equals(viewerClaim.getStatus()) && reclaimAt != null && !now().isBefore(reclaimAt)
+                || Integer.valueOf(1).equals(task.getRepeatable())
+                && List.of(COMPLETED, CLAIM_ABANDONED, COMPLETION_REVOKED).contains(viewerClaim.getStatus());
+        vo.setCanClaim(viewer != null && TASK_PUBLISHED.equals(task.getStatus())
+                && (!owner || Integer.valueOf(1).equals(task.getOfficial())) && priorClaimAllowsRepeat
                 && vo.getRemainingSlots() != null && vo.getRemainingSlots() > 0);
         if (includeClaims) {
             vo.setClaims(claimMapper.selectList(new LambdaQueryWrapper<EventTaskClaim>()
@@ -1275,6 +1327,14 @@ public class EventTaskService {
     private static int calculateAnonymousFee(int escrow, int rate) {
         long percentageFee = ((long) escrow * rate + 99L) / 100L;
         return (int) Math.max(ANONYMOUS_MINIMUM_FEE, percentageFee);
+    }
+
+    private static int calculatePublicationFee(int escrow) {
+        return (int) Math.min(PUBLICATION_FEE_CAP, ((long) escrow * PUBLICATION_FEE_RATE + 99L) / 100L);
+    }
+
+    private static int rewardLimit(EventTask task) {
+        return task.getMaxRewardRecipients() == null ? safe(task.getMaxClaimants()) : task.getMaxRewardRecipients();
     }
 
     private static String trimToNull(String value) {

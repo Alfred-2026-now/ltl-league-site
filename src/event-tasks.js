@@ -10,7 +10,7 @@ const els = {
 let currentUser = null;
 let activeTab = "hall";
 let cachedPublished = [];
-let taskSettings = { anonymousMinimumFee: 50, anonymousFeeRate: 10 };
+let taskSettings = { anonymousMinimumFee: 50, anonymousFeeRate: 10, publicationFeeRate: 10, publicationFeeCap: 1000 };
 
 async function request(path, options = {}) {
   const response = await fetch(`${API}${path}`, { credentials: "include", ...options });
@@ -109,9 +109,11 @@ function taskCard(task, mode = "hall") {
     <div class="task-facts">
       ${mode === "hall" ? `<span class="task-reward-fact">完成奖励：${task.pReward || 0}P币</span><span class="task-reward-fact">悬赏积分：${task.bountyReward || 0}</span>` : ""}
       <span>接取费：${task.claimFee ?? "待审核"}P</span>
-      <span>已接取：${task.claimedCount || 0}${task.maxClaimants != null ? ` / ${task.maxClaimants}` : ""}</span>
+      <span>当前接取：${task.activeClaimCount || 0}${task.maxClaimants != null ? ` / ${task.maxClaimants}` : ""}</span>
       <span>剩余：${task.remainingSlots ?? "-"}</span>
-      <span>已完成：${task.completedCount || 0}</span>
+      <span>已奖励：${task.completedCount || 0}${task.maxRewardRecipients != null ? ` / ${task.maxRewardRecipients}` : ""}</span>
+      <span>${task.repeatable ? "可重复接取" : "每人限接一次"}</span>
+      ${mode === "published" && !task.official ? `<span>发布费：${task.status === "PUBLISHED" || task.status === "CLOSED" ? `${task.publicationFeeAmount || 0}P` : "审核发布时计算"}</span>` : ""}
       ${mode === "published" && task.anonymous ? `<span>匿名发布费：${task.status === "PUBLISHED" || task.status === "CLOSED" ? `${task.anonymousFeeAmount || 0}P` : "审核发布时计算"}</span>` : ""}
     </div>
     <div class="task-actions">${claimButton}${editActions}</div>
@@ -129,7 +131,7 @@ function publishForm() {
   if (!currentUser) return loginNotice();
   return `<form class="panel task-form" id="publishTaskForm">
     <h2>发布新任务</h2>
-    <p class="muted">提交后由管理员审核。管理员设置接取费用和人数并通过后，任务直接公开并冻结足额P币悬赏。</p>
+    <p class="muted">提交后由管理员审核并设置接取人数与奖励人数。通过时冻结“最大奖励人数 × 每人P币奖励”，另收奖励总额的 ${taskSettings.publicationFeeRate}% 发布费，最多 ${taskSettings.publicationFeeCap}P；发布费不退。</p>
     <label class="field"><span class="field-label">任务标题</span><input class="input" name="title" maxlength="200" required /></label>
     <label class="field"><span class="field-label">详细任务要求</span><textarea class="input" name="requirements" rows="7" maxlength="10000" required></textarea></label>
     <div class="task-form-grid">
@@ -140,6 +142,7 @@ function publishForm() {
       <input name="anonymous" type="checkbox" />
       <span><strong>匿名发布</strong><small>公开页面仅显示“匿名发布者”。管理员仍可查看实名。审核通过时额外收取 ${taskSettings.anonymousMinimumFee}P 与任务P币奖励总额的 ${taskSettings.anonymousFeeRate}% 中较高的一项（百分比费用向上取整），此费用不退。</small></span>
     </label>
+    <label class="task-anonymous-option"><input name="repeatable" type="checkbox" /><span><strong>允许重复接取</strong><small>完成或主动放弃后可再次接取；同一时间不能重复占用名额。每次完成都占用一个奖励名额。</small></span></label>
     <label class="field"><span class="field-label">最大预算备注（仅供管理员参考，不参与计算）</span><textarea class="input" name="budgetNote" rows="2" maxlength="500"></textarea></label>
     <button class="btn primary" type="submit">提交管理员审核</button>
   </form>`;
@@ -214,7 +217,8 @@ function taskPayload(form) {
     pReward: Number(data.get("pReward") || 0),
     bountyReward: Number(data.get("bountyReward") || 0),
     budgetNote: String(data.get("budgetNote") || "").trim(),
-    anonymous: data.get("anonymous") === "on"
+    anonymous: data.get("anonymous") === "on",
+    repeatable: data.get("repeatable") === "on"
   };
 }
 
@@ -277,6 +281,7 @@ function openEdit(taskId) {
   document.getElementById("editTaskBountyReward").value = task.bountyReward;
   document.getElementById("editTaskBudgetNote").value = task.budgetNote || "";
   document.getElementById("editTaskAnonymous").checked = Boolean(task.anonymous);
+  document.getElementById("editTaskRepeatable").checked = Boolean(task.repeatable);
   els.dialog.showModal();
 }
 
@@ -288,7 +293,8 @@ document.getElementById("saveTaskEditBtn").addEventListener("click", async () =>
     pReward: Number(document.getElementById("editTaskPReward").value || 0),
     bountyReward: Number(document.getElementById("editTaskBountyReward").value || 0),
     budgetNote: document.getElementById("editTaskBudgetNote").value.trim(),
-    anonymous: document.getElementById("editTaskAnonymous").checked
+    anonymous: document.getElementById("editTaskAnonymous").checked,
+    repeatable: document.getElementById("editTaskRepeatable").checked
   };
   await runAction(() => request(`/event-tasks/${id}`, jsonOptions("PUT", payload)), "修改已保存", false);
   els.dialog.close();
@@ -307,5 +313,5 @@ async function runAction(action, success, rerender = true) {
 }
 
 currentUser = await authApi.getCurrentUser();
-taskSettings = await request("/event-tasks/settings").catch(() => taskSettings);
+taskSettings = { ...taskSettings, ...await request("/event-tasks/settings").catch(() => ({})) };
 await renderActive();
