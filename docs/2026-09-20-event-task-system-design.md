@@ -171,7 +171,7 @@ flowchart TD
 
 - `event_tasks`：任务内容、赛季、发布者、匿名标记、匿名费率/金额快照、奖励、接取费、名额、冻结/发放/退款金额、状态和审核信息。
 - `event_task_reviews`：任务发布审核历史。
-- `event_task_claims`：接取、费用快照、奖励快照、状态和时间；`task_id + player_id` 唯一。
+- `event_task_claims`：接取、费用快照、奖励快照、状态和时间；同一选手的多次接取分别保留记录。
 - `event_task_proofs`：每次证明提交及审核结果。
 - `event_task_proof_images`：证明截图。
 - `player_bounty_ledger`：赏金积分流水，含赛季、任务、接取和证明引用；任务奖励对 `claim_id` 唯一。
@@ -218,6 +218,7 @@ flowchart TD
 1. 备份生产数据库，并确认应用当前使用的数据库名称。
 2. 首次安装先执行一次 `backend/src/main/resources/db/migration_event_tasks.sql`；已安装赛事任务系统的环境不要重复执行。
 3. 执行一次增量迁移 `backend/src/main/resources/db/migration_event_task_anonymous.sql`，增加匿名字段和默认费率参数。
+   已有赛事任务环境升级奖励人数、私人发布费和重复接取时，还需在部署新版后端前执行一次 `backend/src/main/resources/db/migration_event_task_reward_limits.sql`。现有任务的最大奖励人数会沿用原最大接取人数，已有任务不会补收发布费，也不会自动开启重复接取。
 4. 部署后端和前端资源，确认后端上传根目录可写；证明截图会保存到现有上传目录下的 `tasks/` 子目录。
 5. 重启后检查公开任务页、管理任务页、规则参数页和资产总览，完成匿名与非匿名任务的发布审核冒烟验证。
 6. 生产验证通过前不要对外开放入口；如迁移或启动失败，使用数据库和应用备份回滚。

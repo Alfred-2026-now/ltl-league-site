@@ -68,18 +68,20 @@ class EventTaskServiceTest {
         assertEquals(EventTaskService.TASK_PUBLISHED, task.getStatus());
         assertEquals(1000, task.getEscrowTotal());
         assertEquals(1000, task.getEscrowRemaining());
-        assertEquals(500, publisher.getDeposit());
+        assertEquals(400, publisher.getDeposit());
+        assertEquals(100, task.getPublicationFeeAmount());
 
         ArgumentCaptor<PlayerDepositLedger> ledger = ArgumentCaptor.forClass(PlayerDepositLedger.class);
-        verify(depositLedgerMapper).insert(ledger.capture());
-        assertEquals("task_reward_escrow", ledger.getValue().getType());
-        assertEquals(-1000, ledger.getValue().getAmount());
+        verify(depositLedgerMapper, times(2)).insert(ledger.capture());
+        assertEquals("task_reward_escrow", ledger.getAllValues().get(0).getType());
+        assertEquals(-1000, ledger.getAllValues().get(0).getAmount());
+        assertEquals("task_publication_fee", ledger.getAllValues().get(1).getType());
     }
 
     @Test
     void adminPublishRejectsInsufficientPublisherBalanceWithoutPublishing() {
         EventTask task = task(10L, 1L, 500, 0, EventTaskService.TASK_PENDING);
-        Player publisher = player(1L, "发布者", 999, 0);
+        Player publisher = player(1L, "发布者", 1000, 0);
         when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
         when(playerMapper.selectByIdForUpdate(1L)).thenReturn(publisher);
         EventTaskDtos.AdminPublishRequest request = new EventTaskDtos.AdminPublishRequest();
@@ -90,6 +92,7 @@ class EventTaskServiceTest {
                 () -> service.publishTask(9L, 10L, request));
 
         assertTrue(error.getMessage().contains("需要冻结 1000P"));
+        assertTrue(error.getMessage().contains("发布费 100P"));
         assertEquals(EventTaskService.TASK_PENDING, task.getStatus());
         verify(depositLedgerMapper, never()).insert(any());
     }
@@ -98,7 +101,7 @@ class EventTaskServiceTest {
     void anonymousPublishChargesHigherPercentageFeeAndStoresRateSnapshot() {
         EventTask task = task(10L, 1L, 201, 30, EventTaskService.TASK_PENDING);
         task.setAnonymous(1);
-        Player publisher = player(1L, "发布者", 1106, 0);
+        Player publisher = player(1L, "发布者", 1207, 0);
         Player admin = player(9L, "管理员", 0, 0);
         when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
         when(playerMapper.selectByIdForUpdate(1L)).thenReturn(publisher);
@@ -113,10 +116,11 @@ class EventTaskServiceTest {
         assertEquals(10, task.getAnonymousFeeRateSnapshot());
         assertEquals(101, task.getAnonymousFeeAmount());
         ArgumentCaptor<PlayerDepositLedger> ledger = ArgumentCaptor.forClass(PlayerDepositLedger.class);
-        verify(depositLedgerMapper, times(2)).insert(ledger.capture());
-        assertEquals(List.of("task_reward_escrow", "task_anonymous_fee"),
+        verify(depositLedgerMapper, times(3)).insert(ledger.capture());
+        assertEquals(List.of("task_reward_escrow", "task_anonymous_fee", "task_publication_fee"),
                 ledger.getAllValues().stream().map(PlayerDepositLedger::getType).toList());
         assertEquals(-101, ledger.getAllValues().get(1).getAmount());
+        assertEquals(101, task.getPublicationFeeAmount());
         verify(adminAssetService).recordIncome(eq(101), eq("task_anonymous_fee"), any(),
                 eq("event_task"), eq("event_tasks"), eq(10L), isNull(), isNull(), eq("管理员"));
     }
@@ -273,6 +277,37 @@ class EventTaskServiceTest {
     }
 
     @Test
+    void publishUsesRewardLimitForEscrowAndCapsPrivatePublicationFee() {
+        EventTask task = task(10L, 1L, 1000, 0, EventTaskService.TASK_PENDING);
+        Player publisher = player(1L, "发布者", 21_000, 0);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(playerMapper.selectByIdForUpdate(1L)).thenReturn(publisher);
+        EventTaskDtos.AdminPublishRequest request = new EventTaskDtos.AdminPublishRequest();
+        request.setClaimFee(0);
+        request.setMaxClaimants(999);
+        request.setMaxRewardRecipients(20);
+
+        service.publishTask(9L, 10L, request);
+
+        assertEquals(20_000, task.getEscrowTotal());
+        assertEquals(20, task.getMaxRewardRecipients());
+        assertEquals(1000, task.getPublicationFeeAmount());
+        assertEquals(0, publisher.getDeposit());
+        verify(adminAssetService).recordIncome(eq(1000), eq("task_publication_fee"), any(),
+                eq("event_task"), eq("event_tasks"), eq(10L), isNull(), isNull(), any());
+    }
+
+    @Test
+    void publishRejectsRewardLimitAbove999() {
+        EventTaskDtos.AdminPublishRequest request = new EventTaskDtos.AdminPublishRequest();
+        request.setClaimFee(0);
+        request.setMaxClaimants(1);
+        request.setMaxRewardRecipients(1000);
+        assertThrows(BusinessException.class, () -> service.publishTask(9L, 10L, request));
+        verify(taskMapper, never()).selectByIdForUpdate(anyLong());
+    }
+
+    @Test
     void zeroFeeTaskCanBeClaimedWithNegativeBalanceWithoutChangingBalance() {
         EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
         task.setClaimFee(0);
@@ -316,6 +351,72 @@ class EventTaskServiceTest {
         BusinessException error = assertThrows(BusinessException.class, () -> service.claim(1L, 10L));
 
         assertEquals("不能接取自己发布的任务", error.getMessage());
+        verify(playerMapper, never()).selectByIdForUpdate(anyLong());
+    }
+
+    @Test
+    void officialPublisherCanClaimOwnTask() {
+        EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
+        task.setOfficial(1);
+        task.setClaimFee(0);
+        Player admin = player(1L, "管理员", 0, 0);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(playerMapper.selectByIdForUpdate(1L)).thenReturn(admin);
+
+        service.claim(1L, 10L);
+
+        assertEquals(1, task.getClaimedCount());
+        verify(claimMapper).insert(any(EventTaskClaim.class));
+    }
+
+    @Test
+    void repeatableTaskAllowsAnotherClaimAfterCompletionWithinRewardLimit() {
+        EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
+        task.setRepeatable(1);
+        task.setClaimFee(0);
+        task.setMaxClaimants(1);
+        task.setMaxRewardRecipients(3);
+        task.setClaimedCount(1);
+        task.setCompletedCount(1);
+        EventTaskClaim completed = claim(88L, 10L, 2L, LocalDateTime.of(2026, 9, 20, 10, 0));
+        completed.setStatus(EventTaskService.COMPLETED);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(completed));
+        when(playerMapper.selectByIdForUpdate(2L)).thenReturn(player(2L, "接取者", 0, 0));
+
+        service.claim(2L, 10L);
+
+        assertEquals(2, task.getClaimedCount());
+        assertEquals(1, task.getCompletedCount());
+    }
+
+    @Test
+    void repeatableTaskRejectsSecondActiveClaimBySamePlayer() {
+        EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
+        task.setRepeatable(1);
+        task.setMaxRewardRecipients(3);
+        task.setClaimedCount(1);
+        EventTaskClaim active = claim(88L, 10L, 2L, LocalDateTime.of(2026, 9, 20, 10, 0));
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(active));
+
+        assertThrows(BusinessException.class, () -> service.claim(2L, 10L));
+
+        verify(claimMapper, never()).insert(any(EventTaskClaim.class));
+    }
+
+    @Test
+    void rewardLimitReservesPlacesForActiveClaims() {
+        EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
+        task.setMaxClaimants(2);
+        task.setMaxRewardRecipients(3);
+        task.setClaimedCount(3);
+        task.setCompletedCount(2);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+
+        BusinessException error = assertThrows(BusinessException.class, () -> service.claim(4L, 10L));
+
+        assertTrue(error.getMessage().contains("奖励名额已满"));
         verify(playerMapper, never()).selectByIdForUpdate(anyLong());
     }
 
@@ -601,14 +702,16 @@ class EventTaskServiceTest {
     void officialPublishedEditNeverTouchesPublisherBalance() {
         EventTask task = task(10L, 9L, 100, 25, EventTaskService.TASK_PUBLISHED);
         task.setOfficial(1);
+        task.setMaxClaimants(999);
+        task.setMaxRewardRecipients(999);
         task.setEscrowRemaining(0);
         task.setEscrowTotal(0);
         when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
         when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
 
-        service.editPublished(9L, 10L, editRequest(200, 30));
+        service.editPublished(9L, 10L, editRequest(10_000_000, 30));
 
-        assertEquals(200, task.getPReward());
+        assertEquals(10_000_000, task.getPReward());
         assertEquals(0, task.getEscrowRemaining());
         verify(playerMapper, never()).selectByIdForUpdate(anyLong());
         verify(depositLedgerMapper, never()).insert(any());

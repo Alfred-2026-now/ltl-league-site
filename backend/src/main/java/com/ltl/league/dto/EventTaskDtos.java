@@ -19,12 +19,14 @@ public final class EventTaskDtos {
         private Integer bountyReward;
         private String budgetNote;
         private Boolean anonymous;
+        private Boolean repeatable;
     }
 
     @Data
     public static class AdminPublishRequest {
         private Integer claimFee;
         private Integer maxClaimants;
+        private Integer maxRewardRecipients;
     }
 
     @Data
@@ -36,6 +38,7 @@ public final class EventTaskDtos {
     public static class OfficialTaskRequest extends TaskWriteRequest {
         private Integer claimFee;
         private Integer maxClaimants;
+        private Integer maxRewardRecipients;
     }
 
     @Data
@@ -129,6 +132,7 @@ public final class EventTaskDtos {
         private Boolean official;
         private Boolean pinned;
         private Boolean anonymous;
+        private Boolean repeatable;
         private String title;
         private String requirements;
         @JsonProperty("pReward")
@@ -137,9 +141,12 @@ public final class EventTaskDtos {
         private String budgetNote;
         private Integer anonymousFeeRateSnapshot;
         private Integer anonymousFeeAmount;
+        private Integer publicationFeeAmount;
         private Integer claimFee;
         private Integer maxClaimants;
+        private Integer maxRewardRecipients;
         private Integer claimedCount;
+        private Integer activeClaimCount;
         private Integer completedCount;
         private Integer remainingSlots;
         private Integer escrowTotal;
@@ -163,5 +170,7 @@ public final class EventTaskDtos {
     public static class TaskPublicSettingsVO {
         private Integer anonymousMinimumFee;
         private Integer anonymousFeeRate;
+        private Integer publicationFeeRate;
+        private Integer publicationFeeCap;
     }
 }

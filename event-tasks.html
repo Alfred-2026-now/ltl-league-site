@@ -28,7 +28,7 @@
 
       <div class="task-rule-banner">
         <strong>接取与放弃规则</strong>
-        <span>接取费为0P的任务不受P币余额限制，余额为负也可免费接取。接取后30分钟内主动放弃，全额退还接取费用；超过30分钟不退费。主动放弃都会返还名额，但不能再次接取同一任务。任务被管理员注销时不退接取费用。</span>
+        <span>接取费为0P的任务不受P币余额限制，余额为负也可免费接取。接取后30分钟内主动放弃，全额退还接取费用；超过30分钟不退费。主动放弃都会返还名额；允许重复接取的任务可再次接取。任务被管理员注销时不退接取费用。</span>
       </div>
 
       <div class="task-tabs" role="tablist" aria-label="任务视图">
@@ -60,6 +60,7 @@
         <input id="editTaskAnonymous" type="checkbox" />
         <span><strong>匿名发布</strong><small>公开页面隐藏发布者身份；管理员后台仍显示实名。匿名发布费在审核通过时计算并收取，收取后不退。</small></span>
       </label>
+      <label class="task-anonymous-option"><input id="editTaskRepeatable" type="checkbox" /><span><strong>允许重复接取</strong><small>完成或主动放弃后可再次接取；每次完成占用一个奖励名额。</small></span></label>
       <label class="field"><span class="field-label">最大预算备注（仅提示）</span><textarea class="input" id="editTaskBudgetNote" rows="2" maxlength="500"></textarea></label>
       <button class="btn primary" id="saveTaskEditBtn" type="button">保存修改</button>
     </form>

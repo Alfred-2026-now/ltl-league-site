@@ -18,6 +18,7 @@ function fakeDocument(ids) {
     elements, listeners,
     getElementById(id) { return elements[id]; },
     addEventListener(type, listener) { listeners[type] = listener; },
+    querySelector(selector) { return this.inputs?.[selector] ?? null; },
     querySelectorAll() { return []; }
   };
 }
@@ -34,12 +35,12 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
     "adminTaskEditForm", "cancelAdminTaskEdit"
   ]);
   const form = doc.elements.adminTaskEditForm;
-  form.elements = Object.fromEntries(["taskId", "title", "requirements", "pReward", "bountyReward", "budgetNote"]
+  form.elements = Object.fromEntries(["taskId", "title", "requirements", "pReward", "bountyReward", "budgetNote", "repeatable"]
     .map(name => [name, { value: "" }]));
   const task = {
     id: 10, season: "s2", status: "PUBLISHED", title: "原任务", requirements: "原要求",
     budgetNote: "", publisherName: "发布者", official: false, anonymous: false,
-    pReward: 100, bountyReward: 20, claimFee: 50, maxClaimants: 3,
+    pReward: 100, bountyReward: 20, claimFee: 50, maxClaimants: 3, maxRewardRecipients: 3,
     claimedCount: 1, completedCount: 0, escrowRemaining: 300, claims: []
   };
   let claims = [
@@ -126,4 +127,39 @@ test("player task hall shows the administrator cancellation cooldown", async () 
   assert.match(doc.elements.taskContent.innerHTML, /冷却中，可重新接取时间/);
   assert.match(doc.elements.taskContent.innerHTML, /新要求/);
   assert.match(doc.elements.taskContent.innerHTML, /\[置顶\]/);
+});
+
+test("admin publish sends separate claim and reward limits", async () => {
+  const doc = fakeDocument([
+    "adminTaskMessage", "pendingTaskList", "pendingProofList", "publishedTaskList",
+    "completedTaskList", "closedTaskList", "claimHistoryList", "claimTaskFilter",
+    "claimPlayerFilter", "claimStatusFilter", "officialTaskForm", "adminTaskEditDialog",
+    "adminTaskEditForm", "cancelAdminTaskEdit"
+  ]);
+  doc.inputs = {
+    '[data-fee="10"]': { value: "5" },
+    '[data-max="10"]': { value: "999" },
+    '[data-reward-max="10"]': { value: "3" }
+  };
+  const task = {
+    id: 10, status: "PENDING_REVIEW", title: "长期任务", requirements: "多次完成",
+    publisherName: "发布者", pReward: 100, bountyReward: 0, repeatable: true
+  };
+  const writes = [];
+  globalThis.document = doc;
+  globalThis.window = { location: { hostname: "example.test" }, localStorage: { getItem: () => null } };
+  globalThis.confirm = () => true;
+  globalThis.fetch = async (url, options = {}) => {
+    if (options.method === "POST") writes.push({ url, body: JSON.parse(options.body) });
+    if (url.endsWith("/admin/event-tasks")) return response([task]);
+    if (url.endsWith("/event-tasks/settings")) return response({ anonymousMinimumFee: 50, anonymousFeeRate: 10 });
+    return response([]);
+  };
+
+  await import(`../src/admin/event-tasks.js?publish=${Date.now()}`);
+  assert.match(doc.elements.pendingTaskList.innerHTML, /data-reward-max="10"/);
+  assert.match(doc.elements.pendingTaskList.innerHTML, /max="999"/);
+  await doc.listeners.click({ target: { closest: selector => selector === "[data-publish]"
+    ? { dataset: { publish: "10" } } : null } });
+  assert.deepEqual(writes[0].body, { claimFee: 5, maxClaimants: 999, maxRewardRecipients: 3 });
 });
