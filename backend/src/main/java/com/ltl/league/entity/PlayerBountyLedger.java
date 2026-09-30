@@ -21,6 +21,8 @@ public class PlayerBountyLedger {
     private Integer balanceBefore;
     private Integer balanceAfter;
     private String operator;
+    private String refTable;
+    private Long refId;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
     @TableLogic
