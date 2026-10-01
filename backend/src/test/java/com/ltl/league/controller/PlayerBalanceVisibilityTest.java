@@ -52,7 +52,8 @@ class PlayerBalanceVisibilityTest {
         CurrentPlayerService currentPlayer = mock(CurrentPlayerService.class);
         PlayerService playerService = mock(PlayerService.class);
         AdminPlayerDepositController controller = new AdminPlayerDepositController(
-                mock(AdminPlayerDepositService.class), currentPlayer, playerService);
+                mock(AdminPlayerDepositService.class), currentPlayer, playerService,
+                mock(com.ltl.league.admin.service.PlayerAdjustmentService.class));
         doThrow(new BusinessException(403, "需要管理员权限"))
                 .when(currentPlayer).requireAdmin("ordinary-cookie");
         doThrow(new BusinessException(401, "请先登录后再操作"))
