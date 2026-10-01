@@ -1,4 +1,5 @@
 import { getApiBase } from "../config/api.js";
+import { mountBatchAdjustment, escapeHtml } from "./batch-player-adjustment.js";
 
 const API_BASE_URL = getApiBase();
 
@@ -160,13 +161,13 @@ function renderRows(rows) {
   els.ledgerBody.innerHTML = rows.map(row => `
     <tr>
       <td style="padding:.75rem 1rem;">${row.createdAt || "-"}</td>
-      <td style="padding:.75rem 1rem;">${row.playerName || "-"}</td>
+      <td style="padding:.75rem 1rem;">${escapeHtml(row.playerName || "-")}</td>
       <td style="padding:.75rem 1rem;">${row.teamState || "-"}</td>
       <td style="padding:.75rem 1rem;">${getTypeText(row.type)}</td>
       <td style="padding:.75rem 1rem;">${formatAmount(row.amount)}</td>
       <td style="padding:.75rem 1rem;">${row.balanceBefore ?? "-"} → ${row.balanceAfter ?? "-"}</td>
       <td style="padding:.75rem 1rem;"><span class="status-badge" data-tone="${row.isVoided ? "danger" : "success"}">${row.isVoided ? "已作废" : "有效"}</span></td>
-      <td style="padding:.75rem 1rem;">${row.reason || "-"}</td>
+      <td style="padding:.75rem 1rem;">${escapeHtml(row.reason || "-")}</td>
       <td style="padding:.75rem 1rem;">${!row.isVoided ? `<button class="btn" style="padding:.25rem .5rem;font-size:.875rem;" data-id="${row.id}" data-action="void">撤回</button>` : "-"}</td>
     </tr>
   `).join("");
@@ -267,6 +268,16 @@ async function init() {
     renderPlayerOptions();
     renderTeamOptions();
     updateCurrentDepositHint();
+    mountBatchAdjustment({ anchor: els.adjustBtn.closest(".panel"), currency: "deposit", request, getPlayers: () => players, onSuccess: async () => {
+      players = await getPlayers();
+      const filter = els.filterPlayer.value;
+      const target = els.adjustPlayer.value;
+      renderPlayerOptions();
+      els.filterPlayer.value = filter;
+      els.adjustPlayer.value = target;
+      updateCurrentDepositHint();
+      await refresh();
+    } });
 
     els.refreshBtn.addEventListener("click", refresh);
     els.ledgerBody.addEventListener("click", handleVoidClick);

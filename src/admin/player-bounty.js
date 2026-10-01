@@ -1,4 +1,5 @@
 import { getApiBase } from "../config/api.js";
+import { mountBatchAdjustment } from "./batch-player-adjustment.js";
 
 const API_BASE_URL = getApiBase();
 
@@ -43,6 +44,7 @@ function escapeHtml(value) {
 let players = [];
 let teams = [];
 const els = {};
+let refreshBatch;
 
 function bindEls() {
   els.filterPlayer = document.getElementById("filterPlayer");
@@ -65,6 +67,8 @@ function teamText(team) {
 
 function render() {
   const teamMap = new Map(teams.map(team => [team.id, team]));
+  const previousPlayer = els.filterPlayer.value;
+  const previousTeam = els.filterTeam.value;
 
   // 填充筛选下拉
   els.filterPlayer.innerHTML = `<option value="">全部选手</option>` +
@@ -75,6 +79,8 @@ function render() {
   els.filterTeam.innerHTML = `<option value="">全部</option>` +
     teams.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join("");
 
+  els.filterPlayer.value = previousPlayer;
+  els.filterTeam.value = previousTeam;
   const playerFilter = els.filterPlayer.value;
   const teamFilter = els.filterTeam.value;
 
@@ -121,7 +127,7 @@ function openAdjustDialog(playerId, playerName) {
 
 function bindEvents() {
   els.refreshBtn.addEventListener("click", init);
-  els.filterPlayer.addEventListener("change", render);
+  els.filterPlayer.addEventListener("change", () => { render(); renderHistory(); });
   els.filterTeam.addEventListener("change", render);
   els.closeDialogBtn.addEventListener("click", () => els.bountyDialog.close());
 
@@ -135,22 +141,28 @@ function bindEvents() {
     const playerId = Number(els.formPlayerId.value);
     const amount = Number(els.formAmount.value);
     if (!playerId) return;
-    if (!amount || Number.isNaN(amount) || amount === 0) {
-      alert("请输入非零的调整金额");
+    if (els.saveBtn.disabled) return;
+    if (!Number.isInteger(amount) || !amount || amount < -2147483648 || amount > 2147483647) {
+      alert("请输入非零整数的调整金额");
       return;
     }
+    const reason = els.formReason.value.trim();
+    if (!reason) { alert("请填写调整原因"); return; }
+    const player = players.find(p => p.id === playerId);
+    if (!confirm(`请核对：${player?.name}\n赏金 ${player?.bounty || 0} → ${(player?.bounty || 0) + amount}\n原因：${reason}`)) return;
+    els.saveBtn.disabled = true;
     try {
       await adjustBounty({
         playerId,
         amount,
-        reason: els.formReason.value.trim() || "手动调整"
+        reason
       });
       els.bountyDialog.close();
-      await loadData();
-      render();
+      alert("赏金已调整，已保存调整记录。");
+      await init();
     } catch (error) {
       alert(error.message);
-    }
+    } finally { els.saveBtn.disabled = false; }
   });
 }
 
@@ -162,9 +174,28 @@ async function init() {
   try {
     await loadData();
     render();
+    if (!refreshBatch) refreshBatch = mountBatchAdjustment({ anchor: els.refreshBtn.closest(".panel"), currency: "bounty", request, getPlayers: () => players, onSuccess: init });
+    refreshBatch();
+    await renderHistory();
   } catch (error) {
     els.bountyBody.innerHTML = `<tr><td colspan="4" style="padding:1rem;color:#ff9f9f;">加载失败：${escapeHtml(error.message)}</td></tr>`;
   }
+}
+
+async function renderHistory() {
+  let panel = document.getElementById("bountyHistory");
+  if (!panel) {
+    panel = document.createElement("div"); panel.id = "bountyHistory";
+    panel.className = "panel"; panel.style.cssText = "margin-top:1rem;padding:1rem;overflow:auto";
+    els.bountyBody.closest(".panel").after(panel);
+  }
+  panel.textContent = "正在加载赏金记录…";
+  try {
+    const rows = await request(`/admin/players/bounty-ledgers${els.filterPlayer.value ? `?playerId=${encodeURIComponent(els.filterPlayer.value)}` : ""}`);
+    const names = new Map(players.map(p => [p.id, p.name]));
+    const types = { manual_adjustment: "手动调整", task_reward: "任务奖励", task_reward_reversal: "撤回任务奖励", prediction_reward: "竞猜奖励", prediction_reward_reversal: "撤回竞猜奖励" };
+    panel.innerHTML = `<h3>赏金变动记录</h3><p class="muted">最近200条，按上方选手筛选。历史手动调整未留存的记录无法补回。</p><table class="admin-table" style="width:100%"><thead><tr>${["时间", "选手", "类型", "金额", "余额变化", "原因", "操作人"].map(title => `<th>${title}</th>`).join("")}</tr></thead><tbody>${rows.map(row => `<tr>${[row.createdAt, names.get(row.playerId) || `选手#${row.playerId}`, types[row.type] || row.type, `${row.amount > 0 ? "+" : ""}${row.amount}`, `${row.balanceBefore} → ${row.balanceAfter}`, row.reason, row.operator].map(value => `<td style="padding:.75rem">${escapeHtml(value)}</td>`).join("")}</tr>`).join("") || '<tr><td colspan="7">暂无记录</td></tr>'}</tbody></table>`;
+  } catch (error) { panel.textContent = `记录加载失败：${error.message}`; }
 }
 
 bindEls();
