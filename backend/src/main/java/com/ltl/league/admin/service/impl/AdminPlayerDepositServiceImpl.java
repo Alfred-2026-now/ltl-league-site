@@ -261,19 +261,13 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         }
 
         // 为真正变动的位置写身价流水（选手管理页 / 赛后批量更新此前不留痕），
-        // 并快照改动前的衰减计时，使"撤回"能恢复未参赛衰减进程。
+        // 并快照改动前"该位置"的衰减计时、只重置该位置的计时，使"撤回"能恢复未参赛衰减进程。
         LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
-        boolean anyValueChanged = false;
-        anyValueChanged |= recordValueChange(player, "TOP", oldTopValue, player.getTopValue(), now);
-        anyValueChanged |= recordValueChange(player, "JUG", oldJugValue, player.getJugValue(), now);
-        anyValueChanged |= recordValueChange(player, "MID", oldMidValue, player.getMidValue(), now);
-        anyValueChanged |= recordValueChange(player, "BOT", oldBotValue, player.getBotValue(), now);
-        anyValueChanged |= recordValueChange(player, "SUP", oldSupValue, player.getSupValue(), now);
-
-        // 身价被改动 → 视为有效参赛，重置未参赛衰减计时
-        if (anyValueChanged) {
-            playerDecayService.resetDecayClock(player, now);
-        }
+        recordValueChange(player, "TOP", oldTopValue, player.getTopValue(), now);
+        recordValueChange(player, "JUG", oldJugValue, player.getJugValue(), now);
+        recordValueChange(player, "MID", oldMidValue, player.getMidValue(), now);
+        recordValueChange(player, "BOT", oldBotValue, player.getBotValue(), now);
+        recordValueChange(player, "SUP", oldSupValue, player.getSupValue(), now);
 
         if (request.getPosition() != null) {
             player.setPosition(request.getPosition());
@@ -337,8 +331,8 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
     }
 
     /**
-     * 若某位置身价确实发生变化，写一条身价流水。
-     * 召回时（撤回）可凭此恢复身价与衰减计时。
+     * 若某位置身价确实发生变化，写一条身价流水；并只重置"该位置"的未参赛衰减计时。
+     * 撤回时可凭流水恢复身价与计时。
      *
      * @return 是否发生了变动
      */
@@ -363,9 +357,13 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         change.setSource(EDIT_SOURCE);
         change.setOperator("admin");
         change.setIsVoided(0);
-        change.setBeforeNextDecayAt(player.getNextDecayAt());
-        change.setBeforeDecayCount(player.getDecayCount());
+        // 快照"该位置"改动前的衰减计时，撤回时恢复
+        change.setBeforeNextDecayAt(player.decayAtFor(position));
+        change.setBeforeDecayCount(player.decayCountFor(position));
         valuationChangeMapper.insert(change);
+
+        // 该位置身价被改动 → 只重置该位置的衰减计时（其余位置照常衰减）
+        playerDecayService.resetDecayClock(player, position, now);
         return true;
     }
 
@@ -395,9 +393,9 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
             case "SUP": changed = !Objects.equals(player.getSupActive(), active); player.setSupActive(active); break;
             default: throw new BusinessException(400, "未知位置：" + request.getPosition());
         }
-        // 激活状态变更视同一次身价变动：重新计时（清空未参赛天数）
+        // 激活状态变更视同一次身价变动：只重置"该位置"的计时（清空未参赛天数）
         if (changed) {
-            playerDecayService.resetDecayClock(player, LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
+            playerDecayService.resetDecayClock(player, request.getPosition(), LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
         }
         playerMapper.updateById(player);
         return player;

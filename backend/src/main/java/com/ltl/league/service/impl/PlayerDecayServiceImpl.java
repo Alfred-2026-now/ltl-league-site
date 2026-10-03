@@ -12,17 +12,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 
 /**
- * 未参赛身价衰减实现。
+ * 未参赛身价衰减实现（按位置独立计时）。
  *
  * 规则：
- *  - 位置身价被激活后开始计时，连续未参赛满"首次衰减天数"触发第一次衰减；
- *  - 首阶段：每 N 天衰减一次，比例 P1，共 K 次；后续阶段：每 M 天一次，比例 P2，持续到保底；
+ *  - 每个"已激活"的位置各自一个计时器；该位置身价被调整（视为参赛）时只重置该位置的计时，
+ *    其余位置照常按自己的计时衰减；
+ *  - 连续未参赛满"首次衰减天数"触发第一次；首阶段每 N 天一次、比例 P1、共 K 次；
+ *    后续阶段每 M 天一次、比例 P2，持续到保底；
  *  - 每次只对"已激活"的位置身价衰减，逐位置向上取整，且不低于保底身价；
  *  - 休赛期开关打开时整体暂停。
  */
@@ -32,6 +33,7 @@ public class PlayerDecayServiceImpl implements PlayerDecayService {
     private static final Logger log = LoggerFactory.getLogger(PlayerDecayServiceImpl.class);
     private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
     private static final String SOURCE = "inactivity_decay";
+    private static final String[] POSITIONS = {"TOP", "JUG", "MID", "BOT", "SUP"};
 
     private final PlayerMapper playerMapper;
     private final ValuationChangeMapper valuationChangeMapper;
@@ -47,14 +49,23 @@ public class PlayerDecayServiceImpl implements PlayerDecayService {
     }
 
     @Override
-    public void resetDecayClock(Player player, LocalDateTime basedOn) {
+    public void resetDecayClock(Player player, String position, LocalDateTime basedOn) {
         if (player == null) {
             return;
         }
         int firstDays = Math.max(1, ruleParameterService.getInt("decay.first_days"));
         LocalDateTime base = basedOn != null ? basedOn : LocalDateTime.now(ZONE);
-        player.setNextDecayAt(base.plusDays(firstDays));
-        player.setDecayCount(0);
+        LocalDateTime due = base.plusDays(firstDays);
+        if (position == null || position.isBlank()) {
+            // 整人参赛：重置全部位置
+            for (String pos : POSITIONS) {
+                player.setDecayAtFor(pos, due);
+                player.setDecayCountFor(pos, 0);
+            }
+        } else {
+            player.setDecayAtFor(position, due);
+            player.setDecayCountFor(position, 0);
+        }
     }
 
     @Override
@@ -78,9 +89,13 @@ public class PlayerDecayServiceImpl implements PlayerDecayService {
 
         LocalDateTime now = LocalDateTime.now(ZONE);
 
+        // 任一位置的计时器到期即纳入扫描（null 的位置不会被 <= 命中）
         List<Player> due = playerMapper.selectList(new LambdaQueryWrapper<Player>()
-                .isNotNull(Player::getNextDecayAt)
-                .le(Player::getNextDecayAt, now));
+                .and(w -> w.le(Player::getTopDecayAt, now)
+                        .or().le(Player::getJugDecayAt, now)
+                        .or().le(Player::getMidDecayAt, now)
+                        .or().le(Player::getBotDecayAt, now)
+                        .or().le(Player::getSupDecayAt, now)));
 
         int affected = 0;
         for (Player player : due) {
@@ -93,84 +108,77 @@ public class PlayerDecayServiceImpl implements PlayerDecayService {
             }
         }
         if (affected > 0) {
-            log.info("未参赛衰减完成，本次衰减选手数={}", affected);
+            log.info("未参赛衰减完成，本次发生衰减的选手数={}", affected);
         }
         return affected;
     }
 
-    /** 对单个选手执行一次衰减；返回是否真的发生了衰减 */
+    /** 对单个选手执行一次衰减（逐位置判断是否到期）；返回是否真的有位置发生了衰减 */
     private boolean applyDecay(Player player, LocalDateTime now, int floor, int stage1Times,
             int stage1Interval, int stage2Interval, double stage1Rate, double stage2Rate) {
-        int done = player.getDecayCount() != null ? player.getDecayCount() : 0;
-        boolean firstStage = done < stage1Times;
-        double rate = firstStage ? stage1Rate : stage2Rate;
-        int interval = firstStage ? stage1Interval : stage2Interval;
 
-        // 逐位置快照，仅处理"已激活"的位置
-        String[] positions = {"TOP", "JUG", "MID", "BOT", "SUP"};
-        Integer[] activations = {
-                player.getTopActive(), player.getJugActive(), player.getMidActive(),
-                player.getBotActive(), player.getSupActive()
-        };
+        boolean changed = false;
+        boolean touched = false; // 是否有"已激活且到期"的位置（用于决定是否落库）
+
         Integer[] values = {
                 player.getTopValue(), player.getJugValue(), player.getMidValue(),
                 player.getBotValue(), player.getSupValue()
         };
 
-        // 若一个激活位置都没有，说明该选手不参与衰减，直接跳过（不推进计时，避免"空转涨次数"）
-        boolean hasActivePosition = false;
-        for (Integer a : activations) {
-            if (a != null && a == 1) { hasActivePosition = true; break; }
-        }
-        if (!hasActivePosition) {
-            return false;
-        }
-
-        boolean changed = false;
-        for (int i = 0; i < positions.length; i++) {
-            if (activations[i] == null || activations[i] != 1) {
-                continue; // 未激活的位置不衰减
+        for (int i = 0; i < POSITIONS.length; i++) {
+            String pos = POSITIONS[i];
+            if (player.activeFor(pos) == null || player.activeFor(pos) != 1) {
+                continue; // 未激活的位置不参与衰减
             }
+            LocalDateTime due = player.decayAtFor(pos);
+            if (due == null || due.isAfter(now)) {
+                continue; // 该位置未启动计时或尚未到期
+            }
+
+            int done = player.decayCountFor(pos);
+            boolean firstStage = done < stage1Times;
+            double rate = firstStage ? stage1Rate : stage2Rate;
+            int interval = firstStage ? stage1Interval : stage2Interval;
+
             int before = values[i] != null ? values[i] : 0;
-            if (before <= floor) {
-                continue; // 已到保底，不再下降
-            }
-            // 向上取整衰减，且不低于保底
-            long computed = (long) Math.ceil(before * (1.0 - rate));
-            int after = (int) Math.max(floor, computed);
-            if (after >= before) {
-                continue; // 无变化（比例过小或已触底）
+            if (before > floor) {
+                long computed = (long) Math.ceil(before * (1.0 - rate));
+                int after = (int) Math.max(floor, computed);
+                if (after < before) {
+                    ValuationChange change = new ValuationChange();
+                    change.setMatchId(null);
+                    change.setResultId(null);
+                    change.setPlayerId(player.getId());
+                    change.setPosition(pos);
+                    change.setBeforeValue(before);
+                    change.setObjectiveDelta(0);
+                    change.setSubjectiveDelta(after - before);
+                    change.setSubjectiveReason("未参赛衰减（第 " + (done + 1) + " 次，比例 "
+                            + formatRate(rate) + "）");
+                    change.setAfterValue(after);
+                    change.setVersion(null);
+                    change.setSource(SOURCE);
+                    change.setOperator("system");
+                    change.setIsVoided(0);
+                    change.setBeforeNextDecayAt(due);
+                    change.setBeforeDecayCount(done);
+                    valuationChangeMapper.insert(change);
+
+                    setPositionValue(player, pos, after);
+                    values[i] = after;
+                    changed = true;
+                }
             }
 
-            ValuationChange change = new ValuationChange();
-            change.setMatchId(null);
-            change.setResultId(null);
-            change.setPlayerId(player.getId());
-            change.setPosition(positions[i]);
-            change.setBeforeValue(before);
-            change.setObjectiveDelta(0);
-            change.setSubjectiveDelta(after - before);
-            change.setSubjectiveReason("未参赛衰减（第 " + (done + 1) + " 次，比例 "
-                    + formatRate(rate) + "）");
-            change.setAfterValue(after);
-            change.setVersion(null);
-            change.setSource(SOURCE);
-            change.setOperator("system");
-            change.setIsVoided(0);
-            change.setBeforeNextDecayAt(player.getNextDecayAt());
-            change.setBeforeDecayCount(done);
-            valuationChangeMapper.insert(change);
-
-            setPositionValue(player, positions[i], after);
-            values[i] = after;
-            changed = true;
+            // 该位置已到期：无论是否真的扣了（可能已到保底），都推进该位置的计时，避免卡在原地
+            player.setDecayCountFor(pos, done + 1);
+            player.setDecayAtFor(pos, due.plusDays(interval));
+            touched = true;
         }
 
-        // 存在激活位置时，无论是否有位置实际变动（可能都已到保底），都推进计时，避免卡在原地
-        player.setDecayCount(done + 1);
-        player.setNextDecayAt((player.getNextDecayAt() != null ? player.getNextDecayAt() : now)
-                .plusDays(interval));
-
+        if (!touched) {
+            return false; // 没有到期位置，不落库
+        }
         recalcMaxValueAndSync(player);
         playerMapper.updateById(player);
         return changed;

@@ -143,17 +143,17 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
         change.setSource("manual_adjustment");
         change.setOperator("admin");
         change.setIsVoided(0);
-        // 快照改动前的衰减计时，撤回时用于恢复
-        change.setBeforeNextDecayAt(player.getNextDecayAt());
-        change.setBeforeDecayCount(player.getDecayCount());
+        // 快照改动前"该位置"的衰减计时，撤回时用于恢复
+        change.setBeforeNextDecayAt(player.decayAtFor(position));
+        change.setBeforeDecayCount(player.decayCountFor(position));
         valuationChangeMapper.insert(change);
 
         // 写入对应位置身价，并重算最高身价
         setPositionValue(player, position, request.getAfterValue());
         // 该位置身价被调整 → 标记为已激活（首次调整即激活，不会自动取消）
         activatePosition(player, position);
-        // 身价被改动 → 视为有效参赛，重置未参赛衰减计时
-        playerDecayService.resetDecayClock(player, LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
+        // 该位置身价被改动 → 只重置该位置的衰减计时（其余位置照常衰减）
+        playerDecayService.resetDecayClock(player, position, LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
         recalcMaxValueAndSync(player);
         playerMapper.updateById(player);
 
@@ -402,9 +402,10 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
         Player player = playerMapper.selectById(change.getPlayerId());
         if (player != null) {
             setPositionValue(player, change.getPosition(), change.getBeforeValue());
-            // 恢复改动前的未参赛衰减计时（撤回错误改动后继续原衰减进程）
-            player.setNextDecayAt(change.getBeforeNextDecayAt());
-            player.setDecayCount(change.getBeforeDecayCount() != null ? change.getBeforeDecayCount() : 0);
+            // 恢复"该位置"改动前的未参赛衰减计时（撤回错误改动后继续原衰减进程）
+            player.setDecayAtFor(change.getPosition(), change.getBeforeNextDecayAt());
+            player.setDecayCountFor(change.getPosition(),
+                    change.getBeforeDecayCount() != null ? change.getBeforeDecayCount() : 0);
             recalcMaxValueAndSync(player);
             playerMapper.updateById(player);
         }

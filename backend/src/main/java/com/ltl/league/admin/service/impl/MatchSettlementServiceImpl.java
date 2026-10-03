@@ -788,12 +788,12 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
             change.setSource("match_result");
             change.setOperator("admin");
             change.setIsVoided(0);
-            // 快照改动前的衰减计时，撤回赛果时用于恢复
-            change.setBeforeNextDecayAt(player.getNextDecayAt());
-            change.setBeforeDecayCount(player.getDecayCount());
+            // 快照改动前的衰减计时（此路径不区分位置，整人参赛；存量五位置计时相同，取 TOP 作代表）
+            change.setBeforeNextDecayAt(player.decayAtFor("TOP"));
+            change.setBeforeDecayCount(player.decayCountFor("TOP"));
             valuationChangeMapper.insert(change);
             player.setValue(afterValue);
-            // 赛果结算 = 有效参赛，重置未参赛衰减计时
+            // 赛果结算 = 有效参赛，重置未参赛衰减计时（不区分位置 → 重置全部位置）
             playerDecayService.resetDecayClock(player,
                     java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")));
             playerMapper.updateById(player);
@@ -859,9 +859,11 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
         for (ValuationChange change : changes) {
             Player player = players.get(change.getPlayerId());
             player.setValue(change.getBeforeValue());
-            // 恢复赛果结算前的未参赛衰减计时
-            player.setNextDecayAt(change.getBeforeNextDecayAt());
-            player.setDecayCount(change.getBeforeDecayCount() != null ? change.getBeforeDecayCount() : 0);
+            // 恢复赛果结算前的未参赛衰减计时（此路径整人参赛 → 恢复全部位置）
+            for (String pos : new String[]{"TOP", "JUG", "MID", "BOT", "SUP"}) {
+                player.setDecayAtFor(pos, change.getBeforeNextDecayAt());
+                player.setDecayCountFor(pos, change.getBeforeDecayCount() != null ? change.getBeforeDecayCount() : 0);
+            }
             playerMapper.updateById(player);
         }
         if (!changes.isEmpty()) {
