@@ -58,7 +58,6 @@ function renderOptionInputs(values = ["", ""]) {
 }
 
 document.getElementById("addPredictionOptionBtn").addEventListener("click", () => {
-  if (optionInputs.children.length >= 6) return setMessage("最多6个选项", true);
   optionInputs.append(optionInputRow());
   refreshOptionPlaceholders();
 });

@@ -53,11 +53,11 @@ async function adjustPlayerDeposit(payload) {
   });
 }
 
-async function paySalary(rate) {
+async function paySalary(rate, teamId) {
   return request("/admin/players/salary", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ rate })
+    body: JSON.stringify(teamId ? { rate, teamId } : { rate })
   });
 }
 
@@ -89,6 +89,7 @@ function bindEls() {
   els.currentDepositHint = document.getElementById("currentDepositHint");
 
   // 发工资相关元素
+  els.salaryTeam = document.getElementById("salaryTeam");
   els.salaryRate = document.getElementById("salaryRate");
   els.salaryPreview = document.getElementById("salaryPreview");
   els.salaryBtn = document.getElementById("salaryBtn");
@@ -106,6 +107,12 @@ function renderPlayerOptions() {
 function renderTeamOptions() {
   const teamOpts = `<option value="">全部</option>${teams.map(t => `<option value="${t.id}">${t.state} · ${t.name}</option>`).join("")}`;
   els.filterTeam.innerHTML = teamOpts;
+}
+
+function renderSalaryTeamOptions() {
+  // 分组 = 队伍名以「组」结尾的特殊队伍（登峰组/涅槃组/麦兜组等）
+  const groupTeams = teams.filter(t => (t.name || "").endsWith("组"));
+  els.salaryTeam.innerHTML = `<option value="">全部在职队员</option>${groupTeams.map(t => `<option value="${t.id}">${t.name}</option>`).join("")}`;
 }
 
 function collectFilters() {
@@ -267,6 +274,7 @@ async function init() {
     players = await getPlayers();
     renderPlayerOptions();
     renderTeamOptions();
+    renderSalaryTeamOptions();
     updateCurrentDepositHint();
     mountBatchAdjustment({ anchor: els.adjustBtn.closest(".panel"), currency: "deposit", request, getPlayers: () => players, onSuccess: async () => {
       players = await getPlayers();
@@ -286,6 +294,7 @@ async function init() {
     els.salaryBtn.addEventListener("click", submitSalary);
     els.voidSalaryBtn.addEventListener("click", submitVoidSalary);
     els.salaryRate.addEventListener("input", updateSalaryPreview);
+    els.salaryTeam.addEventListener("change", updateSalaryPreview);
     els.filterPlayer.addEventListener("change", refresh);
     els.filterTeam.addEventListener("change", () => {
       // 队伍变更时重置选手选择
@@ -310,11 +319,20 @@ function updateSalaryPreview() {
 
   // 计算将影响多少在职队员（不含队长）
   const affectedPlayers = salaryEligiblePlayers();
-  els.salaryPreview.value = `将影响 ${affectedPlayers.length} 名队员（不含队长）`;
+  const teamId = els.salaryTeam.value;
+  const totalSalary = affectedPlayers.reduce((sum, p) => sum + Math.floor(salaryBaseValue(p, teamId) * rate / 100), 0);
+  const teamLabel = teamId ? (els.salaryTeam.selectedOptions[0]?.textContent || "所选分组") : "全部";
+  els.salaryPreview.value = `${teamLabel}：${affectedPlayers.length} 名队员 · 共 ${totalSalary}P（不含队长）`;
+}
+
+// 分组发薪以选手当前最高身价为基数；全员发薪以当前身价为基数
+function salaryBaseValue(player, teamId) {
+  return teamId ? (player.maxValue ?? player.value ?? 0) : (player.value ?? 0);
 }
 
 function salaryEligiblePlayers() {
-  return players.filter(p => p.status === 1 && p.teamId != null && ((p.role ?? 0) & 2) === 0);
+  const teamId = els.salaryTeam.value;
+  return players.filter(p => p.status === 1 && p.teamId != null && ((p.role ?? 0) & 2) === 0 && (!teamId || String(p.teamId) === String(teamId)));
 }
 
 async function submitSalary() {
@@ -325,19 +343,22 @@ async function submitSalary() {
       return;
     }
 
+    const teamId = els.salaryTeam.value || null;
     const affectedPlayers = salaryEligiblePlayers();
     if (affectedPlayers.length === 0) {
-      alert("没有在职的队员可以发放工资（队长不发）");
+      alert(teamId ? "该分组没有在职的队员可以发放工资（队长不发）" : "没有在职的队员可以发放工资（队长不发）");
       return;
     }
 
-    const totalSalary = affectedPlayers.reduce((sum, p) => sum + Math.floor(p.value * rate / 100), 0);
-    const confirmMsg = `确认为 ${affectedPlayers.length} 名在职队员发放工资（不含队长）？\n工资比例：${rate}%\n总金额：${totalSalary}P`;
+    const teamLabel = teamId ? (els.salaryTeam.selectedOptions[0]?.textContent || "所选分组") : "全部";
+    const totalSalary = affectedPlayers.reduce((sum, p) => sum + Math.floor(salaryBaseValue(p, teamId) * rate / 100), 0);
+    const baseDesc = teamId ? "计算基数：当前最高身价" : "计算基数：当前身价";
+    const confirmMsg = `确定为【${teamLabel}】${affectedPlayers.length} 名在职队员发放工资（不含队长）？\n工资比例：${rate}%\n${baseDesc}\n总金额：${totalSalary}P`;
     if (!confirm(confirmMsg)) {
       return;
     }
 
-    await paySalary(rate);
+    await paySalary(rate, teamId);
     alert(`工资发放成功！共发放 ${totalSalary}P`);
     els.salaryRate.value = String(salaryConfig.defaultRate);
     els.salaryPreview.value = "";

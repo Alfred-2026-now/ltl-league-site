@@ -51,7 +51,11 @@
 
       <div class="panel" style="padding:1rem;margin-top:1rem;">
         <h3 style="margin:0 0 1rem 0;">一键发工资</h3>
-        <div class="admin-form-grid" style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:.75rem;align-items:end;">
+        <div class="admin-form-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr auto auto;gap:.75rem;align-items:end;">
+          <label class="field">
+            <span class="field-label">发放范围</span>
+            <select class="input" id="salaryTeam"></select>
+          </label>
           <label class="field">
             <span class="field-label">工资比例(%)</span>
             <input class="input" id="salaryRate" type="number" value="10" min="1" max="100" placeholder="如:10表示10%" />
@@ -63,7 +67,7 @@
           <button class="btn primary" id="salaryBtn" type="button">一键发工资</button>
           <button class="btn" id="voidSalaryBtn" type="button" style="background:#ff6b6b;color:white;">撤回最近工资</button>
         </div>
-        <p class="muted" style="margin:.75rem 0 0;">说明：给所有在职队员（status=1且在队伍中，不含队长）发放工资，金额 = 身价 × 比例%。撤回将作废最近一次发放的所有工资流水。</p>
+        <p class="muted" style="margin:.75rem 0 0;">说明：给所有在职队员（status=1且在队伍中，不含队长）发放工资，金额 = 身价 × 比例%。选择某个分组时只给该组队员发放，金额 = 该队员当前最高身价 × 比例%。撤回将作废最近一次发放的所有工资流水。</p>
       </div>
 
       <div class="panel" style="margin-top:1rem;overflow:auto;">

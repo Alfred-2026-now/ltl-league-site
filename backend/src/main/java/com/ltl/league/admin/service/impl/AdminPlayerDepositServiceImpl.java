@@ -526,6 +526,17 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
             throw new BusinessException(400, "工资比例必须在" + minRate + "-" + maxRate + "之间");
         }
 
+        // 可选分组：指定时只给该组在职队员发工资（如登峰组/涅槃组/麦兜组）
+        Long teamId = request.getTeamId();
+        String teamLabel = "";
+        if (teamId != null) {
+            Team team = teamMapper.selectById(teamId);
+            if (team == null) {
+                throw new BusinessException(404, "指定的分组不存在");
+            }
+            teamLabel = team.getName() != null ? team.getName() : "";
+        }
+
         // 生成批次ID：使用时间戳
         String salaryBatchId = "SALARY_" + System.currentTimeMillis();
 
@@ -533,19 +544,26 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         List<Player> activePlayers = playerMapper.selectList(new LambdaQueryWrapper<Player>()
                 .eq(Player::getStatus, 1)
                 .isNotNull(Player::getTeamId)
+                .eq(teamId != null, Player::getTeamId, teamId)
                 .eq(Player::getDeleted, 0))
                 .stream()
                 .filter(p -> p.getRole() == null || (p.getRole() & ROLE_CAPTAIN) == 0)
                 .collect(Collectors.toList());
 
         if (activePlayers.isEmpty()) {
-            throw new BusinessException(400, "没有在职的选手可以发放工资");
+            throw new BusinessException(400, teamId != null
+                    ? "该分组没有在职的队员可以发放工资（队长不发）"
+                    : "没有在职的选手可以发放工资");
         }
 
         // 为每个选手发放工资
         for (Player player : activePlayers) {
             Integer currentDeposit = player.getDeposit() != null ? player.getDeposit() : 0;
-            Integer salary = player.getValue() * rate / 100;
+            // 分组发薪以选手当前最高身价（五位置身价最高值）为基数；全员发薪保持以当前身价为基数
+            Integer baseValue = teamId != null
+                    ? (player.getMaxValue() != null ? player.getMaxValue() : player.getValue())
+                    : player.getValue();
+            Integer salary = baseValue * rate / 100;
 
             // 创建流水记录，使用reason字段存储批次ID
             PlayerDepositLedger ledger = new PlayerDepositLedger();
@@ -554,7 +572,7 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
             ledger.setResultId(null);
             ledger.setType("salary");
             ledger.setAmount(salary);
-            ledger.setReason("工资发放 [" + salaryBatchId + "]");  // 存储批次ID
+            ledger.setReason("工资发放" + (teamLabel.isEmpty() ? "" : "·" + teamLabel) + " [" + salaryBatchId + "]");  // 存储批次ID
             ledger.setBalanceBefore(currentDeposit);
             ledger.setBalanceAfter(currentDeposit + salary);
             ledger.setSource("salary_payment");

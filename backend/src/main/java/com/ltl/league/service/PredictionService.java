@@ -23,7 +23,6 @@ public class PredictionService {
     public static final String STATUS_CANCELLED = "CANCELLED";
 
     private static final int MIN_OPTIONS = 2;
-    private static final int MAX_OPTIONS = 6;
     private static final int MAX_REWARD = 10_000_000;
 
     private final PredictionMapper predictionMapper;
@@ -585,8 +584,8 @@ public class PredictionService {
         List<String> labels = options.stream()
                 .map(label -> label == null ? "" : label.trim())
                 .collect(Collectors.toList());
-        if (labels.size() < MIN_OPTIONS || labels.size() > MAX_OPTIONS) {
-            throw new BusinessException(400, "竞猜选项数量必须在2至6个之间");
+        if (labels.size() < MIN_OPTIONS) {
+            throw new BusinessException(400, "竞猜选项数量至少为2个（上不封顶）");
         }
         for (String label : labels) {
             if (label.isEmpty() || label.length() > 100) {
