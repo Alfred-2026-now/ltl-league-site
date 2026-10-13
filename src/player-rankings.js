@@ -148,7 +148,7 @@ function teamColor(team) {
   if (!team) return "#a8b6d6";
   if (team.name === "登峰组") return "#22c55e";
   if (team.name === "涅槃组") return "#ef4444";
-  if (team.name === "麦兜组") return "#ec4899";
+  if (team.name === "麦兜组") return "#38bdf8";
   return "#a8b6d6";
 }
 
