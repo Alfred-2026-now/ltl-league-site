@@ -10,6 +10,8 @@ import com.ltl.league.mapper.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -625,6 +627,7 @@ class EventTaskServiceTest {
         task.setCompletedCount(1);
         task.setEscrowRemaining(200);
         task.setAnonymousFeeAmount(50);
+        task.setPublicationFeeAmount(30);
         EventTaskClaim pending = claim(88L, 10L, 2L, LocalDateTime.of(2026, 9, 20, 11, 0));
         pending.setStatus(EventTaskService.PROOF_PENDING);
         EventTaskClaim completed = claim(89L, 10L, 3L, LocalDateTime.of(2026, 9, 20, 10, 0));
@@ -639,43 +642,58 @@ class EventTaskServiceTest {
                 .when(reviewMapper).insert(any(EventTaskReview.class));
         EventTaskDtos.AdminEditRequest request = editRequest(200, 40);
         request.setTitle("更新后的任务");
+        request.setMaxClaimants(5);
+        request.setMaxRewardRecipients(4);
 
         service.editPublished(9L, 10L, request);
 
-        assertEquals(300, publisher.getDeposit());
-        assertEquals(400, task.getEscrowRemaining());
-        assertEquals(500, task.getEscrowTotal());
+        assertEquals(100, publisher.getDeposit());
+        assertEquals(600, task.getEscrowRemaining());
+        assertEquals(700, task.getEscrowTotal());
+        assertEquals(5, task.getMaxClaimants());
+        assertEquals(4, task.getMaxRewardRecipients());
         assertEquals(200, pending.getPRewardSnapshot());
         assertEquals(40, pending.getBountyRewardSnapshot());
         assertEquals("更新后的任务", pending.getTitleSnapshot());
         assertEquals(100, completed.getPRewardSnapshot());
         assertEquals("测试任务", completed.getTitleSnapshot());
         assertEquals(50, task.getAnonymousFeeAmount());
+        assertEquals(30, task.getPublicationFeeAmount());
+        assertEquals(50, task.getClaimFee());
         ArgumentCaptor<EventTaskReview> review = ArgumentCaptor.forClass(EventTaskReview.class);
         verify(reviewMapper).updateById(review.capture());
         assertTrue(review.getValue().getBeforeSnapshot().contains("测试任务"));
         assertTrue(review.getValue().getAfterSnapshot().contains("更新后的任务"));
+        assertTrue(review.getValue().getBeforeSnapshot().contains("\"maxClaimants\":3"));
+        assertTrue(review.getValue().getBeforeSnapshot().contains("\"maxRewardRecipients\":3"));
+        assertTrue(review.getValue().getAfterSnapshot().contains("\"maxClaimants\":5"));
+        assertTrue(review.getValue().getAfterSnapshot().contains("\"maxRewardRecipients\":4"));
         ArgumentCaptor<PlayerDepositLedger> ledger = ArgumentCaptor.forClass(PlayerDepositLedger.class);
         verify(depositLedgerMapper).insert(ledger.capture());
-        assertEquals(-200, ledger.getValue().getAmount());
+        assertEquals(-400, ledger.getValue().getAmount());
         assertEquals(123L, ledger.getValue().getRefId());
     }
 
     @Test
     void editPublishedInsufficientBalanceChangesNothing() {
         EventTask task = task(10L, 1L, 100, 25, EventTaskService.TASK_PUBLISHED);
-        Player publisher = player(1L, "发布者", 299, 0);
+        Player publisher = player(1L, "发布者", 499, 0);
         when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
         when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
         when(playerMapper.selectByIdForUpdate(1L)).thenReturn(publisher);
 
+        EventTaskDtos.AdminEditRequest request = editRequest(200, 25);
+        request.setMaxClaimants(5);
+        request.setMaxRewardRecipients(4);
         BusinessException error = assertThrows(BusinessException.class,
-                () -> service.editPublished(9L, 10L, editRequest(200, 25)));
+                () -> service.editPublished(9L, 10L, request));
 
-        assertTrue(error.getMessage().contains("追加冻结 300P"));
-        assertEquals(299, publisher.getDeposit());
+        assertTrue(error.getMessage().contains("追加冻结 500P"));
+        assertEquals(499, publisher.getDeposit());
         assertEquals(100, task.getPReward());
         assertEquals(300, task.getEscrowRemaining());
+        assertEquals(3, task.getMaxClaimants());
+        assertNull(task.getMaxRewardRecipients());
         verify(reviewMapper, never()).insert(any());
         verify(taskMapper, never()).updateById(any());
     }
@@ -683,35 +701,101 @@ class EventTaskServiceTest {
     @Test
     void reducingPublishedRewardRefundsExcessEscrow() {
         EventTask task = task(10L, 1L, 100, 25, EventTaskService.TASK_PUBLISHED);
+        task.setClaimedCount(2);
+        task.setCompletedCount(1);
+        task.setEscrowRemaining(200);
+        EventTaskClaim active = claim(88L, 10L, 2L, LocalDateTime.of(2026, 9, 20, 11, 0));
+        EventTaskClaim completed = claim(89L, 10L, 3L, LocalDateTime.of(2026, 9, 20, 10, 0));
+        completed.setStatus(EventTaskService.COMPLETED);
         Player publisher = player(1L, "发布者", 100, 0);
         when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
-        when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(active, completed));
         when(playerMapper.selectByIdForUpdate(1L)).thenReturn(publisher);
 
-        service.editPublished(9L, 10L, editRequest(50, 25));
+        EventTaskDtos.AdminEditRequest request = editRequest(50, 25);
+        request.setMaxClaimants(1);
+        request.setMaxRewardRecipients(2);
+        service.editPublished(9L, 10L, request);
 
         assertEquals(250, publisher.getDeposit());
-        assertEquals(150, task.getEscrowRemaining());
+        assertEquals(50, task.getEscrowRemaining());
         assertEquals(150, task.getEscrowTotal());
+        assertEquals(1, task.getMaxClaimants());
+        assertEquals(2, task.getMaxRewardRecipients());
         ArgumentCaptor<PlayerDepositLedger> ledger = ArgumentCaptor.forClass(PlayerDepositLedger.class);
         verify(depositLedgerMapper).insert(ledger.capture());
         assertEquals(150, ledger.getValue().getAmount());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "0, 3, 最大接取人数必须为1到999",
+            "1000, 3, 最大接取人数必须为1到999",
+            "3, 0, 最大奖励人数必须为1到999",
+            "3, 1000, 最大奖励人数必须为1到999",
+            "1, 3, 最大接取人数不能少于当前未完成接取数",
+            "2, 2, 最大奖励人数不能少于已完成与未完成接取数之和"
+    })
+    void editPublishedRejectsInvalidOrOccupiedLimits(int maxClaimants, int maxRewardRecipients, String message) {
+        EventTask task = task(10L, 1L, 100, 25, EventTaskService.TASK_PUBLISHED);
+        task.setClaimedCount(3);
+        task.setCompletedCount(1);
+        EventTaskClaim active = claim(88L, 10L, 2L, LocalDateTime.of(2026, 9, 20, 11, 0));
+        EventTaskClaim pending = claim(89L, 10L, 3L, LocalDateTime.of(2026, 9, 20, 10, 0));
+        pending.setStatus(EventTaskService.PROOF_PENDING);
+        EventTaskClaim completed = claim(90L, 10L, 4L, LocalDateTime.of(2026, 9, 20, 9, 0));
+        completed.setStatus(EventTaskService.COMPLETED);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(active, pending, completed));
+        EventTaskDtos.AdminEditRequest request = editRequest(200, 40);
+        request.setMaxClaimants(maxClaimants);
+        request.setMaxRewardRecipients(maxRewardRecipients);
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> service.editPublished(9L, 10L, request));
+
+        assertTrue(error.getMessage().contains(message));
+        assertEquals(3, task.getMaxClaimants());
+        assertEquals(100, task.getPReward());
+        verify(playerMapper, never()).selectByIdForUpdate(anyLong());
+        verify(reviewMapper, never()).insert(any());
+        verify(taskMapper, never()).updateById(any());
+    }
+
+    @Test
+    void editingClaimLimitAlonePreservesLegacyRewardLimitAndEscrow() {
+        EventTask task = task(10L, 1L, 100, 25, EventTaskService.TASK_PUBLISHED);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        EventTaskDtos.AdminEditRequest request = editRequest(100, 25);
+        request.setMaxClaimants(5);
+
+        service.editPublished(9L, 10L, request);
+
+        assertEquals(5, task.getMaxClaimants());
+        assertEquals(3, task.getMaxRewardRecipients());
+        assertEquals(300, task.getEscrowRemaining());
+        verify(playerMapper, never()).selectByIdForUpdate(anyLong());
+        verify(depositLedgerMapper, never()).insert(any());
     }
 
     @Test
     void officialPublishedEditNeverTouchesPublisherBalance() {
         EventTask task = task(10L, 9L, 100, 25, EventTaskService.TASK_PUBLISHED);
         task.setOfficial(1);
-        task.setMaxClaimants(999);
-        task.setMaxRewardRecipients(999);
         task.setEscrowRemaining(0);
         task.setEscrowTotal(0);
         when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
         when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
 
-        service.editPublished(9L, 10L, editRequest(10_000_000, 30));
+        EventTaskDtos.AdminEditRequest request = editRequest(10_000_000, 30);
+        request.setMaxClaimants(999);
+        request.setMaxRewardRecipients(999);
+        service.editPublished(9L, 10L, request);
 
         assertEquals(10_000_000, task.getPReward());
+        assertEquals(999, task.getMaxClaimants());
+        assertEquals(999, task.getMaxRewardRecipients());
         assertEquals(0, task.getEscrowRemaining());
         verify(playerMapper, never()).selectByIdForUpdate(anyLong());
         verify(depositLedgerMapper, never()).insert(any());

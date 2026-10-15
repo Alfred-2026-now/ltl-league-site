@@ -58,6 +58,8 @@ public final class EventTaskDtos {
 
     @Data
     public static class AdminEditRequest extends TaskWriteRequest {
+        private Integer maxClaimants;
+        private Integer maxRewardRecipients;
     }
 
     @Data

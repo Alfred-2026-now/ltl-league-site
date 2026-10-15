@@ -576,13 +576,22 @@ public class EventTaskService {
                 || task.getMaxClaimants() == null || completed > rewardLimit(task)) {
             throw new BusinessException(409, "任务接取人数记录异常，无法编辑");
         }
+        int maxClaimants = request.getMaxClaimants() == null ? task.getMaxClaimants() : request.getMaxClaimants();
+        int maxRewardRecipients = request.getMaxRewardRecipients() == null ? rewardLimit(task) : request.getMaxRewardRecipients();
+        validateTaskLimits(maxClaimants, maxRewardRecipients);
+        if (maxClaimants < active) {
+            throw new BusinessException(400, "最大接取人数不能少于当前未完成接取数（" + active + "）");
+        }
+        if (maxRewardRecipients < completed + active) {
+            throw new BusinessException(400, "最大奖励人数不能少于已完成与未完成接取数之和（" + (completed + active) + "）");
+        }
         boolean official = Integer.valueOf(1).equals(task.getOfficial());
         int newRemaining = 0;
         int delta = 0;
         int newTotal = 0;
         if (!official) {
             try {
-                newRemaining = Math.multiplyExact(request.getPReward(), rewardLimit(task) - (int) completed);
+                newRemaining = Math.multiplyExact(request.getPReward(), maxRewardRecipients - (int) completed);
             } catch (ArithmeticException ex) {
                 throw new BusinessException(400, "P币悬赏总额过大");
             }
@@ -610,6 +619,8 @@ public class EventTaskService {
         task.setBudgetNote(trimToNull(request.getBudgetNote()));
         task.setPReward(request.getPReward());
         task.setBountyReward(request.getBountyReward());
+        task.setMaxClaimants(maxClaimants);
+        task.setMaxRewardRecipients(maxRewardRecipients);
         if (request.getRepeatable() != null) {
             task.setRepeatable(Boolean.TRUE.equals(request.getRepeatable()) ? 1 : 0);
         }
@@ -978,6 +989,10 @@ public class EventTaskService {
         if (claimFee == null || claimFee < 0 || claimFee > MAX_REWARD) {
             throw new BusinessException(400, "接取费用必须为0到10000000之间的整数");
         }
+        validateTaskLimits(maxClaimants, maxRewardRecipients);
+    }
+
+    private void validateTaskLimits(Integer maxClaimants, Integer maxRewardRecipients) {
         if (maxClaimants == null || maxClaimants < 1 || maxClaimants > MAX_CLAIMANTS) {
             throw new BusinessException(400, "最大接取人数必须为1到999");
         }
@@ -1058,6 +1073,8 @@ public class EventTaskService {
         snapshot.put("budgetNote", task.getBudgetNote());
         snapshot.put("pReward", task.getPReward());
         snapshot.put("bountyReward", task.getBountyReward());
+        snapshot.put("maxClaimants", task.getMaxClaimants());
+        snapshot.put("maxRewardRecipients", rewardLimit(task));
         snapshot.put("repeatable", Integer.valueOf(1).equals(task.getRepeatable()));
         try {
             return SNAPSHOT_MAPPER.writeValueAsString(snapshot);

@@ -136,7 +136,9 @@ document.addEventListener("click", async event => {
   if (editPublished) {
     const task = taskById.get(Number(editPublished.dataset.editPublished));
     const form = document.getElementById("adminTaskEditForm");
-    for (const field of ["title", "requirements", "pReward", "bountyReward", "budgetNote"]) form.elements[field].value = task[field] ?? "";
+    for (const field of ["title", "requirements", "pReward", "bountyReward", "maxClaimants", "maxRewardRecipients", "budgetNote"]) form.elements[field].value = task[field] ?? "";
+    form.elements.maxClaimants.min = Math.max(1, task.activeClaimCount);
+    form.elements.maxRewardRecipients.min = Math.max(1, task.claimedCount);
     form.elements.repeatable.checked = Boolean(task.repeatable);
     form.elements.taskId.value = task.id;
     document.getElementById("adminTaskEditDialog").showModal();
@@ -240,13 +242,15 @@ document.getElementById("adminTaskEditForm").addEventListener("submit", async ev
     requirements: form.elements.requirements.value.trim(),
     pReward: Number(form.elements.pReward.value),
     bountyReward: Number(form.elements.bountyReward.value),
+    maxClaimants: Number(form.elements.maxClaimants.value),
+    maxRewardRecipients: Number(form.elements.maxRewardRecipients.value),
     budgetNote: form.elements.budgetNote.value.trim(),
     repeatable: form.elements.repeatable.checked
   };
   if (payload.pReward + payload.bountyReward <= 0) { setMessage("P币和赏金积分至少一项大于0", true); return; }
-  const delta = (payload.pReward - task.pReward) * (task.maxRewardRecipients - task.completedCount);
+  const delta = payload.pReward * (payload.maxRewardRecipients - task.completedCount) - task.escrowRemaining;
   const fundMessage = task.official ? "官方任务由系统发奖。" : delta > 0 ? `将从发布者余额追加冻结 ${delta}P。` : delta < 0 ? `将向发布者退还 ${-delta}P冻结额。` : "冻结额不变。";
-  if (!confirm(`确认修改“${task.title}”？未完成与未来接取将使用新内容和奖励；已完成记录不变。${fundMessage}发布费和匿名费不重算。`)) return;
+  if (!confirm(`确认修改“${task.title}”？同时最多 ${payload.maxClaimants} 人接取，最多奖励 ${payload.maxRewardRecipients} 人。未完成与未来接取将使用新内容和奖励；已完成记录不变。${fundMessage}发布费和匿名费不重算。`)) return;
   try {
     setMessage("处理中…");
     await request(`/admin/event-tasks/${task.id}`, json(payload, "PUT"));

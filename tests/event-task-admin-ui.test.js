@@ -35,13 +35,13 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
     "adminTaskEditForm", "cancelAdminTaskEdit"
   ]);
   const form = doc.elements.adminTaskEditForm;
-  form.elements = Object.fromEntries(["taskId", "title", "requirements", "pReward", "bountyReward", "budgetNote", "repeatable"]
+  form.elements = Object.fromEntries(["taskId", "title", "requirements", "pReward", "bountyReward", "maxClaimants", "maxRewardRecipients", "budgetNote", "repeatable"]
     .map(name => [name, { value: "" }]));
   const task = {
     id: 10, season: "s2", status: "PUBLISHED", title: "原任务", requirements: "原要求",
     budgetNote: "", publisherName: "发布者", official: false, anonymous: false,
     pReward: 100, bountyReward: 20, claimFee: 50, maxClaimants: 3, maxRewardRecipients: 3,
-    claimedCount: 1, completedCount: 0, escrowRemaining: 300, claims: []
+    claimedCount: 2, activeClaimCount: 1, completedCount: 1, escrowRemaining: 200, claims: []
   };
   let claims = [
     { id: 88, taskId: 10, taskTitle: "原任务", taskSeason: "s2", playerId: 2, playerName: "甲",
@@ -50,17 +50,23 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
       status: "COMPLETED", feeAmount: 50, pReward: 100, bountyReward: 20, claimedAt: "2026-09-19T12:00:00" }
   ];
   const writes = [];
+  const confirmations = [];
   globalThis.document = doc;
   globalThis.window = { location: { hostname: "example.test" }, localStorage: { getItem: () => null } };
   globalThis.prompt = () => "管理员调整";
-  globalThis.confirm = () => true;
+  globalThis.confirm = text => { confirmations.push(text); return true; };
   globalThis.fetch = async (url, options = {}) => {
     if (options.method && options.method !== "GET") writes.push({ url, options });
     if (url.endsWith("/admin/event-tasks/10/pin")) {
       task.pinned = JSON.parse(options.body).pinned;
       return response(task);
     }
-    if (url.endsWith("/admin/event-tasks") || url.endsWith("/admin/event-tasks/10")) return response([task]);
+    if (url.endsWith("/admin/event-tasks/10") && options.method === "PUT") {
+      Object.assign(task, JSON.parse(options.body));
+      task.escrowRemaining = task.pReward * (task.maxRewardRecipients - task.completedCount);
+      return response(task);
+    }
+    if (url.endsWith("/admin/event-tasks")) return response([task]);
     if (url.endsWith("/admin/event-task-proofs/pending")) return response([]);
     if (url.endsWith("/event-tasks/settings")) return response({ anonymousMinimumFee: 50, anonymousFeeRate: 10 });
     if (url.endsWith("/admin/event-task-claims")) return response(claims);
@@ -85,15 +91,35 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
   await doc.listeners.click({ target: { closest: selector => selector === "[data-edit-published]"
     ? { dataset: { editPublished: "10" } } : null } });
   assert.equal(doc.elements.adminTaskEditDialog.open, true);
+  assert.equal(form.elements.maxClaimants.value, 3);
+  assert.equal(form.elements.maxRewardRecipients.value, 3);
+  assert.equal(form.elements.maxClaimants.min, 1);
+  assert.equal(form.elements.maxRewardRecipients.min, 2);
   form.elements.title.value = "新任务";
   form.elements.requirements.value = "新要求";
   form.elements.pReward.value = "150";
   form.elements.bountyReward.value = "30";
+  form.elements.maxClaimants.value = "5";
+  form.elements.maxRewardRecipients.value = "4";
   await form.listeners.submit({ preventDefault() {}, target: form });
   assert.equal(doc.elements.adminTaskEditDialog.open, false);
   const edit = writes.find(write => write.options.method === "PUT");
   assert.equal(edit.url, "/api/admin/event-tasks/10");
   assert.equal(JSON.parse(edit.options.body).pReward, 150);
+  assert.equal(JSON.parse(edit.options.body).maxClaimants, 5);
+  assert.equal(JSON.parse(edit.options.body).maxRewardRecipients, 4);
+  assert.match(confirmations.at(-1), /追加冻结 250P/);
+  assert.match(doc.elements.publishedTaskList.innerHTML, /当前接取 1\/5/);
+  assert.match(doc.elements.publishedTaskList.innerHTML, /已奖励 1\/4/);
+
+  await doc.listeners.click({ target: { closest: selector => selector === "[data-edit-published]"
+    ? { dataset: { editPublished: "10" } } : null } });
+  form.elements.maxClaimants.value = "1";
+  form.elements.maxRewardRecipients.value = "2";
+  await form.listeners.submit({ preventDefault() {}, target: form });
+  assert.match(confirmations.at(-1), /退还 300P冻结额/);
+  assert.equal(task.maxClaimants, 1);
+  assert.equal(task.maxRewardRecipients, 2);
 
   const pinCheckbox = { dataset: { pinTask: "10" }, checked: true, disabled: false };
   await doc.listeners.change({ target: { closest: selector => selector === "[data-pin-task]" ? pinCheckbox : null } });
