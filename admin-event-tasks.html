@@ -48,11 +48,12 @@
   <dialog id="adminTaskEditDialog" class="task-dialog">
     <form class="task-form" id="adminTaskEditForm">
       <h2>编辑进行中任务</h2>
-      <p class="muted">新内容和奖励适用于未完成及之后接取的选手；已完成奖励不变。接取费、名额及已收发布费与匿名费不变。</p>
+      <p class="muted">新内容和奖励适用于未完成及之后接取的选手；已完成奖励不变。最大接取人数不能低于当前未完成接取数，最大奖励人数不能低于已完成与未完成接取数之和。私人任务按剩余奖励名额调整冻结额；接取费及已收发布费与匿名费不变。</p>
       <input type="hidden" name="taskId" />
       <label class="field"><span class="field-label">标题</span><input class="input" name="title" maxlength="200" required /></label>
       <label class="field"><span class="field-label">任务要求</span><textarea class="input" name="requirements" rows="6" maxlength="10000" required></textarea></label>
       <div class="task-form-grid"><label class="field"><span class="field-label">每人P币奖励</span><input class="input" name="pReward" type="number" min="0" max="10000000" required /></label><label class="field"><span class="field-label">每人赏金积分</span><input class="input" name="bountyReward" type="number" min="0" max="10000000" required /></label></div>
+      <div class="task-form-grid"><label class="field"><span class="field-label">最大接取人数</span><input class="input" name="maxClaimants" type="number" min="1" max="999" required /></label><label class="field"><span class="field-label">最大奖励人数</span><input class="input" name="maxRewardRecipients" type="number" min="1" max="999" required /></label></div>
       <label class="task-anonymous-option"><input name="repeatable" type="checkbox" /><span><strong>允许重复接取</strong></span></label>
       <label class="field"><span class="field-label">备注</span><textarea class="input" name="budgetNote" rows="2" maxlength="500"></textarea></label>
       <div class="task-actions"><button class="btn primary" type="submit">保存修改</button><button class="btn ghost" type="button" id="cancelAdminTaskEdit">取消</button></div>
