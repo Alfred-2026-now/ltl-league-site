@@ -94,7 +94,7 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
   assert.equal(form.elements.maxClaimants.value, 3);
   assert.equal(form.elements.maxRewardRecipients.value, 3);
   assert.equal(form.elements.maxClaimants.min, 1);
-  assert.equal(form.elements.maxRewardRecipients.min, 2);
+  assert.equal(form.elements.maxRewardRecipients.min, 1);
   form.elements.title.value = "新任务";
   form.elements.requirements.value = "新要求";
   form.elements.pReward.value = "150";
@@ -153,6 +153,39 @@ test("player task hall shows the administrator cancellation cooldown", async () 
   assert.match(doc.elements.taskContent.innerHTML, /冷却中，可重新接取时间/);
   assert.match(doc.elements.taskContent.innerHTML, /新要求/);
   assert.match(doc.elements.taskContent.innerHTML, /\[置顶\]/);
+});
+
+test("task hall allows claiming expanded slots without reserving reward places", async () => {
+  const doc = fakeDocument(["taskContent", "taskMessage", "taskEditDialog", "taskEditForm", "saveTaskEditBtn"]);
+  const task = {
+    id: 38, status: "PUBLISHED", title: "木已成舟", requirements: "完成指定目标",
+    publisherName: "发布者", pReward: 1200, bountyReward: 0, claimFee: 0,
+    activeClaimCount: 1, claimedCount: 1, maxClaimants: 10, maxRewardRecipients: 1,
+    completedCount: 0, remainingSlots: 9, canClaim: true
+  };
+  const writes = [];
+  const confirmations = [];
+  globalThis.document = doc;
+  globalThis.window = { location: { hostname: "example.test" }, localStorage: { getItem: () => null } };
+  globalThis.confirm = text => { confirmations.push(text); return true; };
+  globalThis.fetch = async (url, options = {}) => {
+    if (options.method === "POST") writes.push(url);
+    if (url.endsWith("/auth/current")) return response({ id: 2, name: "另一位选手" });
+    if (url.endsWith("/event-tasks/settings")) return response({});
+    if (url.endsWith("/event-tasks")) return response([task]);
+    return response({});
+  };
+
+  await import(`../src/event-tasks.js?expanded=${Date.now()}`);
+  assert.match(doc.elements.taskContent.innerHTML, /当前接取：1 \/ 10/);
+  assert.match(doc.elements.taskContent.innerHTML, /剩余：9/);
+  assert.match(doc.elements.taskContent.innerHTML, /已奖励：0 \/ 1/);
+  assert.match(doc.elements.taskContent.innerHTML, /data-claim-task="38"/);
+  assert.match(doc.elements.taskContent.innerHTML, /接取不预留奖励名额/);
+  await doc.listeners.click({ target: { closest: selector => selector === "[data-claim-task]"
+    ? { dataset: { claimTask: "38", claimFee: "0" } } : null } });
+  assert.deepEqual(writes, ["/api/event-tasks/38/claims"]);
+  assert.match(confirmations[0], /接取不预留奖励名额/);
 });
 
 test("admin publish sends separate claim and reward limits", async () => {

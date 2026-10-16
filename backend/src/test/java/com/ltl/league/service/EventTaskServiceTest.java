@@ -408,18 +408,97 @@ class EventTaskServiceTest {
     }
 
     @Test
-    void rewardLimitReservesPlacesForActiveClaims() {
+    void expandedClaimLimitAllowsMorePlayersThanRewardPlaces() {
         EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
-        task.setMaxClaimants(2);
-        task.setMaxRewardRecipients(3);
-        task.setClaimedCount(3);
-        task.setCompletedCount(2);
+        task.setMaxClaimants(10);
+        task.setMaxRewardRecipients(1);
+        task.setClaimFee(0);
+        task.setClaimedCount(1);
         when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(taskMapper.selectById(10L)).thenReturn(task);
+        Player viewer = player(4L, "另一位选手", 0, 0);
+        when(playerMapper.selectByIdForUpdate(4L)).thenReturn(viewer);
+
+        EventTaskDtos.TaskVO before = service.getPublicDetail(10L, viewer);
+        assertEquals(9, before.getRemainingSlots());
+        assertTrue(before.getCanClaim());
+
+        service.claim(4L, 10L);
+
+        assertEquals(2, task.getClaimedCount());
+        assertEquals(0, task.getCompletedCount());
+        assertEquals(1, task.getMaxRewardRecipients());
+        assertEquals(8, service.getPublicDetail(10L, viewer).getRemainingSlots());
+        verify(claimMapper).insert(any(EventTaskClaim.class));
+    }
+
+    @Test
+    void fullyAwardedTaskStopsNewClaimsEvenWithFreeClaimSlots() {
+        EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
+        task.setMaxClaimants(10);
+        task.setMaxRewardRecipients(1);
+        task.setClaimedCount(2);
+        task.setCompletedCount(1);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(taskMapper.selectById(10L)).thenReturn(task);
+
+        EventTaskDtos.TaskVO detail = service.getPublicDetail(10L, player(4L, "另一位选手", 0, 0));
+        assertEquals(0, detail.getRemainingSlots());
+        assertFalse(detail.getCanClaim());
 
         BusinessException error = assertThrows(BusinessException.class, () -> service.claim(4L, 10L));
 
         assertTrue(error.getMessage().contains("奖励名额已满"));
         verify(playerMapper, never()).selectByIdForUpdate(anyLong());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"0, 100", "1, 100", "0, 0", "1, 0"})
+    void finalRewardPlaceCannotBeAwardedToAnotherPendingClaim(int official, int pReward) {
+        EventTask task = task(10L, 1L, pReward, 25, EventTaskService.TASK_PUBLISHED);
+        task.setOfficial(official);
+        task.setMaxClaimants(10);
+        task.setMaxRewardRecipients(1);
+        task.setClaimedCount(2);
+        task.setEscrowRemaining(official == 1 ? 0 : pReward);
+        EventTaskClaim first = claim(88L, 10L, 2L, LocalDateTime.of(2026, 9, 20, 10, 0));
+        first.setStatus(EventTaskService.PROOF_PENDING);
+        first.setPRewardSnapshot(pReward);
+        EventTaskClaim second = claim(89L, 10L, 3L, LocalDateTime.of(2026, 9, 20, 11, 0));
+        second.setStatus(EventTaskService.PROOF_PENDING);
+        EventTaskProof firstProof = new EventTaskProof();
+        firstProof.setId(99L);
+        firstProof.setTaskId(10L);
+        firstProof.setClaimId(88L);
+        firstProof.setStatus(EventTaskService.PROOF_STATUS_PENDING);
+        EventTaskProof secondProof = new EventTaskProof();
+        secondProof.setId(100L);
+        secondProof.setTaskId(10L);
+        secondProof.setClaimId(89L);
+        secondProof.setStatus(EventTaskService.PROOF_STATUS_PENDING);
+        Player winner = player(2L, "完成者", 40, 7);
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+        when(taskMapper.selectById(10L)).thenReturn(task);
+        when(proofMapper.selectById(99L)).thenReturn(firstProof);
+        when(proofMapper.selectByIdForUpdate(99L)).thenReturn(firstProof);
+        when(proofMapper.selectById(100L)).thenReturn(secondProof);
+        when(proofMapper.selectByIdForUpdate(100L)).thenReturn(secondProof);
+        when(claimMapper.selectByIdForUpdate(88L)).thenReturn(first);
+        when(claimMapper.selectByIdForUpdate(89L)).thenReturn(second);
+        when(playerMapper.selectByIdForUpdate(2L)).thenReturn(winner);
+
+        service.approveProof(9L, 99L);
+        BusinessException error = assertThrows(BusinessException.class, () -> service.approveProof(9L, 100L));
+
+        assertTrue(error.getMessage().contains("奖励名额已满"));
+        assertEquals(1, task.getCompletedCount());
+        assertEquals(0, task.getEscrowRemaining());
+        assertEquals(40 + pReward, winner.getDeposit());
+        assertEquals(32, winner.getBounty());
+        assertEquals(EventTaskService.PROOF_PENDING, second.getStatus());
+        assertEquals(EventTaskService.PROOF_STATUS_PENDING, secondProof.getStatus());
+        verify(playerMapper, never()).selectByIdForUpdate(3L);
+        verify(bountyLedgerMapper, times(1)).insert(any(PlayerBountyLedger.class));
     }
 
     @Test
@@ -714,17 +793,17 @@ class EventTaskServiceTest {
 
         EventTaskDtos.AdminEditRequest request = editRequest(50, 25);
         request.setMaxClaimants(1);
-        request.setMaxRewardRecipients(2);
+        request.setMaxRewardRecipients(1);
         service.editPublished(9L, 10L, request);
 
-        assertEquals(250, publisher.getDeposit());
-        assertEquals(50, task.getEscrowRemaining());
-        assertEquals(150, task.getEscrowTotal());
+        assertEquals(300, publisher.getDeposit());
+        assertEquals(0, task.getEscrowRemaining());
+        assertEquals(100, task.getEscrowTotal());
         assertEquals(1, task.getMaxClaimants());
-        assertEquals(2, task.getMaxRewardRecipients());
+        assertEquals(1, task.getMaxRewardRecipients());
         ArgumentCaptor<PlayerDepositLedger> ledger = ArgumentCaptor.forClass(PlayerDepositLedger.class);
         verify(depositLedgerMapper).insert(ledger.capture());
-        assertEquals(150, ledger.getValue().getAmount());
+        assertEquals(200, ledger.getValue().getAmount());
     }
 
     @ParameterizedTest
@@ -734,19 +813,21 @@ class EventTaskServiceTest {
             "3, 0, 最大奖励人数必须为1到999",
             "3, 1000, 最大奖励人数必须为1到999",
             "1, 3, 最大接取人数不能少于当前未完成接取数",
-            "2, 2, 最大奖励人数不能少于已完成与未完成接取数之和"
+            "2, 1, 最大奖励人数不能少于已完成人数"
     })
     void editPublishedRejectsInvalidOrOccupiedLimits(int maxClaimants, int maxRewardRecipients, String message) {
         EventTask task = task(10L, 1L, 100, 25, EventTaskService.TASK_PUBLISHED);
-        task.setClaimedCount(3);
-        task.setCompletedCount(1);
+        task.setClaimedCount(4);
+        task.setCompletedCount(2);
         EventTaskClaim active = claim(88L, 10L, 2L, LocalDateTime.of(2026, 9, 20, 11, 0));
         EventTaskClaim pending = claim(89L, 10L, 3L, LocalDateTime.of(2026, 9, 20, 10, 0));
         pending.setStatus(EventTaskService.PROOF_PENDING);
         EventTaskClaim completed = claim(90L, 10L, 4L, LocalDateTime.of(2026, 9, 20, 9, 0));
         completed.setStatus(EventTaskService.COMPLETED);
+        EventTaskClaim anotherCompleted = claim(91L, 10L, 5L, LocalDateTime.of(2026, 9, 20, 8, 0));
+        anotherCompleted.setStatus(EventTaskService.COMPLETED);
         when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
-        when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(active, pending, completed));
+        when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(active, pending, completed, anotherCompleted));
         EventTaskDtos.AdminEditRequest request = editRequest(200, 40);
         request.setMaxClaimants(maxClaimants);
         request.setMaxRewardRecipients(maxRewardRecipients);

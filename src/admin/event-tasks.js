@@ -138,7 +138,7 @@ document.addEventListener("click", async event => {
     const form = document.getElementById("adminTaskEditForm");
     for (const field of ["title", "requirements", "pReward", "bountyReward", "maxClaimants", "maxRewardRecipients", "budgetNote"]) form.elements[field].value = task[field] ?? "";
     form.elements.maxClaimants.min = Math.max(1, task.activeClaimCount);
-    form.elements.maxRewardRecipients.min = Math.max(1, task.claimedCount);
+    form.elements.maxRewardRecipients.min = Math.max(1, task.completedCount);
     form.elements.repeatable.checked = Boolean(task.repeatable);
     form.elements.taskId.value = task.id;
     document.getElementById("adminTaskEditDialog").showModal();

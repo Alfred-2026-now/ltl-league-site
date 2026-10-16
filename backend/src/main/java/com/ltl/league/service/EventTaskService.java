@@ -226,7 +226,7 @@ public class EventTaskService {
         if (task.getMaxClaimants() == null || activeCount >= task.getMaxClaimants()) {
             throw new BusinessException(409, "任务接取名额已满");
         }
-        if (safe(task.getClaimedCount()) >= rewardLimit(task)) {
+        if (safe(task.getCompletedCount()) >= rewardLimit(task)) {
             throw new BusinessException(409, "任务奖励名额已满");
         }
         List<EventTaskClaim> previous = claimMapper.selectList(new LambdaQueryWrapper<EventTaskClaim>()
@@ -582,8 +582,8 @@ public class EventTaskService {
         if (maxClaimants < active) {
             throw new BusinessException(400, "最大接取人数不能少于当前未完成接取数（" + active + "）");
         }
-        if (maxRewardRecipients < completed + active) {
-            throw new BusinessException(400, "最大奖励人数不能少于已完成与未完成接取数之和（" + (completed + active) + "）");
+        if (maxRewardRecipients < completed) {
+            throw new BusinessException(400, "最大奖励人数不能少于已完成人数（" + completed + "）");
         }
         boolean official = Integer.valueOf(1).equals(task.getOfficial());
         int newRemaining = 0;
@@ -749,6 +749,9 @@ public class EventTaskService {
         }
         if (claim == null || !PROOF_PENDING.equals(claim.getStatus())) {
             throw new BusinessException(409, "接取记录已处理，不能重复发奖");
+        }
+        if (safe(task.getCompletedCount()) >= rewardLimit(task)) {
+            throw new BusinessException(409, "任务奖励名额已满，无法继续发奖");
         }
         Player winner = playerMapper.selectByIdForUpdate(claim.getPlayerId());
         if (winner == null) {
@@ -1155,8 +1158,8 @@ public class EventTaskService {
         vo.setCompletedCount(safe(task.getCompletedCount()));
         int activeCount = Math.max(0, safe(task.getClaimedCount()) - safe(task.getCompletedCount()));
         vo.setActiveClaimCount(activeCount);
-        vo.setRemainingSlots(task.getMaxClaimants() == null ? null : Math.max(0,
-                Math.min(task.getMaxClaimants() - activeCount, rewardLimit(task) - safe(task.getClaimedCount()))));
+        vo.setRemainingSlots(task.getMaxClaimants() == null ? null
+                : safe(task.getCompletedCount()) >= rewardLimit(task) ? 0 : Math.max(0, task.getMaxClaimants() - activeCount));
         vo.setEscrowTotal(safe(task.getEscrowTotal()));
         vo.setEscrowRemaining(safe(task.getEscrowRemaining()));
         vo.setStatus(task.getStatus());
