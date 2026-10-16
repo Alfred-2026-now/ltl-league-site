@@ -116,6 +116,7 @@ function taskCard(task, mode = "hall") {
       ${mode === "published" && !task.official ? `<span>发布费：${task.status === "PUBLISHED" || task.status === "CLOSED" ? `${task.publicationFeeAmount || 0}P` : "审核发布时计算"}</span>` : ""}
       ${mode === "published" && task.anonymous ? `<span>匿名发布费：${task.status === "PUBLISHED" || task.status === "CLOSED" ? `${task.anonymousFeeAmount || 0}P` : "审核发布时计算"}</span>` : ""}
     </div>
+    ${task.status === "PUBLISHED" ? '<p class="task-note">接取不预留奖励名额，奖励以完成证明审核通过为准，名额发满即止。</p>' : ""}
     <div class="task-actions">${claimButton}${editActions}</div>
   </article>`;
 }
@@ -234,8 +235,8 @@ document.addEventListener("click", async event => {
     if (!currentUser) return window.location.assign(`login.html?redirect=${encodeURIComponent(window.location.href)}`);
     const fee = Number(claimButton.dataset.claimFee);
     if (!confirm(fee > 0
-      ? "确认支付接取费用并接取任务？接取后30分钟内可无损放弃。"
-      : "确认免费接取任务？接取后30分钟内可无损放弃。")) return;
+      ? "确认支付接取费用并接取任务？接取后30分钟内可无损放弃。接取不预留奖励名额，奖励以完成证明审核通过为准，名额发满即止。"
+      : "确认免费接取任务？接取后30分钟内可无损放弃。接取不预留奖励名额，奖励以完成证明审核通过为准，名额发满即止。")) return;
     await runAction(() => request(`/event-tasks/${claimButton.dataset.claimTask}/claims`, { method: "POST" }), "任务接取成功");
   }
   const abandonClaim = event.target.closest("[data-abandon-claim]");
