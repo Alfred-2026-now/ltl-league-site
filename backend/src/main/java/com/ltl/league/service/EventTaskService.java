@@ -113,11 +113,13 @@ public class EventTaskService {
     }
 
     public List<EventTaskDtos.TaskVO> listPublic(Player viewer) {
+        // 置顶任务优先；非置顶任务按P币奖励从高到低，同奖励按发布时间倒序
         List<EventTask> tasks = taskMapper.selectList(new LambdaQueryWrapper<EventTask>()
                 .eq(EventTask::getSeason, currentSeason)
                 .eq(EventTask::getStatus, TASK_PUBLISHED)
                 .eq(EventTask::getDeleted, 0)
                 .orderByDesc(EventTask::getPinned)
+                .orderByDesc(EventTask::getPReward)
                 .orderByDesc(EventTask::getPublishedAt)
                 .orderByDesc(EventTask::getId));
         return toTaskVOs(tasks, viewer, false);

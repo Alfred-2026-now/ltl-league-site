@@ -52,9 +52,11 @@ public class PrizeServiceImpl implements PrizeService {
 
     @Override
     public List<PrizeVO> listActivePrizes() {
+        // 商城展示按所需积分从高到低，同积分按上架时间倒序
         List<Prize> prizes = prizeMapper.selectList(new LambdaQueryWrapper<Prize>()
                 .eq(Prize::getIsActive, 1)
                 .eq(Prize::getDeleted, 0)
+                .orderByDesc(Prize::getCostPoints)
                 .orderByDesc(Prize::getCreatedAt));
 
         return prizes.stream().map(this::toPrizeVO).collect(Collectors.toList());
