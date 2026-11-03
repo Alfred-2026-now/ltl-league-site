@@ -95,16 +95,19 @@ function completionHistoryCard(record) {
   </article>`;
 }
 
+let editingCategoryId = null;
+
 function renderCategoryAdmin() {
   const list = document.getElementById("categoryAdminList");
   if (!list) return;
-  list.innerHTML = categories.length
-    ? categories.map(category => `<div class="task-facts" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;padding:.5rem 0;">
-        <span><strong>${esc(category.name)}</strong>（任务 ${category.taskCount ?? 0} · 进行中 ${category.publishedCount ?? 0} · 排序 ${category.sortOrder ?? 0}）</span>
-        <button class="btn" data-rename-category="${category.id}" data-name="${esc(category.name)}" data-sort="${category.sortOrder ?? 0}">重命名/排序</button>
-        <button class="btn ghost" data-delete-category="${category.id}" data-name="${esc(category.name)}">删除</button>
-      </div>`).join("")
-    : '<p class="muted">暂无分类。添加后可在审核发布、官方任务发布或进行中任务上归类。</p>';
+  if (!categories.length) {
+    list.innerHTML = '<p class="muted" style="margin:.25rem 0 0;">暂无分类。添加后可在审核发布、官方任务发布或进行中任务上归类。</p>';
+    return;
+  }
+  const row = category => String(editingCategoryId) === String(category.id)
+    ? `<tr><td><input class="input" type="number" min="0" max="9999" value="${category.sortOrder ?? 0}" data-edit-sort="${category.id}" style="width:5rem;" /></td><td colspan="3"><input class="input" maxlength="50" value="${esc(category.name)}" data-edit-name="${category.id}" style="width:100%;" /></td><td style="white-space:nowrap;"><button class="btn primary" data-save-category="${category.id}">保存</button> <button class="btn ghost" type="button" data-cancel-edit-category>取消</button></td></tr>`
+    : `<tr><td>${category.sortOrder ?? 0}</td><td><strong>${esc(category.name)}</strong></td><td>${category.taskCount ?? 0}</td><td>${category.publishedCount ?? 0}</td><td style="white-space:nowrap;"><button class="btn" data-rename-category="${category.id}">编辑</button> <button class="btn ghost" data-delete-category="${category.id}" data-name="${esc(category.name)}">删除</button></td></tr>`;
+  list.innerHTML = `<table class="admin-table"><thead><tr><th>排序</th><th>分类名称</th><th>任务数</th><th>进行中</th><th>操作</th></tr></thead><tbody>${categories.map(row).join("")}</tbody></table>`;
 }
 
 async function load() {
@@ -218,12 +221,29 @@ document.addEventListener("click", async event => {
       await act(() => request(`/admin/event-tasks/${close.dataset.closeTask}/close`, json({ reason })), "任务已注销");
     }
   }
+  // 分类编辑：点击「编辑」进入行内编辑，排序和名称一次改完
   const renameCategory = event.target.closest("[data-rename-category]");
   if (renameCategory) {
-    const name = prompt("修改分类名称：", renameCategory.dataset.name)?.trim();
-    if (!name) return;
-    const sortOrder = Number(prompt("展示顺序（小的在前）：", renameCategory.dataset.sort) ?? renameCategory.dataset.sort);
-    await act(() => request(`/admin/event-task-categories/${renameCategory.dataset.renameCategory}`, json({ name, sortOrder }, "PUT")), "分类已更新");
+    editingCategoryId = renameCategory.dataset.renameCategory;
+    renderCategoryAdmin();
+    document.querySelector(`[data-edit-name="${editingCategoryId}"]`)?.focus();
+    return;
+  }
+  const cancelEditCategory = event.target.closest("[data-cancel-edit-category]");
+  if (cancelEditCategory) {
+    editingCategoryId = null;
+    renderCategoryAdmin();
+    return;
+  }
+  const saveCategory = event.target.closest("[data-save-category]");
+  if (saveCategory) {
+    const id = saveCategory.dataset.saveCategory;
+    const name = document.querySelector(`[data-edit-name="${id}"]`)?.value.trim();
+    if (!name) { setMessage("请填写分类名称", true); return; }
+    const sortOrder = Number(document.querySelector(`[data-edit-sort="${id}"]`)?.value || 0);
+    editingCategoryId = null;
+    await act(() => request(`/admin/event-task-categories/${id}`, json({ name, sortOrder }, "PUT")), "分类已更新");
+    return;
   }
   const deleteCategory = event.target.closest("[data-delete-category]");
   if (deleteCategory) {

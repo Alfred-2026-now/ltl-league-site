@@ -137,6 +137,19 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
     ? { dataset: { cancelClaim: "88", playerName: "甲", feeAmount: "50" } } : null } });
   assert.ok(writes.some(write => write.url === "/api/admin/event-task-claims/88/cancel"));
   assert.match(doc.elements.claimHistoryList.innerHTML, /管理员已取消/);
+
+  await doc.listeners.click({ target: { closest: selector => selector === "[data-rename-category]"
+    ? { dataset: { renameCategory: "1" } } : null } });
+  assert.match(doc.elements.categoryAdminList.innerHTML, /data-edit-name="1"/);
+  doc.inputs = {
+    '[data-edit-name="1"]': { value: "官方任务改" },
+    '[data-edit-sort="1"]': { value: "2" }
+  };
+  await doc.listeners.click({ target: { closest: selector => selector === "[data-save-category]"
+    ? { dataset: { saveCategory: "1" } } : null } });
+  const categoryWrite = writes.find(write => write.url === "/api/admin/event-task-categories/1");
+  assert.ok(categoryWrite);
+  assert.deepEqual(JSON.parse(categoryWrite.options.body), { name: "官方任务改", sortOrder: 2 });
 });
 
 test("player task hall shows the administrator cancellation cooldown", async () => {
