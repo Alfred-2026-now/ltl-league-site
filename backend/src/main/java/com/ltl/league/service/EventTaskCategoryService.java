@@ -1,6 +1,7 @@
 package com.ltl.league.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.ltl.league.dto.EventTaskDtos;
 import com.ltl.league.entity.EventTask;
 import com.ltl.league.entity.EventTaskCategory;
@@ -49,23 +50,40 @@ public class EventTaskCategoryService {
                 .eq(EventTaskCategory::getDeleted, 0)
                 .orderByAsc(EventTaskCategory::getSortOrder)
                 .orderByAsc(EventTaskCategory::getId));
-        Map<Long, Long> counts = taskMapper.selectList(new LambdaQueryWrapper<EventTask>()
-                        .select(EventTask::getCategoryId)
-                        .eq(EventTask::getSeason, currentSeason)
-                        .eq(EventTask::getStatus, EventTaskService.TASK_PUBLISHED)
-                        .eq(EventTask::getDeleted, 0)
-                        .isNotNull(EventTask::getCategoryId))
-                .stream()
-                .collect(Collectors.groupingBy(EventTask::getCategoryId, Collectors.counting()));
+        Map<Long, Long> counts = countByCategory(EventTask::getStatus, EventTaskService.TASK_PUBLISHED);
+        Map<Long, Long> totals = countByCategory();
         return categories.stream().map(category -> {
             EventTaskDtos.CategoryVO vo = new EventTaskDtos.CategoryVO();
             vo.setId(category.getId());
             vo.setName(category.getName());
             vo.setSortOrder(category.getSortOrder());
             vo.setPublishedCount(counts.getOrDefault(category.getId(), 0L));
+            vo.setTaskCount(totals.getOrDefault(category.getId(), 0L));
             vo.setCreatedAt(category.getCreatedAt());
             return vo;
         }).collect(Collectors.toList());
+    }
+
+    /** 按分类统计本赛季任务数；可附加等值过滤条件（如仅进行中） */
+    private Map<Long, Long> countByCategory(SFunction<EventTask, ?> column, Object value) {
+        return taskMapper.selectList(new LambdaQueryWrapper<EventTask>()
+                        .select(EventTask::getCategoryId)
+                        .eq(EventTask::getSeason, currentSeason)
+                        .eq(EventTask::getDeleted, 0)
+                        .isNotNull(EventTask::getCategoryId)
+                        .eq(column, value))
+                .stream()
+                .collect(Collectors.groupingBy(EventTask::getCategoryId, Collectors.counting()));
+    }
+
+    private Map<Long, Long> countByCategory() {
+        return taskMapper.selectList(new LambdaQueryWrapper<EventTask>()
+                        .select(EventTask::getCategoryId)
+                        .eq(EventTask::getSeason, currentSeason)
+                        .eq(EventTask::getDeleted, 0)
+                        .isNotNull(EventTask::getCategoryId))
+                .stream()
+                .collect(Collectors.groupingBy(EventTask::getCategoryId, Collectors.counting()));
     }
 
     @Transactional

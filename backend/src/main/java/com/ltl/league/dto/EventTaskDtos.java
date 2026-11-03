@@ -20,6 +20,8 @@ public final class EventTaskDtos {
         private String budgetNote;
         private Boolean anonymous;
         private Boolean repeatable;
+        // 发布时可自选分类；null = 由管理员归类
+        private Long categoryId;
     }
 
     @Data
@@ -41,8 +43,6 @@ public final class EventTaskDtos {
         private Integer claimFee;
         private Integer maxClaimants;
         private Integer maxRewardRecipients;
-        // 官方任务发布时可选归类；null = 未分类
-        private Long categoryId;
     }
 
     @Data
@@ -90,6 +90,8 @@ public final class EventTaskDtos {
         private Integer sortOrder;
         // 该分类下进行中的任务数（公开列表用）
         private Long publishedCount;
+        // 该分类下全部任务数（管理端用）
+        private Long taskCount;
         private LocalDateTime createdAt;
     }
 

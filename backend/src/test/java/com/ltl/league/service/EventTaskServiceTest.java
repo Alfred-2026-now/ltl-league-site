@@ -256,6 +256,50 @@ class EventTaskServiceTest {
     }
 
     @Test
+    void playerCanPickCategoryWhenSubmittingTask() {
+        Player publisher = player(1L, "发布者", 1500, 0);
+        EventTaskCategory category = new EventTaskCategory();
+        category.setId(3L);
+        category.setName("日常任务");
+        category.setSortOrder(0);
+        category.setDeleted(0);
+        when(playerMapper.selectById(1L)).thenReturn(publisher);
+        when(categoryMapper.selectById(3L)).thenReturn(category);
+        when(categoryMapper.selectBatchIds(any())).thenReturn(List.of(category));
+        when(claimMapper.selectList(any())).thenReturn(List.of());
+
+        EventTaskDtos.TaskWriteRequest request = new EventTaskDtos.TaskWriteRequest();
+        request.setTitle("新任务");
+        request.setRequirements("完成目标");
+        request.setPReward(100);
+        request.setBountyReward(0);
+        request.setCategoryId(3L);
+        EventTaskDtos.TaskVO vo = service.create(1L, request);
+
+        assertEquals(3L, vo.getCategoryId());
+        assertEquals("日常任务", vo.getCategoryName());
+        ArgumentCaptor<EventTask> saved = ArgumentCaptor.forClass(EventTask.class);
+        verify(taskMapper).insert(saved.capture());
+        assertEquals(3L, saved.getValue().getCategoryId());
+    }
+
+    @Test
+    void playerTaskRejectsUnknownCategory() {
+        Player publisher = player(1L, "发布者", 1500, 0);
+        when(playerMapper.selectById(1L)).thenReturn(publisher);
+        when(categoryMapper.selectById(99L)).thenReturn(null);
+
+        EventTaskDtos.TaskWriteRequest request = new EventTaskDtos.TaskWriteRequest();
+        request.setTitle("新任务");
+        request.setRequirements("完成目标");
+        request.setPReward(100);
+        request.setBountyReward(0);
+        request.setCategoryId(99L);
+        assertThrows(BusinessException.class, () -> service.create(1L, request));
+        verify(taskMapper, never()).insert(any());
+    }
+
+    @Test
     void anonymousTaskRedactsPublisherPubliclyButAdminStillSeesIdentity() {
         EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
         task.setAnonymous(1);

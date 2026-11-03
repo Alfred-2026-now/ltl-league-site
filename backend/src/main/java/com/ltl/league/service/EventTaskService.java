@@ -166,6 +166,8 @@ public class EventTaskService {
         task.setPublisherNameSnapshot(publisher.getName());
         task.setOfficial(0);
         applyWrite(task, request);
+        // 玩家发布时可自选分类，审核发布时管理员仍可调整
+        task.setCategoryId(resolveCategoryId(request.getCategoryId()));
         task.setAnonymousFeeAmount(0);
         task.setClaimedCount(0);
         task.setCompletedCount(0);

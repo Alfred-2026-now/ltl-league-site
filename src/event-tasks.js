@@ -140,12 +140,8 @@ function renderHallList() {
 }
 
 async function renderHall() {
-  const [tasks, categoryList] = await Promise.all([
-    request("/event-tasks"),
-    request("/event-task-categories").catch(() => [])
-  ]);
-  hallTasks = tasks;
-  categories = categoryList;
+  categories = await request("/event-task-categories").catch(() => categories);
+  hallTasks = await request("/event-tasks");
   renderHallList();
 }
 
@@ -159,6 +155,7 @@ function publishForm() {
     <div class="task-form-grid">
       <label class="field"><span class="field-label">每位完成者P币奖励</span><input class="input" name="pReward" type="number" min="0" value="0" required /></label>
       <label class="field"><span class="field-label">每位完成者赏金积分</span><input class="input" name="bountyReward" type="number" min="0" value="0" required /></label>
+      <label class="field"><span class="field-label">任务分类（可选）</span><select class="input" name="categoryId"><option value="">由管理员归类</option>${categories.map(category => `<option value="${category.id}">${escapeHtml(category.name)}</option>`).join("")}</select></label>
     </div>
     <label class="task-anonymous-option">
       <input name="anonymous" type="checkbox" />
@@ -240,7 +237,8 @@ function taskPayload(form) {
     bountyReward: Number(data.get("bountyReward") || 0),
     budgetNote: String(data.get("budgetNote") || "").trim(),
     anonymous: data.get("anonymous") === "on",
-    repeatable: data.get("repeatable") === "on"
+    repeatable: data.get("repeatable") === "on",
+    categoryId: data.get("categoryId") ? Number(data.get("categoryId")) : null
   };
 }
 
@@ -342,4 +340,5 @@ async function runAction(action, success, rerender = true) {
 
 currentUser = await authApi.getCurrentUser();
 taskSettings = { ...taskSettings, ...await request("/event-tasks/settings").catch(() => ({})) };
+categories = await request("/event-task-categories").catch(() => categories);
 await renderActive();

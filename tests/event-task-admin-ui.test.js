@@ -68,7 +68,9 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
       return response(task);
     }
     if (url.endsWith("/admin/event-tasks")) return response([task]);
-    if (url.endsWith("/admin/event-task-categories")) return response([]);
+    if (url.endsWith("/admin/event-task-categories")) return response([
+      { id: 1, name: "官方任务", sortOrder: 0, publishedCount: 1, taskCount: 2, createdAt: "2026-11-03T23:23:20" }
+    ]);
     if (url.endsWith("/admin/event-task-proofs/pending")) return response([]);
     if (url.endsWith("/event-tasks/settings")) return response({ anonymousMinimumFee: 50, anonymousFeeRate: 10 });
     if (url.endsWith("/admin/event-task-claims")) return response(claims);
@@ -80,6 +82,9 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
   };
 
   await import(`../src/admin/event-tasks.js?ui=${Date.now()}`);
+  assert.match(doc.elements.officialCategorySelect.innerHTML, /<option value="1"\s*>官方任务<\/option>/);
+  assert.match(doc.elements.categoryAdminList.innerHTML, /官方任务/);
+  assert.match(doc.elements.categoryAdminList.innerHTML, /data-delete-category="1"/);
   assert.match(doc.elements.publishedTaskList.innerHTML, /data-edit-published="10"/);
   assert.match(doc.elements.publishedTaskList.innerHTML, /data-pin-task="10"/);
   assert.match(doc.elements.claimHistoryList.innerHTML, /选手：甲/);

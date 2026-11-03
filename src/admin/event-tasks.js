@@ -100,7 +100,7 @@ function renderCategoryAdmin() {
   if (!list) return;
   list.innerHTML = categories.length
     ? categories.map(category => `<div class="task-facts" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;padding:.5rem 0;">
-        <span><strong>${esc(category.name)}</strong>（进行中任务 ${category.publishedCount ?? 0} · 排序 ${category.sortOrder ?? 0}）</span>
+        <span><strong>${esc(category.name)}</strong>（任务 ${category.taskCount ?? 0} · 进行中 ${category.publishedCount ?? 0} · 排序 ${category.sortOrder ?? 0}）</span>
         <button class="btn" data-rename-category="${category.id}" data-name="${esc(category.name)}" data-sort="${category.sortOrder ?? 0}">重命名/排序</button>
         <button class="btn ghost" data-delete-category="${category.id}" data-name="${esc(category.name)}">删除</button>
       </div>`).join("")
@@ -108,11 +108,15 @@ function renderCategoryAdmin() {
 }
 
 async function load() {
+  // 分类接口很小，先加载并渲染，避免被较大的任务列表接口（可达十余秒）拖住分类下拉与分类管理
+  categories = await request("/admin/event-task-categories").catch(() => []);
+  renderCategoryAdmin();
+  const officialCategory = document.getElementById("officialCategorySelect");
+  if (officialCategory) officialCategory.innerHTML = categoryOptions(officialCategory.value);
   try {
-    const [tasks, proofs, settings, claims, categoryList] = await Promise.all([request("/admin/event-tasks"), request("/admin/event-task-proofs/pending"), request("/event-tasks/settings"), request("/admin/event-task-claims"), request("/admin/event-task-categories").catch(() => [])]);
+    const [tasks, proofs, settings, claims] = await Promise.all([request("/admin/event-tasks"), request("/admin/event-task-proofs/pending"), request("/event-tasks/settings"), request("/admin/event-task-claims")]);
     taskSettings = { ...taskSettings, ...settings };
     taskById = new Map(tasks.map(task => [task.id, task]));
-    categories = categoryList;
     claimHistory = claims;
     const filter = document.getElementById("claimTaskFilter");
     const selectedTask = filter.value;
@@ -133,9 +137,6 @@ async function load() {
     document.getElementById("completedTaskList").innerHTML = completions.map(completionHistoryCard).join("") || '<div class="panel task-empty">暂无完成记录。</div>';
     document.getElementById("closedTaskList").innerHTML = closed.slice(0, 20).map(closedTask).join("") || '<div class="panel task-empty">暂无已结束任务。</div>';
     renderClaimHistory();
-    renderCategoryAdmin();
-    const officialCategory = document.getElementById("officialCategorySelect");
-    if (officialCategory) officialCategory.innerHTML = categoryOptions(officialCategory.value);
   } catch (error) {
     setMessage(error.message, true);
   }
