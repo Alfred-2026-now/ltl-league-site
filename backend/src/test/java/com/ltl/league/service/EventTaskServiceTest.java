@@ -37,6 +37,7 @@ class EventTaskServiceTest {
     @Mock private PlayerMapper playerMapper;
     @Mock private PlayerDepositLedgerMapper depositLedgerMapper;
     @Mock private PlayerBountyLedgerMapper bountyLedgerMapper;
+    @Mock private EventTaskCategoryMapper categoryMapper;
     @Mock private AdminAssetService adminAssetService;
     @Mock private RuleParameterService ruleParameterService;
 
@@ -46,7 +47,7 @@ class EventTaskServiceTest {
     @BeforeEach
     void setUp() {
         service = new EventTaskService(taskMapper, reviewMapper, claimMapper, proofMapper, proofImageMapper,
-                playerMapper, depositLedgerMapper, bountyLedgerMapper, adminAssetService, ruleParameterService, clock);
+                playerMapper, depositLedgerMapper, bountyLedgerMapper, categoryMapper, adminAssetService, ruleParameterService, clock);
         lenient().when(ruleParameterService.getInt("event_task.anonymous_fee_rate")).thenReturn(10);
         ReflectionTestUtils.setField(service, "currentSeason", "s2");
         ReflectionTestUtils.setField(service, "uploadDir", "build/test-task-uploads");
@@ -179,7 +180,7 @@ class EventTaskServiceTest {
         task.setBudgetNote("最多5人，供管理员审核");
         when(taskMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(task));
 
-        List<EventTaskDtos.TaskVO> result = service.listPublic(null);
+        List<EventTaskDtos.TaskVO> result = service.listPublic(null, null);
 
         assertEquals(1, result.size());
         assertNull(result.get(0).getBudgetNote());
@@ -218,6 +219,43 @@ class EventTaskServiceTest {
     }
 
     @Test
+    void adminCanSetAndClearPublishedTaskCategory() {
+        EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
+        Player admin = player(9L, "管理员", 0, 0);
+        EventTaskCategory category = new EventTaskCategory();
+        category.setId(3L);
+        category.setName("日常任务");
+        category.setSortOrder(0);
+        category.setDeleted(0);
+        when(categoryMapper.selectById(3L)).thenReturn(category);
+        when(categoryMapper.selectBatchIds(any())).thenReturn(List.of(category));
+        when(taskMapper.selectByIdForUpdate(10L)).thenReturn(task);
+
+        EventTaskDtos.AdminTaskCategoryRequest request = new EventTaskDtos.AdminTaskCategoryRequest();
+        request.setCategoryId(3L);
+        EventTaskDtos.TaskVO set = service.setCategory(10L, request, admin);
+        assertEquals(3L, set.getCategoryId());
+        assertEquals("日常任务", set.getCategoryName());
+
+        request.setCategoryId(null);
+        EventTaskDtos.TaskVO cleared = service.setCategory(10L, request, admin);
+        assertNull(cleared.getCategoryId());
+        assertNull(cleared.getCategoryName());
+    }
+
+    @Test
+    void setTaskCategoryRejectsUnknownCategory() {
+        EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
+        Player admin = player(9L, "管理员", 0, 0);
+        when(categoryMapper.selectById(99L)).thenReturn(null);
+
+        EventTaskDtos.AdminTaskCategoryRequest request = new EventTaskDtos.AdminTaskCategoryRequest();
+        request.setCategoryId(99L);
+        assertThrows(BusinessException.class, () -> service.setCategory(10L, request, admin));
+        verify(taskMapper, never()).updateById(task);
+    }
+
+    @Test
     void anonymousTaskRedactsPublisherPubliclyButAdminStillSeesIdentity() {
         EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
         task.setAnonymous(1);
@@ -226,7 +264,7 @@ class EventTaskServiceTest {
         Player admin = player(9L, "管理员", 0, 0);
         when(taskMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(task));
 
-        EventTaskDtos.TaskVO publicTask = service.listPublic(null).get(0);
+        EventTaskDtos.TaskVO publicTask = service.listPublic(null, null).get(0);
         EventTaskDtos.TaskVO adminTask = service.listAdminTasks(null, admin).get(0);
 
         assertEquals("匿名发布者", publicTask.getPublisherName());

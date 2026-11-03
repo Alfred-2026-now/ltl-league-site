@@ -65,6 +65,7 @@ public class EventTaskService {
     private final PlayerMapper playerMapper;
     private final PlayerDepositLedgerMapper depositLedgerMapper;
     private final PlayerBountyLedgerMapper bountyLedgerMapper;
+    private final EventTaskCategoryMapper categoryMapper;
     private final AdminAssetService adminAssetService;
     private final RuleParameterService ruleParameterService;
     private final Clock clock;
@@ -87,6 +88,7 @@ public class EventTaskService {
             PlayerMapper playerMapper,
             PlayerDepositLedgerMapper depositLedgerMapper,
             PlayerBountyLedgerMapper bountyLedgerMapper,
+            EventTaskCategoryMapper categoryMapper,
             AdminAssetService adminAssetService,
             RuleParameterService ruleParameterService,
             Clock clock) {
@@ -98,6 +100,7 @@ public class EventTaskService {
         this.playerMapper = playerMapper;
         this.depositLedgerMapper = depositLedgerMapper;
         this.bountyLedgerMapper = bountyLedgerMapper;
+        this.categoryMapper = categoryMapper;
         this.adminAssetService = adminAssetService;
         this.ruleParameterService = ruleParameterService;
         this.clock = clock;
@@ -112,12 +115,13 @@ public class EventTaskService {
         return settings;
     }
 
-    public List<EventTaskDtos.TaskVO> listPublic(Player viewer) {
+    public List<EventTaskDtos.TaskVO> listPublic(Player viewer, Long categoryId) {
         // 置顶任务优先；非置顶任务按P币奖励从高到低，同奖励按发布时间倒序
         List<EventTask> tasks = taskMapper.selectList(new LambdaQueryWrapper<EventTask>()
                 .eq(EventTask::getSeason, currentSeason)
                 .eq(EventTask::getStatus, TASK_PUBLISHED)
                 .eq(EventTask::getDeleted, 0)
+                .eq(categoryId != null, EventTask::getCategoryId, categoryId)
                 .orderByDesc(EventTask::getPinned)
                 .orderByDesc(EventTask::getPReward)
                 .orderByDesc(EventTask::getPublishedAt)
@@ -417,6 +421,31 @@ public class EventTaskService {
         return toTaskVO(task, admin, true);
     }
 
+    /** 管理员把已发布任务归入某个分类（null = 未分类），可随时调整 */
+    @Transactional
+    public EventTaskDtos.TaskVO setCategory(Long taskId, EventTaskDtos.AdminTaskCategoryRequest request, Player admin) {
+        Long categoryId = resolveCategoryId(request == null ? null : request.getCategoryId());
+        EventTask task = taskMapper.selectByIdForUpdate(taskId);
+        if (task == null || !TASK_PUBLISHED.equals(task.getStatus()) || !currentSeason.equals(task.getSeason())) {
+            throw new BusinessException(409, "只有本赛季进行中的任务可以设置分类");
+        }
+        task.setCategoryId(categoryId);
+        taskMapper.updateById(task);
+        return toTaskVO(task, admin, true);
+    }
+
+    /** 校验并解析分类ID：null 直接通过（未分类），非空要求分类存在 */
+    private Long resolveCategoryId(Long categoryId) {
+        if (categoryId == null) {
+            return null;
+        }
+        EventTaskCategory category = categoryMapper.selectById(categoryId);
+        if (category == null || Objects.equals(category.getDeleted(), 1)) {
+            throw new BusinessException(404, "任务分类不存在");
+        }
+        return categoryId;
+    }
+
     public List<EventTaskDtos.ClaimVO> listAdminClaimHistory() {
         return claimMapper.selectList(new LambdaQueryWrapper<EventTaskClaim>()
                         .eq(EventTaskClaim::getDeleted, 0)
@@ -510,6 +539,7 @@ public class EventTaskService {
             playerMapper.updateById(publisher);
         }
         LocalDateTime now = now();
+        task.setCategoryId(resolveCategoryId(request.getCategoryId()));
         task.setClaimFee(request.getClaimFee());
         task.setMaxClaimants(request.getMaxClaimants());
         task.setMaxRewardRecipients(rewardRecipients);
@@ -541,6 +571,7 @@ public class EventTaskService {
         task.setPublisherPlayerId(adminId);
         task.setPublisherNameSnapshot(admin.getName());
         task.setOfficial(1);
+        task.setCategoryId(resolveCategoryId(request.getCategoryId()));
         applyWrite(task, request);
         task.setAnonymous(0);
         task.setAnonymousFeeRateSnapshot(null);
@@ -1129,10 +1160,29 @@ public class EventTaskService {
     }
 
     private List<EventTaskDtos.TaskVO> toTaskVOs(List<EventTask> tasks, Player viewer, boolean includeClaims) {
-        return tasks.stream().map(task -> toTaskVO(task, viewer, includeClaims)).collect(Collectors.toList());
+        Map<Long, String> categoryNames = categoryNameMap(tasks);
+        return tasks.stream().map(task -> toTaskVO(task, viewer, includeClaims, categoryNames)).collect(Collectors.toList());
+    }
+
+    private Map<Long, String> categoryNameMap(List<EventTask> tasks) {
+        Set<Long> categoryIds = tasks.stream()
+                .map(EventTask::getCategoryId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (categoryIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return categoryMapper.selectBatchIds(categoryIds).stream()
+                .filter(category -> !Objects.equals(category.getDeleted(), 1))
+                .collect(Collectors.toMap(EventTaskCategory::getId, EventTaskCategory::getName));
     }
 
     private EventTaskDtos.TaskVO toTaskVO(EventTask task, Player viewer, boolean includeClaims) {
+        return toTaskVO(task, viewer, includeClaims,
+                categoryNameMap(List.of(task)));
+    }
+
+    private EventTaskDtos.TaskVO toTaskVO(EventTask task, Player viewer, boolean includeClaims, Map<Long, String> categoryNames) {
         EventTaskDtos.TaskVO vo = new EventTaskDtos.TaskVO();
         boolean owner = viewer != null && Objects.equals(viewer.getId(), task.getPublisherPlayerId());
         boolean anonymous = Integer.valueOf(1).equals(task.getAnonymous());
@@ -1143,6 +1193,8 @@ public class EventTaskService {
         vo.setPublisherName(maySeePublisher ? task.getPublisherNameSnapshot() : "匿名发布者");
         vo.setOfficial(Integer.valueOf(1).equals(task.getOfficial()));
         vo.setPinned(Integer.valueOf(1).equals(task.getPinned()));
+        vo.setCategoryId(task.getCategoryId());
+        vo.setCategoryName(task.getCategoryId() == null ? null : categoryNames.get(task.getCategoryId()));
         vo.setAnonymous(anonymous);
         vo.setRepeatable(Integer.valueOf(1).equals(task.getRepeatable()));
         vo.setTitle(task.getTitle());

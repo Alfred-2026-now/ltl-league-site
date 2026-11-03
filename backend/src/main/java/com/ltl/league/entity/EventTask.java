@@ -15,6 +15,7 @@ public class EventTask {
     private String publisherNameSnapshot;
     private Integer official;
     private Integer pinned;
+    private Long categoryId;
     private Integer anonymous;
     private Integer repeatable;
     private String title;

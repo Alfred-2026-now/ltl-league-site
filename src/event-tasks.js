@@ -10,6 +10,9 @@ const els = {
 let currentUser = null;
 let activeTab = "hall";
 let cachedPublished = [];
+let categories = [];
+let activeCategoryId = "";
+let hallTasks = [];
 let taskSettings = { anonymousMinimumFee: 50, anonymousFeeRate: 10, publicationFeeRate: 10, publicationFeeCap: 1000 };
 
 async function request(path, options = {}) {
@@ -97,7 +100,7 @@ function taskCard(task, mode = "hall") {
   return `<article class="panel task-card">
     <div class="task-card-heading">
       <div>
-        <div class="task-meta">${task.pinned && task.status === "PUBLISHED" ? '<span class="task-pinned">[置顶]</span>' : ""}<span class="task-status">${escapeHtml(statusText[task.status] || task.status)}</span>${task.official ? '<span class="task-official">官方任务</span>' : ""}</div>
+        <div class="task-meta">${task.pinned && task.status === "PUBLISHED" ? '<span class="task-pinned">[置顶]</span>' : ""}<span class="task-status">${escapeHtml(statusText[task.status] || task.status)}</span>${task.official ? '<span class="task-official">官方任务</span>' : ""}${task.categoryName ? `<span class="task-category">[${escapeHtml(task.categoryName)}]</span>` : ""}</div>
         <h2>${escapeHtml(task.title)}</h2>
         <p class="muted">发布者：${escapeHtml(publisherName)} · ${formatTime(task.publishedAt || task.createdAt)}</p>
       </div>
@@ -121,11 +124,29 @@ function taskCard(task, mode = "hall") {
   </article>`;
 }
 
+function renderCategoryChips() {
+  if (!categories.length) return "";
+  const chip = (id, label) => `<button class="btn ${String(activeCategoryId) === String(id) ? "primary" : ""}" type="button" data-category-chip="${id}">${escapeHtml(label)}</button>`;
+  return `<div class="task-tabs" role="tablist" aria-label="任务分类" style="margin-bottom:1rem;">${chip("", "全部")}${categories.map(category => chip(category.id, `${category.name}·${category.publishedCount ?? 0}`)).join("")}</div>`;
+}
+
+function renderHallList() {
+  const filtered = activeCategoryId
+    ? hallTasks.filter(task => String(task.categoryId) === String(activeCategoryId))
+    : hallTasks;
+  els.content.innerHTML = `${renderCategoryChips()}${filtered.length
+    ? `<div class="task-list">${filtered.map(task => taskCard(task)).join("")}</div>`
+    : `<div class="panel task-empty">${activeCategoryId ? "该分类下暂无进行中的任务。" : "当前暂无进行中的任务。"}</div>`}`;
+}
+
 async function renderHall() {
-  const tasks = await request("/event-tasks");
-  els.content.innerHTML = tasks.length
-    ? `<div class="task-list">${tasks.map(task => taskCard(task)).join("")}</div>`
-    : `<div class="panel task-empty">当前暂无进行中的任务。</div>`;
+  const [tasks, categoryList] = await Promise.all([
+    request("/event-tasks"),
+    request("/event-task-categories").catch(() => [])
+  ]);
+  hallTasks = tasks;
+  categories = categoryList;
+  renderHallList();
 }
 
 function publishForm() {
@@ -224,6 +245,12 @@ function taskPayload(form) {
 }
 
 document.addEventListener("click", async event => {
+  const categoryChip = event.target.closest("[data-category-chip]");
+  if (categoryChip) {
+    activeCategoryId = categoryChip.dataset.categoryChip || "";
+    renderHallList();
+    return;
+  }
   const tab = event.target.closest("[data-task-tab]");
   if (tab) {
     activeTab = tab.dataset.taskTab;

@@ -4,6 +4,7 @@ import com.ltl.league.common.Result;
 import com.ltl.league.dto.EventTaskDtos;
 import com.ltl.league.entity.Player;
 import com.ltl.league.service.CurrentPlayerService;
+import com.ltl.league.service.EventTaskCategoryService;
 import com.ltl.league.service.EventTaskService;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,10 +16,13 @@ public class EventTaskController {
     private static final String COOKIE_NAME = "ltl_auth";
 
     private final EventTaskService taskService;
+    private final EventTaskCategoryService categoryService;
     private final CurrentPlayerService currentPlayerService;
 
-    public EventTaskController(EventTaskService taskService, CurrentPlayerService currentPlayerService) {
+    public EventTaskController(EventTaskService taskService, EventTaskCategoryService categoryService,
+                               CurrentPlayerService currentPlayerService) {
         this.taskService = taskService;
+        this.categoryService = categoryService;
         this.currentPlayerService = currentPlayerService;
     }
 
@@ -27,10 +31,16 @@ public class EventTaskController {
         return Result.success(taskService.getPublicSettings());
     }
 
+    @GetMapping("/event-task-categories")
+    public Result<List<EventTaskDtos.CategoryVO>> categories() {
+        return Result.success(categoryService.listForPublic());
+    }
+
     @GetMapping("/event-tasks")
     public Result<List<EventTaskDtos.TaskVO>> list(
+            @RequestParam(value = "categoryId", required = false) Long categoryId,
             @CookieValue(value = COOKIE_NAME, required = false) String token) {
-        return Result.success(taskService.listPublic(currentPlayerService.optional(token)));
+        return Result.success(taskService.listPublic(currentPlayerService.optional(token), categoryId));
     }
 
     @GetMapping("/event-tasks/{taskId}")

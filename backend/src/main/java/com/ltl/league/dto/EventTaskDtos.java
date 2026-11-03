@@ -27,6 +27,8 @@ public final class EventTaskDtos {
         private Integer claimFee;
         private Integer maxClaimants;
         private Integer maxRewardRecipients;
+        // 审核发布时可选归类；null = 未分类
+        private Long categoryId;
     }
 
     @Data
@@ -39,6 +41,8 @@ public final class EventTaskDtos {
         private Integer claimFee;
         private Integer maxClaimants;
         private Integer maxRewardRecipients;
+        // 官方任务发布时可选归类；null = 未分类
+        private Long categoryId;
     }
 
     @Data
@@ -65,6 +69,28 @@ public final class EventTaskDtos {
     @Data
     public static class AdminPinRequest {
         private Boolean pinned;
+    }
+
+    @Data
+    public static class AdminTaskCategoryRequest {
+        // 目标分类ID；null = 归为未分类
+        private Long categoryId;
+    }
+
+    @Data
+    public static class AdminCategoryRequest {
+        private String name;
+        private Integer sortOrder;
+    }
+
+    @Data
+    public static class CategoryVO {
+        private Long id;
+        private String name;
+        private Integer sortOrder;
+        // 该分类下进行中的任务数（公开列表用）
+        private Long publishedCount;
+        private LocalDateTime createdAt;
     }
 
     @Data
@@ -135,6 +161,8 @@ public final class EventTaskDtos {
         private Boolean pinned;
         private Boolean anonymous;
         private Boolean repeatable;
+        private Long categoryId;
+        private String categoryName;
         private String title;
         private String requirements;
         @JsonProperty("pReward")

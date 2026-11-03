@@ -32,7 +32,8 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
     "adminTaskMessage", "pendingTaskList", "pendingProofList", "publishedTaskList",
     "completedTaskList", "closedTaskList", "claimHistoryList", "claimTaskFilter",
     "claimPlayerFilter", "claimStatusFilter", "officialTaskForm", "adminTaskEditDialog",
-    "adminTaskEditForm", "cancelAdminTaskEdit"
+    "adminTaskEditForm", "cancelAdminTaskEdit", "addCategoryForm", "categoryAdminList",
+    "officialCategorySelect"
   ]);
   const form = doc.elements.adminTaskEditForm;
   form.elements = Object.fromEntries(["taskId", "title", "requirements", "pReward", "bountyReward", "maxClaimants", "maxRewardRecipients", "budgetNote", "repeatable"]
@@ -67,6 +68,7 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
       return response(task);
     }
     if (url.endsWith("/admin/event-tasks")) return response([task]);
+    if (url.endsWith("/admin/event-task-categories")) return response([]);
     if (url.endsWith("/admin/event-task-proofs/pending")) return response([]);
     if (url.endsWith("/event-tasks/settings")) return response({ anonymousMinimumFee: 50, anonymousFeeRate: 10 });
     if (url.endsWith("/admin/event-task-claims")) return response(claims);
@@ -193,12 +195,14 @@ test("admin publish sends separate claim and reward limits", async () => {
     "adminTaskMessage", "pendingTaskList", "pendingProofList", "publishedTaskList",
     "completedTaskList", "closedTaskList", "claimHistoryList", "claimTaskFilter",
     "claimPlayerFilter", "claimStatusFilter", "officialTaskForm", "adminTaskEditDialog",
-    "adminTaskEditForm", "cancelAdminTaskEdit"
+    "adminTaskEditForm", "cancelAdminTaskEdit", "addCategoryForm", "categoryAdminList",
+    "officialCategorySelect"
   ]);
   doc.inputs = {
     '[data-fee="10"]': { value: "5" },
     '[data-max="10"]': { value: "999" },
-    '[data-reward-max="10"]': { value: "3" }
+    '[data-reward-max="10"]': { value: "3" },
+    '[data-category="10"]': { value: "" }
   };
   const task = {
     id: 10, status: "PENDING_REVIEW", title: "长期任务", requirements: "多次完成",
@@ -220,5 +224,5 @@ test("admin publish sends separate claim and reward limits", async () => {
   assert.match(doc.elements.pendingTaskList.innerHTML, /max="999"/);
   await doc.listeners.click({ target: { closest: selector => selector === "[data-publish]"
     ? { dataset: { publish: "10" } } : null } });
-  assert.deepEqual(writes[0].body, { claimFee: 5, maxClaimants: 999, maxRewardRecipients: 3 });
+  assert.deepEqual(writes[0].body, { claimFee: 5, maxClaimants: 999, maxRewardRecipients: 3, categoryId: null });
 });

@@ -4,6 +4,7 @@ import com.ltl.league.common.Result;
 import com.ltl.league.dto.EventTaskDtos;
 import com.ltl.league.entity.Player;
 import com.ltl.league.service.CurrentPlayerService;
+import com.ltl.league.service.EventTaskCategoryService;
 import com.ltl.league.service.EventTaskService;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,11 +16,56 @@ public class AdminEventTaskController {
     private static final String COOKIE_NAME = "ltl_auth";
 
     private final EventTaskService taskService;
+    private final EventTaskCategoryService categoryService;
     private final CurrentPlayerService currentPlayerService;
 
-    public AdminEventTaskController(EventTaskService taskService, CurrentPlayerService currentPlayerService) {
+    public AdminEventTaskController(EventTaskService taskService, EventTaskCategoryService categoryService,
+                                    CurrentPlayerService currentPlayerService) {
         this.taskService = taskService;
+        this.categoryService = categoryService;
         this.currentPlayerService = currentPlayerService;
+    }
+
+    @GetMapping("/event-task-categories")
+    public Result<List<EventTaskDtos.CategoryVO>> listCategories(
+            @CookieValue(value = COOKIE_NAME, required = false) String token) {
+        currentPlayerService.requireAdmin(token);
+        return Result.success(categoryService.listForAdmin());
+    }
+
+    @PostMapping("/event-task-categories")
+    public Result<EventTaskDtos.CategoryVO> createCategory(
+            @RequestBody EventTaskDtos.AdminCategoryRequest request,
+            @CookieValue(value = COOKIE_NAME, required = false) String token) {
+        currentPlayerService.requireAdmin(token);
+        return Result.success(categoryService.create(request));
+    }
+
+    @PutMapping("/event-task-categories/{categoryId}")
+    public Result<EventTaskDtos.CategoryVO> updateCategory(
+            @PathVariable Long categoryId,
+            @RequestBody EventTaskDtos.AdminCategoryRequest request,
+            @CookieValue(value = COOKIE_NAME, required = false) String token) {
+        currentPlayerService.requireAdmin(token);
+        return Result.success(categoryService.update(categoryId, request));
+    }
+
+    @DeleteMapping("/event-task-categories/{categoryId}")
+    public Result<Void> deleteCategory(
+            @PathVariable Long categoryId,
+            @CookieValue(value = COOKIE_NAME, required = false) String token) {
+        currentPlayerService.requireAdmin(token);
+        categoryService.delete(categoryId);
+        return Result.success();
+    }
+
+    @PutMapping("/event-tasks/{taskId}/category")
+    public Result<EventTaskDtos.TaskVO> setTaskCategory(
+            @PathVariable Long taskId,
+            @RequestBody EventTaskDtos.AdminTaskCategoryRequest request,
+            @CookieValue(value = COOKIE_NAME, required = false) String token) {
+        Player admin = currentPlayerService.requireAdmin(token);
+        return Result.success(taskService.setCategory(taskId, request, admin));
     }
 
     @GetMapping("/event-tasks")

@@ -436,6 +436,7 @@ CREATE TABLE IF NOT EXISTS `event_tasks` (
   `publisher_name_snapshot` VARCHAR(50) NOT NULL,
   `official` TINYINT NOT NULL DEFAULT 0,
   `pinned` TINYINT NOT NULL DEFAULT 0 COMMENT '是否在公开任务列表置顶',
+  `category_id` BIGINT UNSIGNED NULL COMMENT '任务分类，NULL=未分类',
   `anonymous` TINYINT NOT NULL DEFAULT 0,
   `repeatable` TINYINT NOT NULL DEFAULT 0,
   `title` VARCHAR(200) NOT NULL,
@@ -469,6 +470,16 @@ CREATE TABLE IF NOT EXISTS `event_tasks` (
   CONSTRAINT `fk_event_task_publisher` FOREIGN KEY (`publisher_player_id`) REFERENCES `players` (`id`),
   CONSTRAINT `fk_event_task_reviewer` FOREIGN KEY (`reviewed_by_player_id`) REFERENCES `players` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='赛事任务';
+
+CREATE TABLE IF NOT EXISTS `event_task_categories` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(50) NOT NULL COMMENT '分类名称',
+  `sort_order` INT NOT NULL DEFAULT 0 COMMENT '展示顺序，小的在前',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted` TINYINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='赛事任务分类';
 
 CREATE TABLE IF NOT EXISTS `event_task_reviews` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
