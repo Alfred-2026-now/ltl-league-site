@@ -1,6 +1,7 @@
 package com.ltl.league.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ltl.league.admin.service.AdminAssetService;
@@ -445,7 +446,10 @@ public class EventTaskService {
             throw new BusinessException(409, "只有本赛季进行中的任务可以设置分类");
         }
         task.setCategoryId(categoryId);
-        taskMapper.updateById(task);
+        // updateById 跳过 null 字段，清除归类需显式置空
+        taskMapper.update(null, new LambdaUpdateWrapper<EventTask>()
+                .set(EventTask::getCategoryId, categoryId)
+                .eq(EventTask::getId, task.getId()));
         return toTaskVO(task, admin, true);
     }
 
@@ -731,6 +735,12 @@ public class EventTaskService {
             }
         }
         taskMapper.updateById(task);
+        // 编辑时选择未分类：updateById 跳过 null 字段，需显式清空归类
+        if (task.getCategoryId() == null) {
+            taskMapper.update(null, new LambdaUpdateWrapper<EventTask>()
+                    .set(EventTask::getCategoryId, null)
+                    .eq(EventTask::getId, task.getId()));
+        }
         return toTaskVO(task, playerMapper.selectById(adminId), true);
     }
 

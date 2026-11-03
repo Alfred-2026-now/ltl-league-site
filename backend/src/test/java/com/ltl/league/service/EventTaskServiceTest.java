@@ -1,12 +1,17 @@
 package com.ltl.league.service;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.ltl.league.admin.service.AdminAssetService;
 import com.ltl.league.admin.service.RuleParameterService;
 import com.ltl.league.dto.EventTaskDtos;
 import com.ltl.league.entity.*;
 import com.ltl.league.exception.BusinessException;
 import com.ltl.league.mapper.*;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,10 +30,18 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class EventTaskServiceTest {
+    @BeforeAll
+    static void initMybatisPlusLambdaCache() {
+        MybatisConfiguration configuration = new MybatisConfiguration();
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(configuration, ""), EventTask.class);
+    }
+
     @Mock private EventTaskMapper taskMapper;
     @Mock private EventTaskReviewMapper reviewMapper;
     @Mock private EventTaskClaimMapper claimMapper;
@@ -243,6 +256,10 @@ class EventTaskServiceTest {
         EventTaskDtos.TaskVO cleared = service.setCategory(10L, request, admin);
         assertNull(cleared.getCategoryId());
         assertNull(cleared.getCategoryName());
+        // 设置与清除都必须走显式 UPDATE 落库：updateById 会跳过 null 字段
+        verify(taskMapper, times(2)).update(isNull(), argThat((LambdaUpdateWrapper<EventTask> wrapper) ->
+                wrapper.getSqlSet() != null && wrapper.getSqlSet().contains("category_id")));
+        verify(taskMapper, never()).updateById(any(EventTask.class));
     }
 
     @Test

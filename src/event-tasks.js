@@ -15,7 +15,9 @@ let activeCategoryId = "";
 let hallTasks = [];
 let hallPage = 1;
 let hallTotal = 0;
-const HALL_PAGE_SIZE = 12;
+const HALL_SIZE_OPTIONS = [6, 12, 24, 48];
+// 记住用户选择的每页条数；localStorage 不可用时静默降级
+let hallSize = Number(window.localStorage?.getItem?.("ltl-hall-page-size")) || HALL_SIZE_OPTIONS[1];
 let taskSettings = { anonymousMinimumFee: 50, anonymousFeeRate: 10, publicationFeeRate: 10, publicationFeeCap: 1000 };
 
 async function request(path, options = {}) {
@@ -134,11 +136,14 @@ function renderCategoryChips() {
 }
 
 function renderHallList() {
-  const pages = Math.max(1, Math.ceil(hallTotal / HALL_PAGE_SIZE));
-  const pager = pages <= 1 ? "" : `<div style="display:flex;gap:.5rem;align-items:center;margin-top:.75rem;">
+  const pages = Math.max(1, Math.ceil(hallTotal / hallSize));
+  // 总数不超过最小档位时不渲染分页条；提供每页条数选择
+  const pager = hallTotal <= Math.min(...HALL_SIZE_OPTIONS) ? "" : `<div style="display:flex;gap:.5rem;align-items:center;margin-top:.75rem;">
       <button class="btn" data-hall-page="-1" ${hallPage <= 1 ? "disabled" : ""}>上一页</button>
       <span class="muted">第 ${hallPage} / ${pages} 页 · 共 ${hallTotal} 条</span>
       <button class="btn" data-hall-page="1" ${hallPage >= pages ? "disabled" : ""}>下一页</button>
+      <select class="input" data-hall-size style="width:auto;" aria-label="每页条数">${HALL_SIZE_OPTIONS
+        .map(option => `<option value="${option}" ${option === hallSize ? "selected" : ""}>${option} 条/页</option>`).join("")}</select>
     </div>`;
   els.content.innerHTML = `${renderCategoryChips()}${hallTasks.length
     ? `<div class="task-list">${hallTasks.map(task => taskCard(task)).join("")}</div>${pager}`
@@ -147,7 +152,7 @@ function renderHallList() {
 
 async function renderHall() {
   categories = await request("/event-task-categories").catch(() => categories);
-  const query = `?page=${hallPage}&size=${HALL_PAGE_SIZE}${activeCategoryId ? `&categoryId=${activeCategoryId}` : ""}`;
+  const query = `?page=${hallPage}&size=${hallSize}${activeCategoryId ? `&categoryId=${activeCategoryId}` : ""}`;
   const data = await request(`/event-tasks${query}`);
   hallTasks = data.list;
   hallTotal = data.total;
@@ -249,6 +254,18 @@ function taskPayload(form) {
     repeatable: data.get("repeatable") === "on"
   };
 }
+
+// 切换每页条数：回到第一页并记住选择
+document.addEventListener("change", async event => {
+  const sizeSelect = event.target.closest("[data-hall-size]");
+  if (!sizeSelect) return;
+  const size = Number(sizeSelect.value);
+  if (!HALL_SIZE_OPTIONS.includes(size) || size === hallSize) return;
+  hallSize = size;
+  hallPage = 1;
+  try { window.localStorage?.setItem?.("ltl-hall-page-size", String(size)); } catch { /* 忽略存储失败 */ }
+  await renderHall();
+});
 
 document.addEventListener("click", async event => {
   const categoryChip = event.target.closest("[data-category-chip]");

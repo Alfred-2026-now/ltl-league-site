@@ -1,6 +1,7 @@
 package com.ltl.league.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.ltl.league.dto.EventTaskDtos;
 import com.ltl.league.entity.EventTask;
@@ -113,16 +114,12 @@ public class EventTaskCategoryService {
     @Transactional
     public void delete(Long categoryId) {
         EventTaskCategory category = requireCategory(categoryId);
-        category.setDeleted(1);
-        categoryMapper.updateById(category);
-        List<EventTask> tasks = taskMapper.selectList(new LambdaQueryWrapper<EventTask>()
-                .select(EventTask::getId)
-                .eq(EventTask::getCategoryId, categoryId)
-                .eq(EventTask::getDeleted, 0));
-        for (EventTask task : tasks) {
-            task.setCategoryId(null);
-            taskMapper.updateById(task);
-        }
+        // deleted 是全局逻辑删除字段，updateById 不会更新它，deleteById 才会生成置位语句
+        categoryMapper.deleteById(category.getId());
+        // updateById 跳过 null 字段，清空归类需用 UpdateWrapper 显式置 NULL
+        taskMapper.update(null, new LambdaUpdateWrapper<EventTask>()
+                .set(EventTask::getCategoryId, null)
+                .eq(EventTask::getCategoryId, category.getId()));
     }
 
     public EventTaskCategory requireCategory(Long categoryId) {

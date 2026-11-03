@@ -53,12 +53,18 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
       status: "COMPLETED", feeAmount: 50, pReward: 100, bountyReward: 20, claimedAt: "2026-09-19T12:00:00" }
   ];
   const writes = [];
+  const gets = [];
+  const stored = {};
   const confirmations = [];
   globalThis.document = doc;
-  globalThis.window = { location: { hostname: "example.test" }, localStorage: { getItem: () => null } };
+  globalThis.window = { location: { hostname: "example.test" }, localStorage: {
+    getItem: () => null,
+    setItem: (key, value) => { stored[key] = value; }
+  } };
   globalThis.prompt = () => "管理员调整";
   globalThis.confirm = text => { confirmations.push(text); return true; };
   globalThis.fetch = async (url, options = {}) => {
+    if (!options.method || options.method === "GET") gets.push(url);
     if (options.method && options.method !== "GET") writes.push({ url, options });
     if (url.endsWith("/admin/event-tasks/10/pin")) {
       task.pinned = JSON.parse(options.body).pinned;
@@ -72,7 +78,7 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
     if (url.includes("/admin/event-tasks?")) {
       const statuses = new URL(url, "https://example.test").searchParams.get("statuses") || "";
       const list = statuses.includes("PUBLISHED") ? [task] : [];
-      return response({ list, total: list.length, page: 1, size: 20 });
+      return response({ list, total: statuses.includes("PUBLISHED") ? 45 : list.length, page: 1, size: 20 });
     }
     if (url.endsWith("/admin/event-task-categories")) return response([
       { id: 1, name: "官方任务", sortOrder: 0, publishedCount: 1, taskCount: 2, createdAt: "2026-11-03T23:23:20" }
@@ -165,6 +171,14 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
   const categoryWrite = writes.find(write => write.url === "/api/admin/event-task-categories/1");
   assert.ok(categoryWrite);
   assert.deepEqual(JSON.parse(categoryWrite.options.body), { name: "官方任务改", sortOrder: 2 });
+
+  // 每页条数选择：切换后回到第一页并按新条数重新请求
+  assert.match(doc.elements.publishedTaskList.innerHTML, /data-page-size="published"/);
+  assert.match(doc.elements.publishedTaskList.innerHTML, /共 45 条/);
+  await doc.listeners.change({ target: { closest: selector => selector === "[data-page-size]"
+    ? { dataset: { pageSize: "published" }, value: "50" } : null } });
+  assert.ok(gets.some(url => url.includes("statuses=PUBLISHED") && url.includes("size=50")));
+  assert.match(stored["ltl-task-page-sizes"], /"published":50/);
 });
 
 test("player task hall shows the administrator cancellation cooldown", async () => {
@@ -177,10 +191,12 @@ test("player task hall shows the administrator cancellation cooldown", async () 
   };
   globalThis.document = doc;
   globalThis.window = { location: { hostname: "example.test" }, localStorage: { getItem: () => null } };
+  const hallGets = [];
   globalThis.fetch = async url => {
+    hallGets.push(url);
     if (url.endsWith("/auth/current")) return response({ id: 2, name: "甲" });
     if (url.endsWith("/event-tasks/settings")) return response({ anonymousMinimumFee: 50, anonymousFeeRate: 10 });
-    if (url.includes("/event-tasks?")) return response({ list: [task], total: 1, page: 1, size: 12 });
+    if (url.includes("/event-tasks?")) return response({ list: [task], total: 30, page: 1, size: 12 });
     return response([]);
   };
 
@@ -188,6 +204,12 @@ test("player task hall shows the administrator cancellation cooldown", async () 
   assert.match(doc.elements.taskContent.innerHTML, /冷却中，可重新接取时间/);
   assert.match(doc.elements.taskContent.innerHTML, /新要求/);
   assert.match(doc.elements.taskContent.innerHTML, /\[置顶\]/);
+  // 大厅每页条数选择：切换后按新条数重新请求
+  assert.match(doc.elements.taskContent.innerHTML, /data-hall-size/);
+  assert.match(doc.elements.taskContent.innerHTML, /共 30 条/);
+  await doc.listeners.change({ target: { closest: selector => selector === "[data-hall-size]"
+    ? { value: "24" } : null } });
+  assert.ok(hallGets.some(url => url.includes("size=24")));
 });
 
 test("task hall allows claiming expanded slots without reserving reward places", async () => {

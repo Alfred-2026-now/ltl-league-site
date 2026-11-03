@@ -9,7 +9,18 @@ let completionHistory = [];
 let categories = [];
 // 分页状态：各区块独立翻页
 const PAGE_SIZES = { pending: 20, published: 20, closed: 20, completions: 15, claims: 15 };
-const sectionState = Object.fromEntries(Object.keys(PAGE_SIZES).map(key => [key, { page: 1, total: 0 }]));
+const SIZE_OPTIONS = [10, 15, 20, 50, 100];
+// 记住用户选择的每页条数；localStorage 不可用时静默降级
+const savedSectionSizes = (() => {
+  try { return JSON.parse(window.localStorage?.getItem?.("ltl-task-page-sizes") || "{}"); } catch { return {}; }
+})();
+const sectionState = Object.fromEntries(Object.keys(PAGE_SIZES).map(key => [key, { page: 1, total: 0, size: savedSectionSizes[key] || PAGE_SIZES[key] }]));
+function rememberSectionSizes() {
+  try {
+    window.localStorage?.setItem?.("ltl-task-page-sizes", JSON.stringify(Object.fromEntries(
+      Object.entries(sectionState).map(([name, state]) => [name, state.size]))));
+  } catch { /* 忽略存储失败 */ }
+}
 const claimFilters = { taskTitle: "", player: "", status: "" };
 let claimFilterTimer = null;
 
@@ -113,8 +124,8 @@ function renderCategoryAdmin() {
 
 // 各区块的分页查询参数
 function sectionQuery(section) {
-  const { page } = sectionState[section];
-  const params = new URLSearchParams({ page, size: PAGE_SIZES[section] });
+  const { page, size } = sectionState[section];
+  const params = new URLSearchParams({ page, size });
   if (section === "pending") params.set("statuses", "PENDING_REVIEW");
   if (section === "published") params.set("statuses", "PUBLISHED");
   if (section === "closed") params.set("statuses", "CLOSED,ABANDONED");
@@ -128,13 +139,17 @@ function sectionQuery(section) {
 }
 
 function pager(section) {
-  const { page, total } = sectionState[section];
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZES[section]));
-  if (total <= PAGE_SIZES[section]) return "";
+  const { page, total, size } = sectionState[section];
+  const pages = Math.max(1, Math.ceil(total / size));
+  // 总数不多的区块不渲染分页条；超过最小档位后提供每页条数选择
+  if (total <= Math.min(...SIZE_OPTIONS)) return "";
+  const sizeSelect = `<select class="input" data-page-size="${section}" style="width:auto;" aria-label="每页条数">${SIZE_OPTIONS
+    .map(option => `<option value="${option}" ${option === size ? "selected" : ""}>${option} 条/页</option>`).join("")}</select>`;
   return `<div style="display:flex;gap:.5rem;align-items:center;margin-top:.5rem;">
     <button class="btn" data-page-section="${section}" data-page-delta="-1" ${page <= 1 ? "disabled" : ""}>上一页</button>
     <span class="muted">第 ${page} / ${pages} 页 · 共 ${total} 条</span>
     <button class="btn" data-page-section="${section}" data-page-delta="1" ${page >= pages ? "disabled" : ""}>下一页</button>
+    ${sizeSelect}
   </div>`;
 }
 
@@ -192,7 +207,7 @@ document.addEventListener("click", async event => {
   const pagerButton = event.target.closest("[data-page-section]");
   if (pagerButton) {
     const section = pagerButton.dataset.pageSection;
-    const pages = Math.max(1, Math.ceil(sectionState[section].total / PAGE_SIZES[section]));
+    const pages = Math.max(1, Math.ceil(sectionState[section].total / sectionState[section].size));
     const next = Math.min(Math.max(1, sectionState[section].page + Number(pagerButton.dataset.pageDelta)), pages);
     if (next !== sectionState[section].page) {
       sectionState[section].page = next;
@@ -299,6 +314,19 @@ document.addEventListener("click", async event => {
 });
 
 document.addEventListener("change", async event => {
+  // 切换每页条数：回到第一页并记住选择
+  const sizeSelect = event.target.closest("[data-page-size]");
+  if (sizeSelect) {
+    const section = sizeSelect.dataset.pageSize;
+    const size = Number(sizeSelect.value);
+    if (SIZE_OPTIONS.includes(size) && size !== sectionState[section]?.size) {
+      sectionState[section].size = size;
+      sectionState[section].page = 1;
+      rememberSectionSizes();
+      await load();
+    }
+    return;
+  }
   const checkbox = event.target.closest("[data-pin-task]");
   if (checkbox) {
     checkbox.disabled = true;

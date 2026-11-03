@@ -267,8 +267,8 @@ public class PlayerReviewServiceImpl {
     public void deleteReview(Long actorPlayerId, Integer role, Long reviewId) {
         requireAdmin(role);
         PlayerReview review = requireReview(reviewId);
-        review.setDeleted(1);
-        reviewMapper.updateById(review);
+        // deleted 是全局逻辑删除字段，updateById 不会更新它，deleteById 才会生成置位语句
+        reviewMapper.deleteById(review.getId());
     }
 
     private Player requirePlayer(Long playerId) {
