@@ -1207,7 +1207,76 @@ public class EventTaskService {
 
     private List<EventTaskDtos.TaskVO> toTaskVOs(List<EventTask> tasks, Player viewer, boolean includeClaims) {
         Map<Long, String> categoryNames = categoryNameMap(tasks);
-        return tasks.stream().map(task -> toTaskVO(task, viewer, includeClaims, categoryNames)).collect(Collectors.toList());
+        // 管理端列表时一次性预取接取记录、选手、完成证明与图片，避免逐条记录的 N+1 查询
+        ClaimBatch batch = includeClaims ? loadClaimBatch(tasks) : null;
+        return tasks.stream().map(task -> toTaskVO(task, viewer, includeClaims, categoryNames, batch)).collect(Collectors.toList());
+    }
+
+    /** 列表页的批量预取上下文：按任务/证明分组的接取记录、证明、图片，以及选手表 */
+    private static class ClaimBatch {
+        final Map<Long, EventTask> tasksById = new HashMap<>();
+        final Map<Long, List<EventTaskClaim>> claimsByTask = new HashMap<>();
+        final Map<Long, Player> players = new HashMap<>();
+        final Map<Long, List<EventTaskProof>> proofsByClaim = new HashMap<>();
+        final Map<Long, List<EventTaskProofImage>> imagesByProof = new HashMap<>();
+    }
+
+    private ClaimBatch loadClaimBatch(List<EventTask> tasks) {
+        ClaimBatch batch = new ClaimBatch();
+        for (EventTask task : tasks) {
+            batch.tasksById.put(task.getId(), task);
+        }
+        if (tasks.isEmpty()) {
+            return batch;
+        }
+        List<EventTaskClaim> claims = claimMapper.selectList(new LambdaQueryWrapper<EventTaskClaim>()
+                .in(EventTaskClaim::getTaskId, batch.tasksById.keySet())
+                .eq(EventTaskClaim::getDeleted, 0)
+                .orderByDesc(EventTaskClaim::getClaimedAt)
+                .orderByDesc(EventTaskClaim::getId));
+        Set<Long> playerIds = new HashSet<>();
+        for (EventTaskClaim claim : claims) {
+            batch.claimsByTask.computeIfAbsent(claim.getTaskId(), key -> new ArrayList<>()).add(claim);
+            if (claim.getPlayerId() != null) {
+                playerIds.add(claim.getPlayerId());
+            }
+        }
+        Set<Long> proofIds = new HashSet<>();
+        if (!claims.isEmpty()) {
+            List<EventTaskProof> proofs = proofMapper.selectList(new LambdaQueryWrapper<EventTaskProof>()
+                    .in(EventTaskProof::getClaimId, claims.stream().map(EventTaskClaim::getId).collect(Collectors.toSet()))
+                    .eq(EventTaskProof::getDeleted, 0)
+                    .orderByDesc(EventTaskProof::getAttemptNo));
+            for (EventTaskProof proof : proofs) {
+                batch.proofsByClaim.computeIfAbsent(proof.getClaimId(), key -> new ArrayList<>()).add(proof);
+                proofIds.add(proof.getId());
+                if (proof.getPlayerId() != null) {
+                    playerIds.add(proof.getPlayerId());
+                }
+            }
+        }
+        if (!proofIds.isEmpty()) {
+            proofImageMapper.selectList(new LambdaQueryWrapper<EventTaskProofImage>()
+                            .in(EventTaskProofImage::getProofId, proofIds)
+                            .eq(EventTaskProofImage::getDeleted, 0)
+                            .orderByAsc(EventTaskProofImage::getId))
+                    .forEach(image -> batch.imagesByProof.computeIfAbsent(image.getProofId(), key -> new ArrayList<>()).add(image));
+        }
+        if (!playerIds.isEmpty()) {
+            playerMapper.selectBatchIds(playerIds).forEach(player -> batch.players.put(player.getId(), player));
+        }
+        return batch;
+    }
+
+    /** 与 findClaim 语义一致：取该选手 id 最大的一条接取记录 */
+    private EventTaskClaim latestClaim(List<EventTaskClaim> claims, Long playerId) {
+        if (claims == null) {
+            return null;
+        }
+        return claims.stream()
+                .filter(claim -> playerId.equals(claim.getPlayerId()))
+                .max(Comparator.comparing(EventTaskClaim::getId))
+                .orElse(null);
     }
 
     private int[] normalizePaging(int page, int size) {
@@ -1238,10 +1307,11 @@ public class EventTaskService {
 
     private EventTaskDtos.TaskVO toTaskVO(EventTask task, Player viewer, boolean includeClaims) {
         return toTaskVO(task, viewer, includeClaims,
-                categoryNameMap(List.of(task)));
+                categoryNameMap(List.of(task)), null);
     }
 
-    private EventTaskDtos.TaskVO toTaskVO(EventTask task, Player viewer, boolean includeClaims, Map<Long, String> categoryNames) {
+    private EventTaskDtos.TaskVO toTaskVO(EventTask task, Player viewer, boolean includeClaims,
+                                           Map<Long, String> categoryNames, ClaimBatch batch) {
         EventTaskDtos.TaskVO vo = new EventTaskDtos.TaskVO();
         boolean owner = viewer != null && Objects.equals(viewer.getId(), task.getPublisherPlayerId());
         boolean anonymous = Integer.valueOf(1).equals(task.getAnonymous());
@@ -1283,7 +1353,9 @@ public class EventTaskService {
         vo.setCloseReason(task.getCloseReason());
         vo.setCreatedAt(task.getCreatedAt());
         vo.setOwnedByViewer(owner);
-        EventTaskClaim viewerClaim = viewer == null ? null : findClaim(task.getId(), viewer.getId());
+        EventTaskClaim viewerClaim = viewer == null ? null
+                : batch != null ? latestClaim(batch.claimsByTask.get(task.getId()), viewer.getId())
+                : findClaim(task.getId(), viewer.getId());
         vo.setViewerClaimStatus(viewerClaim == null ? null : viewerClaim.getStatus());
         vo.setViewerClaimId(viewerClaim == null ? null : viewerClaim.getId());
         LocalDateTime reclaimAt = viewerClaim != null && ADMIN_CANCELLED.equals(viewerClaim.getStatus())
@@ -1297,23 +1369,31 @@ public class EventTaskService {
                 && (!owner || Integer.valueOf(1).equals(task.getOfficial())) && priorClaimAllowsRepeat
                 && vo.getRemainingSlots() != null && vo.getRemainingSlots() > 0);
         if (includeClaims) {
-            vo.setClaims(claimMapper.selectList(new LambdaQueryWrapper<EventTaskClaim>()
+            List<EventTaskClaim> taskClaims = batch != null
+                    ? batch.claimsByTask.getOrDefault(task.getId(), List.of())
+                    : claimMapper.selectList(new LambdaQueryWrapper<EventTaskClaim>()
                             .eq(EventTaskClaim::getTaskId, task.getId())
                             .eq(EventTaskClaim::getDeleted, 0)
-                            .orderByDesc(EventTaskClaim::getClaimedAt))
-                    .stream().map(claim -> toClaimVO(claim, true)).collect(Collectors.toList()));
+                            .orderByDesc(EventTaskClaim::getClaimedAt));
+            vo.setClaims(taskClaims.stream().map(claim -> toClaimVO(claim, true, batch)).collect(Collectors.toList()));
         }
         return vo;
     }
 
     private EventTaskDtos.ClaimVO toClaimVO(EventTaskClaim claim, boolean includeProofs) {
+        return toClaimVO(claim, includeProofs, null);
+    }
+
+    private EventTaskDtos.ClaimVO toClaimVO(EventTaskClaim claim, boolean includeProofs, ClaimBatch batch) {
         EventTaskDtos.ClaimVO vo = new EventTaskDtos.ClaimVO();
         vo.setId(claim.getId());
         vo.setTaskId(claim.getTaskId());
         vo.setPlayerId(claim.getPlayerId());
-        Player player = playerMapper.selectById(claim.getPlayerId());
+        Player player = batch != null ? batch.players.get(claim.getPlayerId())
+                : playerMapper.selectById(claim.getPlayerId());
         vo.setPlayerName(player == null ? "" : player.getName());
-        EventTask task = taskMapper.selectById(claim.getTaskId());
+        EventTask task = batch != null ? batch.tasksById.get(claim.getTaskId())
+                : taskMapper.selectById(claim.getTaskId());
         vo.setTaskTitle(claim.getTitleSnapshot() != null ? claim.getTitleSnapshot() : task == null ? "" : task.getTitle());
         vo.setTaskRequirements(claim.getRequirementsSnapshot() != null ? claim.getRequirementsSnapshot()
                 : task == null ? "" : task.getRequirements());
@@ -1357,22 +1437,29 @@ public class EventTaskService {
                 && List.of(CLAIMED, PROOF_PENDING, PROOF_RETURNED).contains(claim.getStatus())
                 && task != null && TASK_PUBLISHED.equals(task.getStatus()));
         if (includeProofs) {
-            vo.setProofs(proofMapper.selectList(new LambdaQueryWrapper<EventTaskProof>()
+            List<EventTaskProof> proofs = batch != null
+                    ? batch.proofsByClaim.getOrDefault(claim.getId(), List.of())
+                    : proofMapper.selectList(new LambdaQueryWrapper<EventTaskProof>()
                             .eq(EventTaskProof::getClaimId, claim.getId())
                             .eq(EventTaskProof::getDeleted, 0)
-                            .orderByDesc(EventTaskProof::getAttemptNo))
-                    .stream().map(this::toProofVO).collect(Collectors.toList()));
+                            .orderByDesc(EventTaskProof::getAttemptNo));
+            vo.setProofs(proofs.stream().map(proof -> toProofVO(proof, batch)).collect(Collectors.toList()));
         }
         return vo;
     }
 
     private EventTaskDtos.ProofVO toProofVO(EventTaskProof proof) {
+        return toProofVO(proof, null);
+    }
+
+    private EventTaskDtos.ProofVO toProofVO(EventTaskProof proof, ClaimBatch batch) {
         EventTaskDtos.ProofVO vo = new EventTaskDtos.ProofVO();
         vo.setId(proof.getId());
         vo.setTaskId(proof.getTaskId());
         vo.setClaimId(proof.getClaimId());
         vo.setPlayerId(proof.getPlayerId());
-        Player player = playerMapper.selectById(proof.getPlayerId());
+        Player player = batch != null ? batch.players.get(proof.getPlayerId())
+                : playerMapper.selectById(proof.getPlayerId());
         vo.setPlayerName(player == null ? "" : player.getName());
         vo.setAttemptNo(proof.getAttemptNo());
         vo.setDescription(proof.getDescription());
@@ -1380,11 +1467,13 @@ public class EventTaskService {
         vo.setReviewComment(proof.getReviewComment());
         vo.setReviewedAt(proof.getReviewedAt());
         vo.setCreatedAt(proof.getCreatedAt());
-        vo.setImages(proofImageMapper.selectList(new LambdaQueryWrapper<EventTaskProofImage>()
+        List<EventTaskProofImage> images = batch != null
+                ? batch.imagesByProof.getOrDefault(proof.getId(), List.of())
+                : proofImageMapper.selectList(new LambdaQueryWrapper<EventTaskProofImage>()
                         .eq(EventTaskProofImage::getProofId, proof.getId())
                         .eq(EventTaskProofImage::getDeleted, 0)
-                        .orderByAsc(EventTaskProofImage::getId))
-                .stream().map(image -> {
+                        .orderByAsc(EventTaskProofImage::getId));
+        vo.setImages(images.stream().map(image -> {
                     EventTaskDtos.ImageVO imageVO = new EventTaskDtos.ImageVO();
                     imageVO.setId(image.getId());
                     imageVO.setLabel(image.getLabel());

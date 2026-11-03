@@ -301,6 +301,45 @@ class EventTaskServiceTest {
     }
 
     @Test
+    void adminTaskListBatchesClaimsPlayersAndProofs() {
+        EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
+        Player admin = player(9L, "管理员", 0, 0);
+        EventTaskClaim claim = claim(88L, 10L, 2L, LocalDateTime.of(2026, 9, 20, 10, 0));
+        EventTaskProof proof = new EventTaskProof();
+        proof.setId(99L);
+        proof.setTaskId(10L);
+        proof.setClaimId(88L);
+        proof.setPlayerId(2L);
+        proof.setAttemptNo(1);
+        proof.setStatus(EventTaskService.PROOF_STATUS_APPROVED);
+        EventTaskProofImage image = new EventTaskProofImage();
+        image.setId(7L);
+        image.setProofId(99L);
+        image.setLabel("截图");
+        image.setUrl("/assets/proof.webp");
+        when(taskMapper.selectCount(any())).thenReturn(1L);
+        when(taskMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(task));
+        when(claimMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(claim));
+        when(proofMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(proof));
+        when(proofImageMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(image));
+        when(playerMapper.selectBatchIds(any())).thenReturn(List.of(player(2L, "完成者", 0, 0)));
+
+        EventTaskDtos.TaskVO vo = service.listAdminTasks(null, 1, 20, admin).getList().get(0);
+
+        assertEquals(1, vo.getClaims().size());
+        assertEquals("完成者", vo.getClaims().get(0).getPlayerName());
+        // claim 未带标题快照时从批量任务表回退到任务标题
+        assertEquals("测试任务", vo.getClaims().get(0).getTaskTitle());
+        assertEquals(1, vo.getClaims().get(0).getProofs().size());
+        assertEquals("完成者", vo.getClaims().get(0).getProofs().get(0).getPlayerName());
+        assertEquals("截图", vo.getClaims().get(0).getProofs().get(0).getImages().get(0).getLabel());
+        // 批量路径不应触发逐条查询
+        verify(playerMapper, never()).selectById(any());
+        verify(taskMapper, never()).selectById(any());
+        verify(claimMapper, never()).selectOne(any());
+    }
+
+    @Test
     void publisherCanStillSeeOwnBudgetNote() {
         EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
         task.setBudgetNote("最多5人，供管理员审核");
