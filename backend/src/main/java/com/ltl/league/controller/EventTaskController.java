@@ -37,10 +37,12 @@ public class EventTaskController {
     }
 
     @GetMapping("/event-tasks")
-    public Result<List<EventTaskDtos.TaskVO>> list(
+    public Result<EventTaskDtos.PageVO<EventTaskDtos.TaskVO>> list(
             @RequestParam(value = "categoryId", required = false) Long categoryId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "12") int size,
             @CookieValue(value = COOKIE_NAME, required = false) String token) {
-        return Result.success(taskService.listPublic(currentPlayerService.optional(token), categoryId));
+        return Result.success(taskService.listPublic(currentPlayerService.optional(token), categoryId, page, size));
     }
 
     @GetMapping("/event-tasks/{taskId}")

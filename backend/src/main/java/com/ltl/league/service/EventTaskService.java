@@ -115,9 +115,12 @@ public class EventTaskService {
         return settings;
     }
 
-    public List<EventTaskDtos.TaskVO> listPublic(Player viewer, Long categoryId) {
+    public EventTaskDtos.PageVO<EventTaskDtos.TaskVO> listPublic(Player viewer, Long categoryId, int page, int size) {
         // 置顶任务优先；非置顶任务按P币奖励从高到低，同奖励按发布时间倒序
-        List<EventTask> tasks = taskMapper.selectList(new LambdaQueryWrapper<EventTask>()
+        int[] paging = normalizePaging(page, size);
+        page = paging[0];
+        size = paging[1];
+        LambdaQueryWrapper<EventTask> query = new LambdaQueryWrapper<EventTask>()
                 .eq(EventTask::getSeason, currentSeason)
                 .eq(EventTask::getStatus, TASK_PUBLISHED)
                 .eq(EventTask::getDeleted, 0)
@@ -125,8 +128,11 @@ public class EventTaskService {
                 .orderByDesc(EventTask::getPinned)
                 .orderByDesc(EventTask::getPReward)
                 .orderByDesc(EventTask::getPublishedAt)
-                .orderByDesc(EventTask::getId));
-        return toTaskVOs(tasks, viewer, false);
+                .orderByDesc(EventTask::getId);
+        long total = taskMapper.selectCount(query);
+        List<EventTask> tasks = total == 0 ? List.of()
+                : taskMapper.selectList(query.last("LIMIT " + size + " OFFSET " + (page - 1) * size));
+        return pageOf(toTaskVOs(tasks, viewer, false), total, page, size);
     }
 
     public EventTaskDtos.TaskVO getPublicDetail(Long taskId, Player viewer) {
@@ -166,8 +172,7 @@ public class EventTaskService {
         task.setPublisherNameSnapshot(publisher.getName());
         task.setOfficial(0);
         applyWrite(task, request);
-        // 玩家发布时可自选分类，审核发布时管理员仍可调整
-        task.setCategoryId(resolveCategoryId(request.getCategoryId()));
+        // 玩家提交时不指定分类，由管理员在审核发布时归类
         task.setAnonymousFeeAmount(0);
         task.setClaimedCount(0);
         task.setCompletedCount(0);
@@ -400,13 +405,21 @@ public class EventTaskService {
         return toProofVO(proof);
     }
 
-    public List<EventTaskDtos.TaskVO> listAdminTasks(String status, Player admin) {
+    public EventTaskDtos.PageVO<EventTaskDtos.TaskVO> listAdminTasks(List<String> statuses, int page, int size, Player admin) {
+        int[] paging = normalizePaging(page, size);
+        page = paging[0];
+        size = paging[1];
         LambdaQueryWrapper<EventTask> query = new LambdaQueryWrapper<EventTask>()
                 .eq(EventTask::getSeason, currentSeason)
                 .eq(EventTask::getDeleted, 0)
-                .eq(status != null && !status.isBlank(), EventTask::getStatus, status)
-                .orderByDesc(EventTask::getCreatedAt);
-        return toTaskVOs(taskMapper.selectList(query), admin, true);
+                .in(statuses != null && !statuses.isEmpty(), EventTask::getStatus, statuses)
+                .orderByDesc(EventTask::getPinned)
+                .orderByDesc(EventTask::getCreatedAt)
+                .orderByDesc(EventTask::getId);
+        long total = taskMapper.selectCount(query);
+        List<EventTask> tasks = total == 0 ? List.of()
+                : taskMapper.selectList(query.last("LIMIT " + size + " OFFSET " + (page - 1) * size));
+        return pageOf(toTaskVOs(tasks, admin, true), total, page, size);
     }
 
     @Transactional
@@ -448,12 +461,41 @@ public class EventTaskService {
         return categoryId;
     }
 
-    public List<EventTaskDtos.ClaimVO> listAdminClaimHistory() {
-        return claimMapper.selectList(new LambdaQueryWrapper<EventTaskClaim>()
-                        .eq(EventTaskClaim::getDeleted, 0)
-                        .orderByDesc(EventTaskClaim::getClaimedAt)
-                        .orderByDesc(EventTaskClaim::getId))
-                .stream().map(claim -> toClaimVO(claim, false)).collect(Collectors.toList());
+    public EventTaskDtos.PageVO<EventTaskDtos.ClaimVO> listAdminClaimHistory(int page, int size, List<String> statuses,
+                                                                              Long taskId, String taskTitle, String player) {
+        int[] paging = normalizePaging(page, size);
+        page = paging[0];
+        size = paging[1];
+        String title = taskTitle == null ? "" : taskTitle.trim();
+        String playerQuery = player == null ? "" : player.trim();
+        LambdaQueryWrapper<EventTaskClaim> query = new LambdaQueryWrapper<EventTaskClaim>()
+                .eq(EventTaskClaim::getDeleted, 0)
+                .in(statuses != null && !statuses.isEmpty(), EventTaskClaim::getStatus, statuses)
+                .eq(taskId != null, EventTaskClaim::getTaskId, taskId)
+                .like(!title.isEmpty(), EventTaskClaim::getTitleSnapshot, title);
+        if (!playerQuery.isEmpty()) {
+            List<Long> playerIds = new java.util.ArrayList<>();
+            if (playerQuery.matches("\\d+")) {
+                playerIds.add(Long.valueOf(playerQuery));
+            }
+            playerMapper.selectList(new LambdaQueryWrapper<Player>()
+                            .select(Player::getId)
+                            .like(Player::getName, playerQuery)
+                            .last("LIMIT 100"))
+                    .forEach(found -> playerIds.add(found.getId()));
+            if (playerIds.isEmpty()) {
+                return pageOf(List.of(), 0, page, size);
+            }
+            query.in(EventTaskClaim::getPlayerId, playerIds);
+        }
+        query.orderByDesc(EventTaskClaim::getClaimedAt).orderByDesc(EventTaskClaim::getId);
+        long total = claimMapper.selectCount(query);
+        List<EventTaskClaim> claims = total == 0 ? List.of()
+                : claimMapper.selectList(query.last("LIMIT " + size + " OFFSET " + (page - 1) * size));
+        // 完成历史需要展示证明截图
+        boolean withProofs = statuses != null && statuses.stream().anyMatch(
+                status -> COMPLETED.equals(status) || COMPLETION_REVOKED.equals(status));
+        return pageOf(claims.stream().map(claim -> toClaimVO(claim, withProofs)).collect(Collectors.toList()), total, page, size);
     }
 
     public List<EventTaskDtos.ProofVO> listPendingProofs() {
@@ -659,6 +701,8 @@ public class EventTaskService {
         if (request.getRepeatable() != null) {
             task.setRepeatable(Boolean.TRUE.equals(request.getRepeatable()) ? 1 : 0);
         }
+        // 编辑时可同步调整任务分类
+        task.setCategoryId(resolveCategoryId(request.getCategoryId()));
         if (!official) {
             task.setEscrowRemaining(newRemaining);
             task.setEscrowTotal(newTotal);
@@ -1166,6 +1210,19 @@ public class EventTaskService {
         return tasks.stream().map(task -> toTaskVO(task, viewer, includeClaims, categoryNames)).collect(Collectors.toList());
     }
 
+    private int[] normalizePaging(int page, int size) {
+        return new int[]{Math.max(1, page), Math.min(Math.max(1, size), 100)};
+    }
+
+    private <T> EventTaskDtos.PageVO<T> pageOf(List<T> list, long total, int page, int size) {
+        EventTaskDtos.PageVO<T> result = new EventTaskDtos.PageVO<>();
+        result.setList(list);
+        result.setTotal(total);
+        result.setPage(page);
+        result.setSize(size);
+        return result;
+    }
+
     private Map<Long, String> categoryNameMap(List<EventTask> tasks) {
         Set<Long> categoryIds = tasks.stream()
                 .map(EventTask::getCategoryId)
@@ -1261,6 +1318,11 @@ public class EventTaskService {
         vo.setTaskRequirements(claim.getRequirementsSnapshot() != null ? claim.getRequirementsSnapshot()
                 : task == null ? "" : task.getRequirements());
         vo.setTaskSeason(task == null ? "" : task.getSeason());
+        // 所属任务快照，供管理端分页列表直接使用
+        vo.setTaskStatus(task == null ? null : task.getStatus());
+        vo.setTaskOfficial(task != null && Integer.valueOf(1).equals(task.getOfficial()));
+        vo.setTaskPublisherName(task == null ? null : task.getPublisherNameSnapshot());
+        vo.setTaskAnonymous(task != null && Integer.valueOf(1).equals(task.getAnonymous()));
         vo.setStatus(claim.getStatus());
         vo.setFeeAmount(safe(claim.getFeeAmount()));
         vo.setPReward(safe(claim.getPRewardSnapshot()));

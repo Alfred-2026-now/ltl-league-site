@@ -178,14 +178,16 @@ class EventTaskServiceTest {
     void publicTaskListDoesNotExposeAdminBudgetNote() {
         EventTask task = task(10L, 1L, 100, 20, EventTaskService.TASK_PUBLISHED);
         task.setBudgetNote("最多5人，供管理员审核");
+        when(taskMapper.selectCount(any())).thenReturn(1L);
         when(taskMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(task));
 
-        List<EventTaskDtos.TaskVO> result = service.listPublic(null, null);
+        EventTaskDtos.PageVO<EventTaskDtos.TaskVO> result = service.listPublic(null, null, 1, 20);
 
-        assertEquals(1, result.size());
-        assertNull(result.get(0).getBudgetNote());
-        assertEquals(100, result.get(0).getPReward());
-        assertEquals(20, result.get(0).getBountyReward());
+        assertEquals(1, result.getList().size());
+        assertEquals(1L, result.getTotal());
+        assertNull(result.getList().get(0).getBudgetNote());
+        assertEquals(100, result.getList().get(0).getPReward());
+        assertEquals(20, result.getList().get(0).getBountyReward());
     }
 
     @Test
@@ -256,16 +258,9 @@ class EventTaskServiceTest {
     }
 
     @Test
-    void playerCanPickCategoryWhenSubmittingTask() {
+    void playerTaskStartsUnclassifiedEvenIfCategoryIdForged() {
         Player publisher = player(1L, "发布者", 1500, 0);
-        EventTaskCategory category = new EventTaskCategory();
-        category.setId(3L);
-        category.setName("日常任务");
-        category.setSortOrder(0);
-        category.setDeleted(0);
         when(playerMapper.selectById(1L)).thenReturn(publisher);
-        when(categoryMapper.selectById(3L)).thenReturn(category);
-        when(categoryMapper.selectBatchIds(any())).thenReturn(List.of(category));
         when(claimMapper.selectList(any())).thenReturn(List.of());
 
         EventTaskDtos.TaskWriteRequest request = new EventTaskDtos.TaskWriteRequest();
@@ -273,30 +268,14 @@ class EventTaskServiceTest {
         request.setRequirements("完成目标");
         request.setPReward(100);
         request.setBountyReward(0);
+        // 玩家端即使伪造 categoryId 也不生效：分类由管理员在审核发布时确定
         request.setCategoryId(3L);
         EventTaskDtos.TaskVO vo = service.create(1L, request);
 
-        assertEquals(3L, vo.getCategoryId());
-        assertEquals("日常任务", vo.getCategoryName());
+        assertNull(vo.getCategoryId());
         ArgumentCaptor<EventTask> saved = ArgumentCaptor.forClass(EventTask.class);
         verify(taskMapper).insert(saved.capture());
-        assertEquals(3L, saved.getValue().getCategoryId());
-    }
-
-    @Test
-    void playerTaskRejectsUnknownCategory() {
-        Player publisher = player(1L, "发布者", 1500, 0);
-        when(playerMapper.selectById(1L)).thenReturn(publisher);
-        when(categoryMapper.selectById(99L)).thenReturn(null);
-
-        EventTaskDtos.TaskWriteRequest request = new EventTaskDtos.TaskWriteRequest();
-        request.setTitle("新任务");
-        request.setRequirements("完成目标");
-        request.setPReward(100);
-        request.setBountyReward(0);
-        request.setCategoryId(99L);
-        assertThrows(BusinessException.class, () -> service.create(1L, request));
-        verify(taskMapper, never()).insert(any());
+        assertNull(saved.getValue().getCategoryId());
     }
 
     @Test
@@ -306,10 +285,11 @@ class EventTaskServiceTest {
         task.setAnonymousFeeRateSnapshot(10);
         task.setAnonymousFeeAmount(50);
         Player admin = player(9L, "管理员", 0, 0);
+        when(taskMapper.selectCount(any())).thenReturn(1L);
         when(taskMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(task));
 
-        EventTaskDtos.TaskVO publicTask = service.listPublic(null, null).get(0);
-        EventTaskDtos.TaskVO adminTask = service.listAdminTasks(null, admin).get(0);
+        EventTaskDtos.TaskVO publicTask = service.listPublic(null, null, 1, 20).getList().get(0);
+        EventTaskDtos.TaskVO adminTask = service.listAdminTasks(null, 1, 20, admin).getList().get(0);
 
         assertEquals("匿名发布者", publicTask.getPublisherName());
         assertNull(publicTask.getPublisherPlayerId());

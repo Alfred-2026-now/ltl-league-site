@@ -36,7 +36,7 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
     "officialCategorySelect"
   ]);
   const form = doc.elements.adminTaskEditForm;
-  form.elements = Object.fromEntries(["taskId", "title", "requirements", "pReward", "bountyReward", "maxClaimants", "maxRewardRecipients", "budgetNote", "repeatable"]
+  form.elements = Object.fromEntries(["taskId", "title", "requirements", "pReward", "bountyReward", "maxClaimants", "maxRewardRecipients", "budgetNote", "repeatable", "categoryId"]
     .map(name => [name, { value: "" }]));
   const task = {
     id: 10, season: "s2", status: "PUBLISHED", title: "原任务", requirements: "原要求",
@@ -46,8 +46,10 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
   };
   let claims = [
     { id: 88, taskId: 10, taskTitle: "原任务", taskSeason: "s2", playerId: 2, playerName: "甲",
+      taskStatus: "PUBLISHED", taskOfficial: false, taskPublisherName: "发布者", taskAnonymous: false,
       status: "CLAIMED", feeAmount: 50, pReward: 100, bountyReward: 20, claimedAt: "2026-09-20T12:00:00" },
     { id: 89, taskId: 10, taskTitle: "原任务", taskSeason: "s2", playerId: 3, playerName: "乙",
+      taskStatus: "PUBLISHED", taskOfficial: false, taskPublisherName: "发布者", taskAnonymous: false,
       status: "COMPLETED", feeAmount: 50, pReward: 100, bountyReward: 20, claimedAt: "2026-09-19T12:00:00" }
   ];
   const writes = [];
@@ -67,13 +69,25 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
       task.escrowRemaining = task.pReward * (task.maxRewardRecipients - task.completedCount);
       return response(task);
     }
-    if (url.endsWith("/admin/event-tasks")) return response([task]);
+    if (url.includes("/admin/event-tasks?")) {
+      const statuses = new URL(url, "https://example.test").searchParams.get("statuses") || "";
+      const list = statuses.includes("PUBLISHED") ? [task] : [];
+      return response({ list, total: list.length, page: 1, size: 20 });
+    }
     if (url.endsWith("/admin/event-task-categories")) return response([
       { id: 1, name: "官方任务", sortOrder: 0, publishedCount: 1, taskCount: 2, createdAt: "2026-11-03T23:23:20" }
     ]);
     if (url.endsWith("/admin/event-task-proofs/pending")) return response([]);
     if (url.endsWith("/event-tasks/settings")) return response({ anonymousMinimumFee: 50, anonymousFeeRate: 10 });
-    if (url.endsWith("/admin/event-task-claims")) return response(claims);
+    if (url.includes("/admin/event-task-claims?")) {
+      const params = new URL(url, "https://example.test").searchParams;
+      if ((params.get("statuses") || "").includes("COMPLETED")) {
+        return response({ list: [], total: 0, page: 1, size: 15 });
+      }
+      const status = params.get("status");
+      const list = status ? claims.filter(claim => claim.status === status) : claims;
+      return response({ list, total: list.length, page: 1, size: 15 });
+    }
     if (url.endsWith("/admin/event-task-claims/88/cancel")) {
       claims = [{ ...claims[0], status: "ADMIN_CANCELLED", adminCancelReason: "管理员调整" }, claims[1]];
       return response(claims[0]);
@@ -90,10 +104,11 @@ test("admin task page exposes edit, cancellation, and claim filters", async () =
   assert.match(doc.elements.claimHistoryList.innerHTML, /选手：甲/);
   assert.match(doc.elements.claimHistoryList.innerHTML, /data-cancel-claim="88"/);
   doc.elements.claimStatusFilter.value = "COMPLETED";
-  doc.elements.claimStatusFilter.listeners.change();
+  await doc.elements.claimStatusFilter.listeners.change();
   assert.doesNotMatch(doc.elements.claimHistoryList.innerHTML, /选手：甲/);
   assert.match(doc.elements.claimHistoryList.innerHTML, /选手：乙/);
   doc.elements.claimStatusFilter.value = "";
+  await doc.elements.claimStatusFilter.listeners.change();
 
   await doc.listeners.click({ target: { closest: selector => selector === "[data-edit-published]"
     ? { dataset: { editPublished: "10" } } : null } });
@@ -165,7 +180,7 @@ test("player task hall shows the administrator cancellation cooldown", async () 
   globalThis.fetch = async url => {
     if (url.endsWith("/auth/current")) return response({ id: 2, name: "甲" });
     if (url.endsWith("/event-tasks/settings")) return response({ anonymousMinimumFee: 50, anonymousFeeRate: 10 });
-    if (url.endsWith("/event-tasks")) return response([task]);
+    if (url.includes("/event-tasks?")) return response({ list: [task], total: 1, page: 1, size: 12 });
     return response([]);
   };
 
@@ -192,7 +207,7 @@ test("task hall allows claiming expanded slots without reserving reward places",
     if (options.method === "POST") writes.push(url);
     if (url.endsWith("/auth/current")) return response({ id: 2, name: "另一位选手" });
     if (url.endsWith("/event-tasks/settings")) return response({});
-    if (url.endsWith("/event-tasks")) return response([task]);
+    if (url.includes("/event-tasks?")) return response({ list: [task], total: 1, page: 1, size: 12 });
     return response({});
   };
 
@@ -232,9 +247,14 @@ test("admin publish sends separate claim and reward limits", async () => {
   globalThis.confirm = () => true;
   globalThis.fetch = async (url, options = {}) => {
     if (options.method === "POST") writes.push({ url, body: JSON.parse(options.body) });
-    if (url.endsWith("/admin/event-tasks")) return response([task]);
+    if (url.includes("/admin/event-tasks?")) {
+      const statuses = new URL(url, "https://example.test").searchParams.get("statuses") || "";
+      const list = statuses.includes("PENDING_REVIEW") ? [task] : [];
+      return response({ list, total: list.length, page: 1, size: 20 });
+    }
     if (url.endsWith("/event-tasks/settings")) return response({ anonymousMinimumFee: 50, anonymousFeeRate: 10 });
-    return response([]);
+    if (url.endsWith("/admin/event-task-categories")) return response([]);
+    return response({ list: [], total: 0, page: 1, size: 15 });
   };
 
   await import(`../src/admin/event-tasks.js?publish=${Date.now()}`);

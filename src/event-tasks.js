@@ -13,6 +13,9 @@ let cachedPublished = [];
 let categories = [];
 let activeCategoryId = "";
 let hallTasks = [];
+let hallPage = 1;
+let hallTotal = 0;
+const HALL_PAGE_SIZE = 12;
 let taskSettings = { anonymousMinimumFee: 50, anonymousFeeRate: 10, publicationFeeRate: 10, publicationFeeCap: 1000 };
 
 async function request(path, options = {}) {
@@ -131,17 +134,23 @@ function renderCategoryChips() {
 }
 
 function renderHallList() {
-  const filtered = activeCategoryId
-    ? hallTasks.filter(task => String(task.categoryId) === String(activeCategoryId))
-    : hallTasks;
-  els.content.innerHTML = `${renderCategoryChips()}${filtered.length
-    ? `<div class="task-list">${filtered.map(task => taskCard(task)).join("")}</div>`
+  const pages = Math.max(1, Math.ceil(hallTotal / HALL_PAGE_SIZE));
+  const pager = pages <= 1 ? "" : `<div style="display:flex;gap:.5rem;align-items:center;margin-top:.75rem;">
+      <button class="btn" data-hall-page="-1" ${hallPage <= 1 ? "disabled" : ""}>上一页</button>
+      <span class="muted">第 ${hallPage} / ${pages} 页 · 共 ${hallTotal} 条</span>
+      <button class="btn" data-hall-page="1" ${hallPage >= pages ? "disabled" : ""}>下一页</button>
+    </div>`;
+  els.content.innerHTML = `${renderCategoryChips()}${hallTasks.length
+    ? `<div class="task-list">${hallTasks.map(task => taskCard(task)).join("")}</div>${pager}`
     : `<div class="panel task-empty">${activeCategoryId ? "该分类下暂无进行中的任务。" : "当前暂无进行中的任务。"}</div>`}`;
 }
 
 async function renderHall() {
   categories = await request("/event-task-categories").catch(() => categories);
-  hallTasks = await request("/event-tasks");
+  const query = `?page=${hallPage}&size=${HALL_PAGE_SIZE}${activeCategoryId ? `&categoryId=${activeCategoryId}` : ""}`;
+  const data = await request(`/event-tasks${query}`);
+  hallTasks = data.list;
+  hallTotal = data.total;
   renderHallList();
 }
 
@@ -155,8 +164,8 @@ function publishForm() {
     <div class="task-form-grid">
       <label class="field"><span class="field-label">每位完成者P币奖励</span><input class="input" name="pReward" type="number" min="0" value="0" required /></label>
       <label class="field"><span class="field-label">每位完成者赏金积分</span><input class="input" name="bountyReward" type="number" min="0" value="0" required /></label>
-      <label class="field"><span class="field-label">任务分类（可选）</span><select class="input" name="categoryId"><option value="">由管理员归类</option>${categories.map(category => `<option value="${category.id}">${escapeHtml(category.name)}</option>`).join("")}</select></label>
     </div>
+    <p class="muted">任务分类由管理员在审核发布时确定。</p>
     <label class="task-anonymous-option">
       <input name="anonymous" type="checkbox" />
       <span><strong>匿名发布</strong><small>公开页面仅显示“匿名发布者”。管理员仍可查看实名。审核通过时额外收取 ${taskSettings.anonymousMinimumFee}P 与任务P币奖励总额的 ${taskSettings.anonymousFeeRate}% 中较高的一项（百分比费用向上取整），此费用不退。</small></span>
@@ -237,8 +246,7 @@ function taskPayload(form) {
     bountyReward: Number(data.get("bountyReward") || 0),
     budgetNote: String(data.get("budgetNote") || "").trim(),
     anonymous: data.get("anonymous") === "on",
-    repeatable: data.get("repeatable") === "on",
-    categoryId: data.get("categoryId") ? Number(data.get("categoryId")) : null
+    repeatable: data.get("repeatable") === "on"
   };
 }
 
@@ -246,7 +254,14 @@ document.addEventListener("click", async event => {
   const categoryChip = event.target.closest("[data-category-chip]");
   if (categoryChip) {
     activeCategoryId = categoryChip.dataset.categoryChip || "";
-    renderHallList();
+    hallPage = 1;
+    await renderHall();
+    return;
+  }
+  const hallPager = event.target.closest("[data-hall-page]");
+  if (hallPager) {
+    hallPage = Math.max(1, hallPage + Number(hallPager.dataset.hallPage));
+    await renderHall();
     return;
   }
   const tab = event.target.closest("[data-task-tab]");

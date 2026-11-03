@@ -20,7 +20,7 @@ public final class EventTaskDtos {
         private String budgetNote;
         private Boolean anonymous;
         private Boolean repeatable;
-        // 发布时可自选分类；null = 由管理员归类
+        // 仅供管理端使用（官方任务发布、编辑进行中任务）；玩家提交时不生效，分类在审核发布时确定
         private Long categoryId;
     }
 
@@ -95,6 +95,15 @@ public final class EventTaskDtos {
         private LocalDateTime createdAt;
     }
 
+    /** 通用分页结果 */
+    @Data
+    public static class PageVO<T> {
+        private List<T> list;
+        private Long total;
+        private Integer page;
+        private Integer size;
+    }
+
     @Data
     public static class AdminCancelClaimRequest {
         private String reason;
@@ -132,6 +141,11 @@ public final class EventTaskDtos {
         private String taskTitle;
         private String taskRequirements;
         private String taskSeason;
+        // 所属任务快照：管理端分页列表不再依赖整表任务数据
+        private String taskStatus;
+        private Boolean taskOfficial;
+        private String taskPublisherName;
+        private Boolean taskAnonymous;
         private String status;
         private Integer feeAmount;
         @JsonProperty("pReward")

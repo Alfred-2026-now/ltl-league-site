@@ -8,6 +8,7 @@ import com.ltl.league.service.EventTaskCategoryService;
 import com.ltl.league.service.EventTaskService;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -69,18 +70,38 @@ public class AdminEventTaskController {
     }
 
     @GetMapping("/event-tasks")
-    public Result<List<EventTaskDtos.TaskVO>> list(
+    public Result<EventTaskDtos.PageVO<EventTaskDtos.TaskVO>> list(
+            @RequestParam(required = false) List<String> statuses,
             @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
             @CookieValue(value = COOKIE_NAME, required = false) String token) {
         Player admin = currentPlayerService.requireAdmin(token);
-        return Result.success(taskService.listAdminTasks(status, admin));
+        return Result.success(taskService.listAdminTasks(mergeStatuses(statuses, status), page, size, admin));
     }
 
     @GetMapping("/event-task-claims")
-    public Result<List<EventTaskDtos.ClaimVO>> claimHistory(
+    public Result<EventTaskDtos.PageVO<EventTaskDtos.ClaimVO>> claimHistory(
+            @RequestParam(required = false) List<String> statuses,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long taskId,
+            @RequestParam(required = false) String taskTitle,
+            @RequestParam(required = false) String player,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "15") int size,
             @CookieValue(value = COOKIE_NAME, required = false) String token) {
         currentPlayerService.requireAdmin(token);
-        return Result.success(taskService.listAdminClaimHistory());
+        return Result.success(taskService.listAdminClaimHistory(page, size, mergeStatuses(statuses, status), taskId, taskTitle, player));
+    }
+
+    /** 支持 statuses=a,b 与 status=a 两种传参 */
+    private static List<String> mergeStatuses(List<String> statuses, String status) {
+        List<String> merged = new ArrayList<>(statuses == null ? List.of() : statuses);
+        if (status != null && !status.isBlank()) {
+            merged.add(status.trim());
+        }
+        merged.removeIf(String::isBlank);
+        return merged;
     }
 
     @GetMapping("/event-task-proofs/pending")
