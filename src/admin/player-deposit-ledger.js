@@ -327,7 +327,7 @@ function updateSalaryPreview() {
 
 // 分组发薪以选手当前最高身价为基数；全员发薪以当前身价为基数
 function salaryBaseValue(player, teamId) {
-  return teamId ? (player.maxValue ?? player.value ?? 0) : (player.value ?? 0);
+  return Math.max(0, teamId ? (player.maxValue ?? player.value ?? 0) : (player.value ?? 0));
 }
 
 function salaryEligiblePlayers() {

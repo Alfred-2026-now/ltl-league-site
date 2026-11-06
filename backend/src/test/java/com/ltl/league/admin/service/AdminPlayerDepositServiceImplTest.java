@@ -132,23 +132,24 @@ class AdminPlayerDepositServiceImplTest {
         Player adminCaptain = activePlayer(3L, 3, 3000, 300);
         Player adminOnly = activePlayer(4L, 1, 4000, 400);
         when(playerMapper.selectList(any(LambdaQueryWrapper.class)))
-                .thenReturn(List.of(member, captain, adminCaptain, adminOnly));
+                .thenReturn(List.of(member, captain, adminCaptain, adminOnly, activePlayer(5L, 0, -1000, 50)));
 
         SalaryRequest request = new SalaryRequest();
         request.setRate(10);
         service.paySalary(request);
 
         ArgumentCaptor<PlayerDepositLedger> ledgerCaptor = ArgumentCaptor.forClass(PlayerDepositLedger.class);
-        verify(depositLedgerMapper, times(2)).insert(ledgerCaptor.capture());
+        verify(depositLedgerMapper, times(3)).insert(ledgerCaptor.capture());
         List<PlayerDepositLedger> ledgers = ledgerCaptor.getAllValues();
-        assertEquals(2, ledgers.size());
+        assertEquals(3, ledgers.size());
+        assertTrue(ledgers.stream().anyMatch(l -> l.getPlayerId().equals(5L) && l.getAmount().equals(0) && l.getBalanceAfter().equals(50)));
         assertTrue(ledgers.stream().anyMatch(l -> l.getPlayerId().equals(1L) && l.getAmount().equals(100)));
         assertTrue(ledgers.stream().anyMatch(l -> l.getPlayerId().equals(4L) && l.getAmount().equals(400)));
         assertTrue(ledgers.stream().noneMatch(l -> l.getPlayerId().equals(2L)));
         assertTrue(ledgers.stream().noneMatch(l -> l.getPlayerId().equals(3L)));
 
         ArgumentCaptor<Player> playerCaptor = ArgumentCaptor.forClass(Player.class);
-        verify(playerMapper, times(2)).updateById(playerCaptor.capture());
+        verify(playerMapper, times(3)).updateById(playerCaptor.capture());
         List<Player> updated = playerCaptor.getAllValues();
         assertTrue(updated.stream().anyMatch(p -> p.getId().equals(1L) && p.getDeposit().equals(200)));
         assertTrue(updated.stream().anyMatch(p -> p.getId().equals(4L) && p.getDeposit().equals(800)));
@@ -176,6 +177,58 @@ class AdminPlayerDepositServiceImplTest {
         assertEquals(400, ex.getCode());
         verify(depositLedgerMapper, never()).insert(any());
         verify(playerMapper, never()).updateById(any());
+    }
+
+    @Test
+    void createAndEditPlayerRetainsNegativePositionMaximum() {
+        AdminPlayerDepositServiceImpl service = new AdminPlayerDepositServiceImpl(
+                playerMapper, depositLedgerMapper, teamMapper, ruleParameterService,
+                valuationChangeMapper, playerDecayService);
+        com.ltl.league.admin.dto.CreatePlayerRequest create = new com.ltl.league.admin.dto.CreatePlayerRequest();
+        create.setName("negative player");
+        create.setValue(-100);
+        Player player = service.createPlayer(create);
+        assertEquals(-100, player.getValue());
+        assertEquals(-100, player.getMaxValue());
+        assertEquals(-100, player.getTopValue());
+        player.setId(9L);
+        when(playerMapper.selectById(9L)).thenReturn(player);
+        UpdatePlayerRequest update = new UpdatePlayerRequest();
+        update.setTopValue(-20);
+        update.setJugValue(-200);
+        update.setMidValue(-300);
+        update.setBotValue(-400);
+        update.setSupValue(-500);
+        service.updatePlayer(9L, update);
+        assertEquals(-20, player.getMaxValue());
+        assertEquals(-20, player.getValue());
+        ArgumentCaptor<com.ltl.league.entity.ValuationChange> changes =
+                ArgumentCaptor.forClass(com.ltl.league.entity.ValuationChange.class);
+        verify(valuationChangeMapper, times(5)).insert(changes.capture());
+        assertTrue(changes.getAllValues().stream().allMatch(c -> c.getAfterValue() < 0));
+    }
+
+    @Test
+    void groupSalaryUsesNonnegativeMaximumValue() {
+        AdminPlayerDepositServiceImpl service = new AdminPlayerDepositServiceImpl(
+                playerMapper, depositLedgerMapper, teamMapper, ruleParameterService,
+                valuationChangeMapper, playerDecayService);
+        when(ruleParameterService.getInt("salary.min_rate")).thenReturn(1);
+        when(ruleParameterService.getInt("salary.max_rate")).thenReturn(100);
+        com.ltl.league.entity.Team team = new com.ltl.league.entity.Team();
+        team.setId(10L);
+        when(teamMapper.selectById(10L)).thenReturn(team);
+        Player negative = activePlayer(1L, 0, 1000, 50);
+        negative.setMaxValue(-100);
+        Player positive = activePlayer(2L, 0, -100, 50);
+        positive.setMaxValue(1000);
+        when(playerMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(negative, positive));
+        SalaryRequest request = new SalaryRequest();
+        request.setTeamId(10L);
+        request.setRate(10);
+        service.paySalary(request);
+        assertEquals(50, negative.getDeposit());
+        assertEquals(150, positive.getDeposit());
     }
 
     private static Player activePlayer(Long id, Integer role, Integer value, Integer deposit) {

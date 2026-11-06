@@ -114,9 +114,6 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
         if (request == null || request.getPlayerId() == null || request.getAfterValue() == null) {
             throw new BusinessException(400, "请选择选手并填写调整后身价");
         }
-        if (request.getAfterValue() < 0) {
-            throw new BusinessException(400, "调整后身价不能小于 0");
-        }
         if (request.getReason() == null || request.getReason().isBlank()) {
             throw new BusinessException(400, "请填写调整原因");
         }
@@ -154,7 +151,9 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
         activatePosition(player, position);
         // 该位置身价被改动 → 只重置该位置的衰减计时（其余位置照常衰减）
         playerDecayService.resetDecayClock(player, position, LocalDateTime.now(ZoneId.of("Asia/Shanghai")));
-        recalcMaxValueAndSync(player);
+        if (position != null && !position.isBlank()) {
+            recalcMaxValueAndSync(player);
+        }
         playerMapper.updateById(player);
 
         Team team = player.getTeamId() != null ? teamMapper.selectById(player.getTeamId()) : null;
@@ -406,7 +405,9 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
             player.setDecayAtFor(change.getPosition(), change.getBeforeNextDecayAt());
             player.setDecayCountFor(change.getPosition(),
                     change.getBeforeDecayCount() != null ? change.getBeforeDecayCount() : 0);
-            recalcMaxValueAndSync(player);
+            if (change.getPosition() != null && !change.getPosition().isBlank()) {
+                recalcMaxValueAndSync(player);
+            }
             playerMapper.updateById(player);
         }
     }
@@ -498,7 +499,7 @@ public class AdminEconomyServiceImpl implements AdminEconomyService {
 
             // 逐名计算再求和，与选手工资流水的整数取整方式完全一致。
             Integer deductAmount = players.stream()
-                    .mapToInt(p -> (p.getValue() != null ? p.getValue() : 0) * rate / 100)
+                    .mapToInt(p -> (int) ((long) Math.max(0, p.getValue() != null ? p.getValue() : 0) * rate / 100))
                     .sum();
 
             if (deductAmount <= 0) {

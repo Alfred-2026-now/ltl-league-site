@@ -117,8 +117,36 @@ class MatchSettlementCalculatorTest {
     }
 
     @Test
-    void calculateAfterValueRejectsNegativeResult() {
-        assertThrows(BusinessException.class, () -> calculator.calculateAfterValue(100, -80, -30));
+    void calculateAfterValueAllowsCrossingZeroAndRecovering() {
+        assertEquals(-10, calculator.calculateAfterValue(100, -80, -30));
+        assertEquals(-150, calculator.calculateAfterValue(-100, -80, 30));
+        assertEquals(0, calculator.calculateAfterValue(-100, 80, 20));
+        assertEquals(10, calculator.calculateAfterValue(-100, 80, 30));
+        assertThrows(BusinessException.class, () -> calculator.calculateAfterValue(Integer.MIN_VALUE, -1, 0));
+        assertThrows(BusinessException.class, () -> calculator.calculateAfterValue(Integer.MAX_VALUE, 1, 0));
+    }
+
+    @Test
+    void negativeValuesReduceWeightedLineupIncludingAdvantageDiscount() {
+        assertEquals(new BigDecimal("-250.00"), calculator.calculateWeightedLineValue(List.of(
+                new MatchSettlementCalculator.AppearanceValue(-1000, 1, List.of()),
+                new MatchSettlementCalculator.AppearanceValue(500, 1, List.of())), 2, 2));
+        assertEquals(new BigDecimal("-500.00"), calculator.calculateWeightedLineValue(List.of(
+                new MatchSettlementCalculator.AppearanceValue(500, 2, List.of(2000))), 2, 2));
+        assertEquals(0, calculator.calculateLuxuryTax(-1000, -2000, "BO2").tax());
+        assertEquals(336, calculator.calculateLuxuryTax(-1000, -500, "BO2").tax());
+    }
+
+    @Test
+    void nonPositiveLoanValuesHaveNoFeesOrIncome() {
+        for (int value : List.of(-1000, 0)) {
+            for (String format : List.of("BO2", "BO3")) {
+                for (String source : List.of("original_team", "free_agent")) {
+                    assertEquals(new MatchSettlementCalculator.LoanFeeResult(0, 0, 0, 0),
+                            calculator.calculateLoanFee(value, format, source));
+                }
+            }
+        }
     }
 
     @Test

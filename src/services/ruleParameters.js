@@ -52,6 +52,7 @@ function renderLoanRule(params) {
     <ul class="rule-list">
       <li>租借必须由租借队伍、原队伍和选手本人三方同意。</li>
       <li>周内BO2租借费为选手身价${percent(getRuleParameter(params, "loan.bo2.rate"))}；周末BO3租借费为选手身价${percent(getRuleParameter(params, "loan.bo3.rate"))}。</li>
+      <li>身价允许为负数；租借费以身价与 0P 中的较大值为基数计算。</li>
       <li>若租借选手出任不同位置，由双方队长议定等效身价，并报联盟批准。</li>
       <li>非自由人租借费分配：${percent(getRuleParameter(params, "loan.player_share"))}进入选手个人账户，${percent(getRuleParameter(params, "loan.original_team_share"))}归原队伍，剩余部分由联盟回收；自由人租借时${percent(getRuleParameter(params, "loan.free_agent_league_share"))}由联盟回收。</li>
       <li>租借选手出场时，其身价计入租借队伍本场出场总身价L，并参与奢侈税计算。</li>
