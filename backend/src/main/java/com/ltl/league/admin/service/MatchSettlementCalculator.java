@@ -43,9 +43,6 @@ public class MatchSettlementCalculator {
         }
         BigDecimal weightedTotal = BigDecimal.ZERO;
         for (AppearanceValue appearance : appearances) {
-            if (appearance.playerValue() < 0) {
-                throw new BusinessException(400, "选手身价不能小于 0");
-            }
             if (appearance.gamesPlayed() <= 0 || appearance.gamesPlayed() > totalGames) {
                 throw new BusinessException(400, "选手出场局数必须在 1 到 " + totalGames + " 之间");
             }
@@ -64,9 +61,6 @@ public class MatchSettlementCalculator {
             BigDecimal foldedPlayerValue = BigDecimal.valueOf(appearance.playerValue())
                     .subtract(BigDecimal.valueOf(advantageTotal)
                             .divide(BigDecimal.valueOf(advantageGameLimit), 10, RoundingMode.HALF_UP));
-            if (foldedPlayerValue.signum() < 0) {
-                throw new BusinessException(400, "身价差优势折算后选手身价不能小于 0");
-            }
             weightedTotal = weightedTotal.add(
                     foldedPlayerValue
                             .multiply(BigDecimal.valueOf(appearance.gamesPlayed())));
@@ -81,7 +75,7 @@ public class MatchSettlementCalculator {
         double rate = "BO3".equalsIgnoreCase(format)
                 ? ruleParameterService.getDecimal("loan.bo3.rate")
                 : ruleParameterService.getDecimal("loan.bo2.rate");
-        int fee = Math.toIntExact(Math.round(playerValue * rate));
+        int fee = Math.toIntExact(Math.round(Math.max(0, playerValue) * rate));
         boolean freeAgent = "free_agent".equalsIgnoreCase(sourceType) || "free".equalsIgnoreCase(sourceType);
         double sourceShare = freeAgent
                 ? ruleParameterService.getDecimal("loan.free_agent_source_share")
@@ -93,11 +87,11 @@ public class MatchSettlementCalculator {
     }
 
     public int calculateAfterValue(int beforeValue, int objectiveDelta, int subjectiveDelta) {
-        int afterValue = beforeValue + objectiveDelta + subjectiveDelta;
-        if (afterValue < 0) {
-            throw new BusinessException(400, "身价调整后不能小于 0");
+        long afterValue = (long) beforeValue + objectiveDelta + subjectiveDelta;
+        if (afterValue < Integer.MIN_VALUE || afterValue > Integer.MAX_VALUE) {
+            throw new BusinessException(400, "身价调整结果超出整数范围");
         }
-        return afterValue;
+        return (int) afterValue;
     }
 
     public String scoreKey(int homeScore, int awayScore) {

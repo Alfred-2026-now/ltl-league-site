@@ -160,8 +160,8 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
         if (request.getName() == null || request.getName().isBlank()) {
             throw new BusinessException(400, "选手名称不能为空");
         }
-        if (request.getValue() == null || request.getValue() < 0) {
-            throw new BusinessException(400, "选手身价不能为空且不能小于0");
+        if (request.getValue() == null) {
+            throw new BusinessException(400, "选手身价不能为空");
         }
         if (request.getStatus() == null) {
             request.setStatus(3); // 默认为自由人
@@ -563,7 +563,7 @@ public class AdminPlayerDepositServiceImpl implements AdminPlayerDepositService 
             Integer baseValue = teamId != null
                     ? (player.getMaxValue() != null ? player.getMaxValue() : player.getValue())
                     : player.getValue();
-            Integer salary = baseValue * rate / 100;
+            Integer salary = (int) ((long) Math.max(0, baseValue != null ? baseValue : 0) * rate / 100);
 
             // 创建流水记录，使用reason字段存储批次ID
             PlayerDepositLedger ledger = new PlayerDepositLedger();

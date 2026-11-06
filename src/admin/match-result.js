@@ -413,7 +413,7 @@ function syncAdvantageTierState(row) {
   const rawValue = Number(row.dataset.playerValue || 0);
   const foldedValue = rawValue - selected.reduce((sum, tier) => sum + tier, 0) / advantageGameLimit;
   summary.textContent = `已选 ${selected.length} / ${advantageGameLimit} 项 · 本场折算身价 ${formatLineValue(foldedValue)}P`;
-  summary.style.color = selected.length > advantageGameLimit || foldedValue < 0 ? "#ff9f9f" : "";
+  summary.style.color = selected.length > advantageGameLimit ? "#ff9f9f" : "";
 }
 
 function syncAllAdvantageTierStates() {
@@ -575,7 +575,7 @@ function renderLoanInputs(rows = []) {
         <label class="field"><span class="field-label">使用队伍</span><select class="input loan-paying-team">${teamSelectOptions(row.payingTeamId, true)}</select></label>
         <label class="field"><span class="field-label">选手</span><select class="input loan-player">${playerSelectOptions(row.playerId)}</select></label>
         <label class="field"><span class="field-label">替换选手</span><select class="input loan-replaced-player">${replacedPlayerSelectOptions(row.payingTeamId, row.replacedPlayerId, row.playerId)}</select></label>
-        <label class="field"><span class="field-label">结算身价</span><input class="input loan-value" type="number" min="0" value="${row.playerValue ?? ""}" /></label>
+        <label class="field"><span class="field-label">结算身价</span><input class="input loan-value" type="number" value="${row.playerValue ?? ""}" /></label>
         <label class="field"><span class="field-label">来源</span><select class="input loan-source-type">
           <option value="original_team" ${row.sourceType !== "free_agent" ? "selected" : ""}>原队伍</option>
           <option value="free_agent" ${row.sourceType === "free_agent" ? "selected" : ""}>自由人</option>

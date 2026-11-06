@@ -78,7 +78,7 @@ export function calcLuxuryTax(teams, lineValue, format, params = DEFAULT_RULE_PA
 
 export function calcLoanFee(playerValue, format, playerType, params = DEFAULT_RULE_PARAMETERS) {
   const rate = format === "BO3" ? getRuleParameter(params, "loan.bo3.rate") : getRuleParameter(params, "loan.bo2.rate");
-  const fee = playerValue * rate;
+  const fee = Math.max(0, playerValue) * rate;
   const player = fee * getRuleParameter(params, "loan.player_share");
   const sourceTeam = playerType === "free"
     ? fee * getRuleParameter(params, "loan.free_agent_source_share")

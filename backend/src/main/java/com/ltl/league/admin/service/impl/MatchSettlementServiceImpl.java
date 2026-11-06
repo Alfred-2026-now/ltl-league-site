@@ -585,7 +585,7 @@ public class MatchSettlementServiceImpl implements MatchSettlementService {
     }
 
     private void requireLoanInput(LoanFeeInputDTO dto) {
-        if (dto.getPayingTeamId() == null || dto.getPlayerValue() == null || dto.getPlayerValue() < 0) {
+        if (dto.getPayingTeamId() == null || dto.getPlayerValue() == null) {
             throw new BusinessException(400, "租借费输入缺少使用队伍或结算身价");
         }
         String sourceType = blankToDefault(dto.getSourceType(), "original_team");

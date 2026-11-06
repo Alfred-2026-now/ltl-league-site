@@ -19,7 +19,7 @@ export function calculateWeightedLineValue(appearances, totalGames, advantageGam
   const weighted = (appearances || []).reduce((sum, appearance) => {
     const playerValue = Number(appearance?.playerValue);
     const gamesPlayed = Number(appearance?.gamesPlayed);
-    if (!Number.isFinite(playerValue) || playerValue < 0 || !Number.isFinite(gamesPlayed) || gamesPlayed <= 0) {
+    if (!Number.isFinite(playerValue) || !Number.isFinite(gamesPlayed) || gamesPlayed <= 0) {
       return sum;
     }
     const advantageTotal = (appearance?.advantageTiers || []).reduce((tierSum, tier) => {

@@ -81,7 +81,7 @@ class AdminEconomyServiceImplTest {
         Player adminCaptain = player(4L, 10L, 3, 6000);
         when(playerMapper.selectList(any(LambdaQueryWrapper.class)))
                 .thenReturn(
-                        List.of(member, adminMember, captain, adminCaptain),
+                        List.of(member, adminMember, captain, adminCaptain, player(6L, 10L, 0, -500)),
                         List.of(player(5L, 20L, 2, 7000)));
 
         service.deductAllTeamsSalary(10);
@@ -233,6 +233,58 @@ class AdminEconomyServiceImplTest {
 
         assertEquals(400, error.getCode());
         assertTrue(error.getMessage().contains("金额过大"));
+    }
+
+    @Test
+    void manualNegativePositionValueAndUndoRetainActualMaximum() {
+        AdminEconomyServiceImpl service = service();
+        Player player = new Player();
+        player.setId(7L);
+        player.setValue(100);
+        player.setTopValue(100);
+        player.setJugValue(-200);
+        player.setMidValue(-200);
+        player.setBotValue(-200);
+        player.setSupValue(-200);
+        when(playerMapper.selectById(7L)).thenReturn(player);
+        com.ltl.league.admin.dto.ManualValuationAdjustRequest request =
+                new com.ltl.league.admin.dto.ManualValuationAdjustRequest();
+        request.setPlayerId(7L);
+        request.setPosition("TOP");
+        request.setAfterValue(-100);
+        request.setReason("adjustment");
+        service.manualAdjustment(request);
+        assertEquals(-100, player.getTopValue());
+        assertEquals(-100, player.getValue());
+        assertEquals(-100, player.getMaxValue());
+        ArgumentCaptor<com.ltl.league.entity.ValuationChange> captor =
+                ArgumentCaptor.forClass(com.ltl.league.entity.ValuationChange.class);
+        verify(valuationChangeMapper).insert(captor.capture());
+        com.ltl.league.entity.ValuationChange change = captor.getValue();
+        assertEquals(100, change.getBeforeValue());
+        assertEquals(-100, change.getAfterValue());
+        when(valuationChangeMapper.selectById(1L)).thenReturn(change);
+        when(valuationChangeMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        service.voidValuationChange(1L, "undo");
+        assertEquals(100, player.getTopValue());
+        assertEquals(100, player.getValue());
+    }
+
+    @Test
+    void legacyTotalAdjustmentIsNotOverwrittenByPositionValues() {
+        AdminEconomyServiceImpl service = service();
+        Player player = new Player();
+        player.setId(7L);
+        player.setValue(100);
+        player.setTopValue(100);
+        when(playerMapper.selectById(7L)).thenReturn(player);
+        com.ltl.league.admin.dto.ManualValuationAdjustRequest request =
+                new com.ltl.league.admin.dto.ManualValuationAdjustRequest();
+        request.setPlayerId(7L);
+        request.setAfterValue(-100);
+        request.setReason("adjustment");
+        service.manualAdjustment(request);
+        assertEquals(-100, player.getValue());
     }
 
     private AdminEconomyServiceImpl service() {
