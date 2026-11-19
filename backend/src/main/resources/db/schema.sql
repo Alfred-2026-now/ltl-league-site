@@ -41,8 +41,9 @@ CREATE TABLE IF NOT EXISTS `players` (
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除标记',
+  `active_name_key` TINYINT GENERATED ALWAYS AS (CASE WHEN `deleted` = 0 THEN 1 ELSE NULL END) VIRTUAL COMMENT '仅未删除选手参与全站名称唯一校验',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_team_name` (`team_id`, `name`),
+  UNIQUE KEY `uk_active_player_name` (`name`, `active_name_key`),
   KEY `idx_team_id` (`team_id`),
   KEY `idx_status` (`status`),
   CONSTRAINT `fk_player_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`)
